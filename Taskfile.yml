@@ -1,0 +1,81 @@
+# https://taskfile.dev
+
+version: "3"
+
+vars:
+  JDK_IMAGE: openjdk:11-bullseye
+
+env:
+  DATA_DASHBOARD_COMMIT: c3ec34f
+  DATA_DASHBOARD_DIR: data-dashboard
+  MVD_COMMIT: 8141afc
+  MVD_DIR: mvd
+  MVD_UI_PATH: "{{.USER_WORKING_DIR}}/{{.DATA_DASHBOARD_DIR}}"
+
+tasks:
+  clean:
+    cmds:
+      - rm -fr {{.DATA_DASHBOARD_DIR}}
+      - rm -fr {{.MVD_DIR}}
+
+  clone-data-dashboard:
+    cmds:
+      - git clone git@github.com:eclipse-edc/DataDashboard.git {{.DATA_DASHBOARD_DIR}}
+      - cd {{.DATA_DASHBOARD_DIR}} && git reset --hard {{.DATA_DASHBOARD_COMMIT}}
+    status:
+      - test -d {{.DATA_DASHBOARD_DIR}}
+
+  clone-mvd:
+    cmds:
+      - git clone git@github.com:eclipse-edc/MinimumViableDataspace.git {{.MVD_DIR}}
+      - cd {{.MVD_DIR}} && git reset --hard {{.MVD_COMMIT}}
+    status:
+      - test -d {{.MVD_DIR}}
+
+  build-mvd:
+    deps:
+      - clone-mvd
+    cmds:
+      - >
+        docker run --rm -it 
+        -v {{.USER_WORKING_DIR}}/{{.MVD_DIR}}:/mvd 
+        {{.JDK_IMAGE}} 
+        /bin/bash -c "cd /mvd && ./gradlew build -x test"
+    status:
+      - ls {{.USER_WORKING_DIR}}/{{.MVD_DIR}}/build/libs/*.jar
+
+  build-mvd-connector:
+    deps:
+      - clone-mvd
+    vars:
+      BUILD_MARK: "{{.USER_WORKING_DIR}}/{{.MVD_DIR}}/.build-connector"
+    cmds:
+      - >
+        docker run --rm -it 
+        -v {{.USER_WORKING_DIR}}/{{.MVD_DIR}}:/mvd 
+        {{.JDK_IMAGE}} 
+        /bin/bash -c "cd /mvd && ./gradlew -DuseFsVault="true" :launchers:connector:shadowJar"
+      - touch {{.BUILD_MARK}}
+    status:
+      - test -f {{.BUILD_MARK}}
+
+  build-mvd-reg-svc:
+    deps:
+      - clone-mvd
+    vars:
+      BUILD_MARK: "{{.USER_WORKING_DIR}}/{{.MVD_DIR}}/.build-reg-svc"
+    cmds:
+      - >
+        docker run --rm -it 
+        -v {{.USER_WORKING_DIR}}/{{.MVD_DIR}}:/mvd 
+        {{.JDK_IMAGE}} 
+        /bin/bash -c "cd /mvd && ./gradlew -DuseFsVault="true" :launchers:registrationservice:shadowJar"
+      - touch {{.BUILD_MARK}}
+    status:
+      - test -f {{.BUILD_MARK}}
+
+  build-mvd-all:
+    cmds:
+      - task: build-mvd
+      - task: build-mvd-connector
+      - task: build-mvd-reg-svc
