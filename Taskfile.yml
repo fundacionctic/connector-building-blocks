@@ -50,7 +50,7 @@ tasks:
     deps:
       - clone-mvd
     vars:
-      BUILD_MARK: "{{.USER_WORKING_DIR}}/{{.MVD_DIR}}/.build-connector"
+      BUILD_MARK: "{{.USER_WORKING_DIR}}/{{.MVD_DIR}}/.build-connector.log"
     cmds:
       - >
         docker run --rm -it 
@@ -65,7 +65,7 @@ tasks:
     deps:
       - clone-mvd
     vars:
-      BUILD_MARK: "{{.USER_WORKING_DIR}}/{{.MVD_DIR}}/.build-reg-svc"
+      BUILD_MARK: "{{.USER_WORKING_DIR}}/{{.MVD_DIR}}/.build-reg-svc.log"
     cmds:
       - >
         docker run --rm -it 
@@ -88,3 +88,25 @@ tasks:
       - clone-data-dashboard
     cmds:
       - docker compose --profile ui -f {{.MVD_DIR}}/system-tests/docker-compose.yml up -d --build
+    status:
+      - >
+        test $(docker compose --profile ui -f {{.MVD_DIR}}/system-tests/docker-compose.yml ps --all --format json | 
+        jq '.[] | select(.State == "exited")' | 
+        jq '.Name' | 
+        wc -l) -eq 1
+      - >
+        test $(docker compose --profile ui -f {{.MVD_DIR}}/system-tests/docker-compose.yml ps --all --format json | 
+        jq '.[] | select(.State == "running")' | 
+        jq '.Name' | 
+        wc -l) -gt 0
+
+  upload-test-doc:
+    deps:
+      - mvd-system-tests-up
+    cmds:
+      - >
+        docker run --rm -it --network host
+        -v {{.USER_WORKING_DIR}}/{{.MVD_DIR}}:/mvd 
+        -v {{.USER_WORKING_DIR}}/scripts:/scripts
+        mcr.microsoft.com/azure-cli:2.48.1 
+        /bin/bash /scripts/upload-test-doc.sh
