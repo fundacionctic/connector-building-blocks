@@ -8,12 +8,13 @@ repositories {
     mavenCentral()
 }
 
-val groupId: String by project
 val edcVersion: String by project
 
 dependencies {
     testImplementation("junit:junit:4.13.2")
-    implementation("$groupId:control-plane-core:$edcVersion")
+    implementation("org.eclipse.edc:control-plane-core:$edcVersion")
+    implementation("org.eclipse.edc:http:$edcVersion")
+    implementation(libs.jakarta.rsApi)
 }
 
 java {
@@ -29,5 +30,5 @@ application {
 tasks.withType<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar> {
     exclude("**/pom.properties", "**/pom.xm")
     mergeServiceFiles()
-    archiveFileName.set("basic-connector.jar")
+    archiveFileName.set("datacellar-connector.jar")
 }

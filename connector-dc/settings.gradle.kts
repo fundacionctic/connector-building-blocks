@@ -7,10 +7,43 @@
  * in the user manual at https://docs.gradle.org/8.1.1/userguide/multi_project_builds.html
  */
 
+rootProject.name = "connector-dc"
+include("app")
+
+// Copied from: https://github.com/eclipse-edc/Samples/blob/main/settings.gradle.kts
+pluginManagement {
+    repositories {
+        maven {
+            url = uri("https://oss.sonatype.org/content/repositories/snapshots/")
+        }
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
 plugins {
     // Apply the foojay-resolver plugin to allow automatic download of JDKs
     id("org.gradle.toolchains.foojay-resolver-convention") version "0.4.0"
 }
 
-rootProject.name = "connector-dc"
-include("app")
+// Copied from: https://github.com/eclipse-edc/Samples/blob/main/settings.gradle.kts
+dependencyResolutionManagement {
+    repositories {
+        maven {
+            url = uri("https://oss.sonatype.org/content/repositories/snapshots/")
+        }
+        mavenCentral()
+        mavenLocal()
+    }
+    versionCatalogs {
+        create("libs") {
+            from("org.eclipse.edc:edc-versions:0.0.1-milestone-8")
+            // this is not part of the published EDC Version Catalog, so we'll just "amend" it
+            library(
+                "dnsOverHttps",
+                "com.squareup.okhttp3",
+                "okhttp-dnsoverhttps",
+            ).versionRef("okhttp")
+        }
+    }
+}
