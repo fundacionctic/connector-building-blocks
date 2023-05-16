@@ -1,4 +1,4 @@
-package connector.dc;
+package datacellar.connector;
 
 import org.eclipse.edc.spi.monitor.Monitor;
 
