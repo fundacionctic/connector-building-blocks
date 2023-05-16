@@ -15,6 +15,8 @@ dependencies {
     implementation("org.eclipse.edc:control-plane-core:$edcVersion")
     implementation("org.eclipse.edc:http:$edcVersion")
     implementation(libs.jakarta.rsApi)
+    implementation("org.eclipse.edc:configuration-filesystem:$edcVersion")
+    implementation("org.eclipse.edc:management-api:$edcVersion")
 }
 
 java {

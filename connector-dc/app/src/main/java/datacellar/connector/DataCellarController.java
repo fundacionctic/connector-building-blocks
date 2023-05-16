@@ -13,15 +13,17 @@ import jakarta.ws.rs.core.MediaType;
 @Path("/")
 public class DataCellarController {
     private final Monitor monitor;
+    private final String logPrefix;
 
-    public DataCellarController(Monitor monitor) {
+    public DataCellarController(Monitor monitor, String logPrefix) {
         this.monitor = monitor;
+        this.logPrefix = logPrefix;
     }
 
     @GET
     @Path("health")
     public String checkHealth() {
-        monitor.info("Received a health request");
+        monitor.info(String.format("%s :: Received a health request", logPrefix));
         return "{\"response\":\"I'm alive!\"}";
     }
 }

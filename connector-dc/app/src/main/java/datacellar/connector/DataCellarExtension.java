@@ -9,8 +9,11 @@ public class DataCellarExtension implements ServiceExtension {
     @Inject
     WebService webService;
 
+    private static final String LOG_PREFIX_SETTING = "datacellar.connector.logprefix";
+
     @Override
     public void initialize(ServiceExtensionContext context) {
-        webService.registerResource(new DataCellarController(context.getMonitor()));
+        String logPrefix = context.getSetting(LOG_PREFIX_SETTING, "DataCellar");
+        webService.registerResource(new DataCellarController(context.getMonitor(), logPrefix));
     }
 }
