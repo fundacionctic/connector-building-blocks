@@ -37,4 +37,4 @@ dependencyResolutionManagement {
     }
 }
 
-include("app")
+include("transfer-json")

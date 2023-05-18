@@ -18,7 +18,7 @@ val actualVersion: String = (project.findProperty("version") ?: defaultVersion) 
 buildscript {
     dependencies {
         val edcGradlePluginsVersion: String by project
-        classpath("org.eclipse.edc.edc-build:org.eclipse.edc.edc-build.gradle.plugin:${edcGradlePluginsVersion}")
+        classpath("org.eclipse.edc.edc-build:org.eclipse.edc.edc-build.gradle.plugin:$edcGradlePluginsVersion")
     }
 }
 
@@ -30,7 +30,7 @@ allprojects {
         }
     }
 
-    apply(plugin = "${edcGroupId}.edc-build")
+    apply(plugin = "$edcGroupId.edc-build")
 
     // Configure which version of the annotation processor to use. Defaults to the same version as the plugin.
     configure<org.eclipse.edc.plugins.autodoc.AutodocExtension> {
