@@ -23,6 +23,7 @@ buildscript {
 }
 
 allprojects {
+    // Disable the default style enforcer from the edc-build plugin to avoid unnecessary noise.
     gradle.projectsEvaluated {
         tasks.withType<Checkstyle> {
             enabled = false
@@ -31,7 +32,7 @@ allprojects {
 
     apply(plugin = "${groupId}.edc-build")
 
-    // configure which version of the annotation processor to use. defaults to the same version as the plugin
+    // Configure which version of the annotation processor to use. Defaults to the same version as the plugin.
     configure<org.eclipse.edc.plugins.autodoc.AutodocExtension> {
         processorVersion.set(annotationProcessorVersion)
         outputDirectory.set(project.buildDir)
@@ -39,7 +40,7 @@ allprojects {
 
     configure<org.eclipse.edc.plugins.edcbuild.extensions.BuildExtension> {
         versions {
-            // override default dependency versions here
+            // Override default dependency versions here.
             projectVersion.set(actualVersion)
             metaModel.set(metaModelVersion)
         }
