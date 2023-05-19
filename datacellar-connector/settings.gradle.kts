@@ -38,3 +38,4 @@ dependencyResolutionManagement {
 }
 
 include("transfer-json")
+include("status-checker")
