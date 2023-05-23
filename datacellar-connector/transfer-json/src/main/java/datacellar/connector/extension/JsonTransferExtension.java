@@ -26,12 +26,33 @@ import org.eclipse.edc.spi.types.domain.DataAddress;
 import org.eclipse.edc.spi.types.domain.asset.Asset;
 import org.json.JSONObject;
 
+/**
+ * Extension that registers a {@link JsonTransferDataSourceFactory} and a
+ * {@link JsonTransferDataSinkFactory} with the
+ * {@link PipelineService}.
+ */
 public class JsonTransferExtension implements ServiceExtension {
 
+    /**
+     * The type of the data source and sink.
+     */
     public static final String JSON_TYPE = "jsonfile";
+
+    /**
+     * The name of the policy.
+     */
     public static final String USE_POLICY = "use-eu";
+
+    /**
+     * The asset ID.
+     */
     public static final String ASSET_ID = UUID.randomUUID().toString();
+
+    /**
+     * The contract definition ID.
+     */
     public static final String CONTRACT_DEFINITION_ID = UUID.randomUUID().toString();
+
     private static final String USE_ACTION_TYPE = "USE";
 
     @Inject

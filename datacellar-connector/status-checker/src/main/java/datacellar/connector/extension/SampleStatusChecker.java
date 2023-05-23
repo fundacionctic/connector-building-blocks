@@ -10,6 +10,9 @@ import org.eclipse.edc.connector.transfer.spi.types.StatusChecker;
 import org.eclipse.edc.connector.transfer.spi.types.TransferProcess;
 import org.eclipse.edc.spi.types.domain.DataAddress;
 
+/**
+ * Sample implementation of a {@link StatusChecker} that checks if a file exists.
+ */
 public class SampleStatusChecker implements StatusChecker {
     @Override
     public boolean isComplete(TransferProcess transferProcess, List<ProvisionedResource> resources) {

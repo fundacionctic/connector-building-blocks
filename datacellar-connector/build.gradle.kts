@@ -11,7 +11,7 @@ val javaVersion: String by project
 val edcGroupId: String by project
 val defaultVersion: String by project
 val annotationProcessorVersion: String by project
-val metaModelVersion: String by project
+val edcVersion: String by project
 
 val actualVersion: String = (project.findProperty("version") ?: defaultVersion) as String
 
@@ -42,7 +42,7 @@ allprojects {
         versions {
             // Override default dependency versions here.
             projectVersion.set(actualVersion)
-            metaModel.set(metaModelVersion)
+            metaModel.set(edcVersion)
         }
         javaLanguageVersion.set(JavaLanguageVersion.of(javaVersion))
         publish.set(false)
