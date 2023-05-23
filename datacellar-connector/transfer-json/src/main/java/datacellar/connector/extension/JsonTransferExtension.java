@@ -6,6 +6,7 @@ import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.UUID;
 
 import org.eclipse.edc.connector.contract.spi.offer.store.ContractDefinitionStore;
 import org.eclipse.edc.connector.contract.spi.types.offer.ContractDefinition;
@@ -45,7 +46,9 @@ public class JsonTransferExtension implements ServiceExtension {
     /**
      * The asset ID.
      */
-    public static final String ASSET_ID = "sample-asset-id";
+    public static final String ASSET_ID = String.format(
+            "asset-%s",
+            UUID.randomUUID().toString());
 
     /**
      * The contract definition ID.
