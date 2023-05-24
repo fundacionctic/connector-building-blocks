@@ -15,7 +15,7 @@ dependencies {
     implementation("$edcGroupId:auth-tokenbased:$edcVersion")
     implementation("$edcGroupId:management-api:$edcVersion")
     implementation("$edcGroupId:ids:$edcVersion")
-    implementation(project(":status-checker"))
+    implementation(project(":transfer-status-checker"))
 }
 
 application {
