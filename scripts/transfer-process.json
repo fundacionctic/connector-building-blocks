@@ -1,11 +1,11 @@
 {
     "edctype": "dataspaceconnector:datarequest",
     "protocol": "ids-multipart",
-    "assetId": "sample-asset-id",
-    "contractId": "1:d97d4ce1-eda7-4296-95d1-1afdab9447e1",
+    "assetId": null,
+    "contractId": null,
     "dataDestination": {
         "properties": {
-            "path": "/Users/agmangas/Desktop/edcpoc.json",
+            "path": null,
             "keyName": "keyName",
             "type": "jsonfile"
         }

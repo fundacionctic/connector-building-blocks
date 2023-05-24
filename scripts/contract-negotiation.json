@@ -3,15 +3,15 @@
     "connectorAddress": "http://localhost:8282/api/v1/ids/data",
     "protocol": "ids-multipart",
     "offer": {
-        "offerId": "1:3a75736e-001d-4364-8bd4-9888490edb58",
-        "assetId": "sample-asset-id",
+        "offerId": null,
+        "assetId": null,
         "policy": {
-            "uid": "956e172f-2de1-4501-8881-057a57fd0e69",
+            "uid": null,
             "permissions": [
                 {
                     "edctype": "dataspaceconnector:permission",
                     "uid": null,
-                    "target": "sample-asset-id",
+                    "target": null,
                     "action": {
                         "type": "USE",
                         "includedIn": null,
@@ -37,7 +37,7 @@
         "asset": {
             "properties": {
                 "ids:byteSize": null,
-                "asset:prop:id": "sample-asset-id",
+                "asset:prop:id": null,
                 "ids:fileName": null
             }
         }

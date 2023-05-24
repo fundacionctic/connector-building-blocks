@@ -53,7 +53,9 @@ public class JsonTransferExtension implements ServiceExtension {
     /**
      * The contract definition ID.
      */
-    public static final String CONTRACT_DEFINITION_ID = "1";
+    public static final String CONTRACT_DEFINITION_ID = String.format(
+            "contractdef-%s",
+            UUID.randomUUID().toString());
 
     private static final String USE_ACTION_TYPE = "USE";
 
