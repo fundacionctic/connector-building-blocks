@@ -41,3 +41,7 @@ include("transfer-json")
 include("status-checker")
 include("provider")
 include("consumer")
+
+include("http-pull-connector")
+include("http-pull-consumer-backend")
+include("http-pull-certs")
