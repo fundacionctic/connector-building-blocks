@@ -4,6 +4,6 @@ plugins {
 
 tasks.withType<Jar> {
     manifest {
-        attributes["Main-Class"] = "datacellar.connector.BackendService"
+        attributes["Main-Class"] = "datacellar.connector.ConsumerBackendService"
     }
 }
