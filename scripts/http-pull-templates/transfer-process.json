@@ -1,0 +1,10 @@
+{
+    "connectorId": null,
+    "connectorAddress": null,
+    "contractId": null,
+    "assetId": null,
+    "managedResources": "false",
+    "dataDestination": {
+        "type": "HttpProxy"
+    }
+}

@@ -1,0 +1,15 @@
+{
+    "edctype": "dataspaceconnector:dataplaneinstance",
+    "id": null,
+    "url": null,
+    "allowedSourceTypes": [
+        "HttpData"
+    ],
+    "allowedDestTypes": [
+        "HttpProxy",
+        "HttpData"
+    ],
+    "properties": {
+        "publicApiUrl": null
+    }
+}

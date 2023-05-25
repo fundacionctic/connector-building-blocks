@@ -20,7 +20,9 @@ _logger = logging.getLogger(__name__)
 
 
 def read_template(fname):
-    with open(os.path.join(os.path.dirname(__file__), fname)) as fh:
+    with open(
+        os.path.join(os.path.dirname(__file__), "transfer-templates", fname)
+    ) as fh:
         return json.loads(fh.read())
 
 

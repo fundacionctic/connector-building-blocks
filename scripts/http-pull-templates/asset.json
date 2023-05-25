@@ -1,0 +1,16 @@
+{
+    "asset": {
+        "properties": {
+            "asset:prop:id": null,
+            "asset:prop:name": null,
+            "asset:prop:contenttype": "application/json"
+        }
+    },
+    "dataAddress": {
+        "properties": {
+            "name": null,
+            "baseUrl": null,
+            "type": "HttpData"
+        }
+    }
+}

@@ -1,0 +1,24 @@
+{
+    "connectorId": "http-pull-provider",
+    "connectorAddress": null,
+    "protocol": "ids-multipart",
+    "offer": {
+        "offerId": null,
+        "assetId": null,
+        "policy": {
+            "uid": null,
+            "permissions": [
+                {
+                    "target": null,
+                    "action": {
+                        "type": "USE"
+                    },
+                    "edctype": "dataspaceconnector:permission"
+                }
+            ],
+            "@type": {
+                "@policytype": "set"
+            }
+        }
+    }
+}

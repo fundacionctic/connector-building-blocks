@@ -1,0 +1,18 @@
+{
+    "id": null,
+    "policy": {
+        "uid": null,
+        "permissions": [
+            {
+                "target": null,
+                "action": {
+                    "type": "USE"
+                },
+                "edctype": "dataspaceconnector:permission"
+            }
+        ],
+        "@type": {
+            "@policytype": "set"
+        }
+    }
+}
