@@ -43,5 +43,4 @@ include("transfer-provider")
 include("transfer-consumer")
 
 include("http-pull-connector")
-include("http-pull-consumer-backend")
 include("http-pull-certs")
