@@ -1,9 +1,12 @@
 import json
 import logging
+import os
 import pprint
 
 import coloredlogs
 import jwt
+from cryptography.hazmat.backends import default_backend
+from cryptography.x509 import load_pem_x509_certificate
 from fastapi import FastAPI
 from pydantic import BaseModel
 
@@ -22,13 +25,25 @@ class EndpointDataReference(BaseModel):
 
 
 def _decode_endpoint_data_ref(item: EndpointDataReference) -> dict:
-    ret = jwt.decode(item.authCode, options={"verify_signature": False})
+    current_dir = os.path.dirname(os.path.realpath(__file__))
+
+    public_key_path = os.getenv(
+        "JWT_PUBLIC_KEY", os.path.join(current_dir, "../datacellar-certs/cert.pem")
+    )
+
+    with open(public_key_path, "rb") as fh:
+        cert_str = fh.read()
+        cert_obj = load_pem_x509_certificate(cert_str, default_backend())
+        public_key = cert_obj.public_key()
+
+    decode_kwargs = {"key": public_key, "algorithms": ["RS256"]}
+
+    ret = jwt.decode(item.authCode, **decode_kwargs)
 
     ret["dad"] = json.loads(ret["dad"])
 
     ret["dad"]["properties"]["authCode"] = jwt.decode(
-        ret["dad"]["properties"]["authCode"],
-        options={"verify_signature": False},
+        ret["dad"]["properties"]["authCode"], **decode_kwargs
     )
 
     return ret
