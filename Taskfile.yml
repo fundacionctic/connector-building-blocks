@@ -3,7 +3,7 @@
 version: "3"
 
 vars:
-  JDK_IMAGE: openjdk:11-bullseye
+  JDK_IMAGE: openjdk:17-bullseye
 
 env:
   DATA_DASHBOARD_COMMIT: c3ec34f
@@ -11,6 +11,8 @@ env:
   MVD_COMMIT: 8141afc
   MVD_DIR: mvd
   MVD_UI_PATH: "{{.USER_WORKING_DIR}}/{{.DATA_DASHBOARD_DIR}}"
+  DC_CONNECTOR_DIR: datacellar-connector
+  DC_CERTS_DIR: datacellar-certs
 
 tasks:
   clean:
@@ -19,6 +21,7 @@ tasks:
         ignore_error: true
       - rm -fr {{.DATA_DASHBOARD_DIR}}
       - rm -fr {{.MVD_DIR}}
+      - rm -fr {{.DC_CERTS_DIR}}
 
   clone-data-dashboard:
     cmds:
@@ -110,3 +113,26 @@ tasks:
         -v {{.USER_WORKING_DIR}}/scripts:/scripts
         mcr.microsoft.com/azure-cli:2.48.1 
         /bin/bash /scripts/upload-test-doc.sh
+
+  build-datacellar-connector:
+    cmds:
+      - >
+        docker run --rm -it 
+        -v {{.USER_WORKING_DIR}}/{{.DC_CONNECTOR_DIR}}:/conn 
+        {{.JDK_IMAGE}} 
+        /bin/bash -c "cd /conn && ./gradlew clean build"
+
+  create-datacellar-certs:
+    vars:
+      KEY_ALIAS: "datacellar"
+      KEY_PASSW: "datacellar"
+    cmds:
+      - mkdir -p {{.USER_WORKING_DIR}}/{{.DC_CERTS_DIR}}
+      - >
+        docker run --rm -it 
+        -v {{.USER_WORKING_DIR}}/{{.DC_CERTS_DIR}}:/out 
+        -v {{.USER_WORKING_DIR}}/scripts:/scripts 
+        debian:bullseye 
+        /bin/bash -c "OUT_DIR=/out KEY_ALIAS={{.KEY_ALIAS}} KEY_PASSW={{.KEY_PASSW}} /scripts/create-certs.sh"
+    status:
+      - test -f {{.USER_WORKING_DIR}}/{{.DC_CERTS_DIR}}/*.pfx
