@@ -5,6 +5,7 @@ import pprint
 
 import coloredlogs
 import jwt
+import requests
 from cryptography.hazmat.backends import default_backend
 from cryptography.x509 import load_pem_x509_certificate
 from fastapi import FastAPI
@@ -51,7 +52,7 @@ def _decode_endpoint_data_ref(item: EndpointDataReference) -> dict:
 
 @app.post("/")
 async def root(item: EndpointDataReference):
-    _logger.info(
+    _logger.debug(
         "Received %s:\n%s",
         EndpointDataReference,
         pprint.pformat(item.dict()),
@@ -59,10 +60,20 @@ async def root(item: EndpointDataReference):
 
     decoded = _decode_endpoint_data_ref(item)
 
-    _logger.info(
+    _logger.debug(
         "Decoded %s:\n%s",
         EndpointDataReference,
         pprint.pformat(decoded),
+    )
+
+    _logger.info("Sending request to: %s", item.endpoint)
+
+    res = requests.get(item.endpoint, headers={item.authKey: item.authCode})
+
+    _logger.info(
+        "Response from %s:\n%s",
+        item.endpoint,
+        pprint.pformat(res.text),
     )
 
     return item
