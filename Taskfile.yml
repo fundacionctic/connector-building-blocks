@@ -16,6 +16,7 @@ env:
 
 tasks:
   clean:
+    desc: Performs cleanup by removing generated artifacts, including files, directories, and containers resulting from task execution
     cmds:
       - cmd: docker compose --profile ui -f {{.MVD_DIR}}/system-tests/docker-compose.yml down -v
         ignore_error: true
@@ -28,6 +29,7 @@ tasks:
         ignore_error: true
 
   clone-data-dashboard:
+    desc: Clones the eclipse-edc/DataDashboard repository
     cmds:
       - git clone git@github.com:eclipse-edc/DataDashboard.git {{.DATA_DASHBOARD_DIR}}
       - cd {{.DATA_DASHBOARD_DIR}} && git reset --hard {{.DATA_DASHBOARD_COMMIT}}
@@ -35,6 +37,7 @@ tasks:
       - test -d {{.DATA_DASHBOARD_DIR}}
 
   clone-mvd:
+    desc: Clones the eclipse-edc/MinimumViableDataspace repository
     cmds:
       - git clone git@github.com:eclipse-edc/MinimumViableDataspace.git {{.MVD_DIR}}
       - cd {{.MVD_DIR}} && git reset --hard {{.MVD_COMMIT}}
@@ -42,11 +45,13 @@ tasks:
       - test -d {{.MVD_DIR}}
 
   build-scripts-image:
+    desc: Builds the Docker image used to run helper scripts
     dir: scripts
     cmds:
       - docker build -t {{.SCRIPTS_IMAGE}} .
 
   build-mvd:
+    desc: Builds the MinimumViableDataspace project
     deps:
       - clone-mvd
     dir: "{{.MVD_DIR}}"
@@ -56,6 +61,7 @@ tasks:
       - ls {{.USER_WORKING_DIR}}/{{.MVD_DIR}}/build/libs/*.jar
 
   build-mvd-connector:
+    desc: Builds the MinimumViableDataspace connector
     deps:
       - clone-mvd
     vars:
@@ -68,6 +74,7 @@ tasks:
       - test -f {{.BUILD_MARK}}
 
   build-mvd-reg-svc:
+    desc: Builds the MinimumViableDataspace registration service
     deps:
       - clone-mvd
     vars:
@@ -80,12 +87,14 @@ tasks:
       - test -f {{.BUILD_MARK}}
 
   build-mvd-all:
+    desc: Builds all the artifacts of the MinimumViableDataspace
     cmds:
       - task: build-mvd
       - task: build-mvd-connector
       - task: build-mvd-reg-svc
 
   mvd-system-tests-up:
+    desc: Starts the Compose stack of the MinimumViableDataspace
     deps:
       - build-mvd-all
       - clone-data-dashboard
@@ -104,6 +113,7 @@ tasks:
         wc -l) -gt 0
 
   upload-test-doc:
+    desc: Uploads a test document to the MinimumViableDataspace
     deps:
       - mvd-system-tests-up
     cmds:
@@ -116,11 +126,13 @@ tasks:
         /bin/bash /scripts/upload-test-doc.sh
 
   build-datacellar-connector:
+    desc: Builds the Data Cellar connector
     dir: "{{.DC_CONNECTOR_DIR}}"
     cmds:
       - gradle clean build
 
   create-datacellar-certs:
+    desc: Creates the certificates used by the Data Cellar connector
     deps:
       - build-scripts-image
     vars:
@@ -137,6 +149,7 @@ tasks:
       - test -f {{.USER_WORKING_DIR}}/{{.DC_CERTS_DIR}}/*.pfx
 
   http-pull-sample-services-up:
+    desc: Starts the Compose stack of the HTTP Pull sample
     deps:
       - build-datacellar-connector
       - create-datacellar-certs
@@ -145,6 +158,7 @@ tasks:
       - sleep {{.HTTP_PULL_SERVICES_SLEEP}}
 
   run-http-pull-sample:
+    desc: Runs the HTTP Pull sample
     deps:
       - http-pull-sample-services-up
     cmds:
