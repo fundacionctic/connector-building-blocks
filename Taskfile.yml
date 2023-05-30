@@ -12,6 +12,7 @@ env:
   DC_CERTS_DIR: datacellar-certs
   HTTP_PULL_NETWORK: edc_http_pull
   SCRIPTS_IMAGE: edc-poc-scripts
+  HTTP_PULL_SERVICES_SLEEP: 5
 
 tasks:
   clean:
@@ -135,9 +136,22 @@ tasks:
     status:
       - test -f {{.USER_WORKING_DIR}}/{{.DC_CERTS_DIR}}/*.pfx
 
-  run-http-pull-sample-services:
+  http-pull-sample-services-up:
     deps:
       - build-datacellar-connector
       - create-datacellar-certs
     cmds:
-      - docker compose -f docker-compose-http-pull.yml up -d --build
+      - docker compose -f docker-compose-http-pull.yml up -d --build --wait
+      - sleep {{.HTTP_PULL_SERVICES_SLEEP}}
+
+  run-http-pull-sample:
+    deps:
+      - http-pull-sample-services-up
+    cmds:
+      - >
+        docker run --rm -it 
+        --network {{.HTTP_PULL_NETWORK}} 
+        -e PROVIDER_HOST=provider 
+        -e CONSUMER_HOST=consumer 
+        {{.SCRIPTS_IMAGE}} 
+        python run-http-pull-sample.py
