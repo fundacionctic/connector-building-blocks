@@ -8,17 +8,16 @@ import uuid
 import requests
 from deepmerge import Merger
 
-_PROVIDER_MANAGEMENT_URL = "http://localhost:19193/api/v1/data"
-_CONSUMER_MANAGEMENT_URL = "http://localhost:29193/api/v1/data"
+_PROVIDER_HOST = os.getenv("PROVIDER_HOST", "localhost")
+_CONSUMER_HOST = os.getenv("CONSUMER_HOST", "localhost")
 
-_PROVIDER_CONTROL_URL = "http://localhost:19192/control"
-_CONSUMER_CONTROL_URL = "http://localhost:29192/control"
-
-_PROVIDER_PUBLIC_URL = "http://localhost:19291/public"
-_CONSUMER_PUBLIC_URL = "http://localhost:29291/public"
-
-_PROVIDER_IDS_URL = "http://localhost:19194/api/v1/ids"
-
+_PROVIDER_MANAGEMENT_URL = f"http://{_PROVIDER_HOST}:19193/api/v1/data"
+_CONSUMER_MANAGEMENT_URL = f"http://{_CONSUMER_HOST}:29193/api/v1/data"
+_PROVIDER_CONTROL_URL = f"http://{_PROVIDER_HOST}:19192/control"
+_CONSUMER_CONTROL_URL = f"http://{_CONSUMER_HOST}:29192/control"
+_PROVIDER_PUBLIC_URL = f"http://{_PROVIDER_HOST}:19291/public"
+_CONSUMER_PUBLIC_URL = f"http://{_CONSUMER_HOST}:29291/public"
+_PROVIDER_IDS_URL = f"http://{_PROVIDER_HOST}:19194/api/v1/ids"
 _APPLICATION_JSON = "application/json"
 _DEFAULT_HEADERS = {"Content-Type": _APPLICATION_JSON}
 _CONNECTOR_ID = "http-pull-connector"

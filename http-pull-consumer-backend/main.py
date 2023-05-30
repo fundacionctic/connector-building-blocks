@@ -11,6 +11,13 @@ from cryptography.x509 import load_pem_x509_certificate
 from fastapi import FastAPI
 from pydantic import BaseModel
 
+_CERT_PATH = os.getenv(
+    "CERT_PATH",
+    os.path.join(
+        os.path.dirname(os.path.realpath(__file__)), "../datacellar-certs/cert.pem"
+    ),
+)
+
 coloredlogs.install(level=logging.DEBUG)
 _logger = logging.getLogger(__name__)
 
@@ -26,13 +33,7 @@ class EndpointDataReference(BaseModel):
 
 
 def _decode_endpoint_data_ref(item: EndpointDataReference) -> dict:
-    current_dir = os.path.dirname(os.path.realpath(__file__))
-
-    public_key_path = os.getenv(
-        "JWT_PUBLIC_KEY", os.path.join(current_dir, "../datacellar-certs/cert.pem")
-    )
-
-    with open(public_key_path, "rb") as fh:
+    with open(_CERT_PATH, "rb") as fh:
         cert_str = fh.read()
         cert_obj = load_pem_x509_certificate(cert_str, default_backend())
         public_key = cert_obj.public_key()

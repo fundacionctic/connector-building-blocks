@@ -7,8 +7,6 @@ set -x
 : "${KEY_ALIAS:?}"
 : "${KEY_PASSW:?}"
 
-apt-get update -y && apt-get install -y openssh-client openssl
-
 openssl req -x509 \
     -nodes \
     -newkey rsa:4096 \

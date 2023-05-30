@@ -10,6 +10,8 @@ env:
   MVD_UI_PATH: "{{.USER_WORKING_DIR}}/{{.DATA_DASHBOARD_DIR}}"
   DC_CONNECTOR_DIR: datacellar-connector
   DC_CERTS_DIR: datacellar-certs
+  HTTP_PULL_NETWORK: edc_http_pull
+  SCRIPTS_IMAGE: edc-poc-scripts
 
 tasks:
   clean:
@@ -21,6 +23,8 @@ tasks:
       - rm -fr {{.MVD_DIR}}
       - rm -fr {{.DC_CERTS_DIR}}
       - cd {{.DC_CONNECTOR_DIR}} && gradle clean
+      - cmd: docker rmi -f {{.SCRIPTS_IMAGE}}
+        ignore_error: true
 
   clone-data-dashboard:
     cmds:
@@ -35,6 +39,11 @@ tasks:
       - cd {{.MVD_DIR}} && git reset --hard {{.MVD_COMMIT}}
     status:
       - test -d {{.MVD_DIR}}
+
+  build-scripts-image:
+    dir: scripts
+    cmds:
+      - docker build -t {{.SCRIPTS_IMAGE}} .
 
   build-mvd:
     deps:
@@ -111,6 +120,8 @@ tasks:
       - gradle clean build
 
   create-datacellar-certs:
+    deps:
+      - build-scripts-image
     vars:
       KEY_ALIAS: "datacellar"
       KEY_PASSW: "datacellar"
@@ -119,9 +130,8 @@ tasks:
       - >
         docker run --rm -it 
         -v {{.USER_WORKING_DIR}}/{{.DC_CERTS_DIR}}:/out 
-        -v {{.USER_WORKING_DIR}}/scripts:/scripts 
-        debian:bullseye 
-        /bin/bash -c "OUT_DIR=/out KEY_ALIAS={{.KEY_ALIAS}} KEY_PASSW={{.KEY_PASSW}} /scripts/create-certs.sh"
+        {{.SCRIPTS_IMAGE}}
+        /bin/bash -c "OUT_DIR=/out KEY_ALIAS={{.KEY_ALIAS}} KEY_PASSW={{.KEY_PASSW}} ./create-certs.sh"
     status:
       - test -f {{.USER_WORKING_DIR}}/{{.DC_CERTS_DIR}}/*.pfx
 

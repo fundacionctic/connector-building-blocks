@@ -1,0 +1,66 @@
+services:
+  consumer:
+    image: openjdk:17-bullseye
+    container_name: http_pull_consumer
+    command:
+      [
+        "java",
+        "-Dedc.keystore=/certs/cert.pfx",
+        "-Dedc.keystore.password=datacellar",
+        "-Dedc.vault=/certs/vault.properties",
+        "-Dedc.fs.config=/connector/http-pull-connector/consumer/configuration.properties",
+        "-Dids.webhook.address=http://consumer:29194",
+        "-Dedc.receiver.http.endpoint=http://consumer_backend:8000",
+        "-jar",
+        "/connector/http-pull-connector/build/libs/pull-connector.jar",
+      ]
+    ports:
+      - "29194:29194"
+      - "29191:29191"
+      - "29193:29193"
+      - "29195:29195"
+      - "29291:29291"
+      - "29192:29192"
+    networks:
+      - http_pull_net
+    volumes:
+      - ./datacellar-connector:/connector
+      - ./datacellar-certs:/certs
+  provider:
+    image: openjdk:17-bullseye
+    container_name: http_pull_provider
+    command:
+      [
+        "java",
+        "-Dedc.keystore=/certs/cert.pfx",
+        "-Dedc.keystore.password=datacellar",
+        "-Dedc.vault=/certs/vault.properties",
+        "-Dedc.fs.config=/connector/http-pull-connector/provider/configuration.properties",
+        "-Dids.webhook.address=http://provider:19194",
+        "-jar",
+        "/connector/http-pull-connector/build/libs/pull-connector.jar",
+      ]
+    ports:
+      - "19194:19194"
+      - "19191:19191"
+      - "19193:19193"
+      - "19195:19195"
+      - "19291:19291"
+      - "19192:19192"
+    networks:
+      - http_pull_net
+    volumes:
+      - ./datacellar-connector:/connector
+      - ./datacellar-certs:/certs
+  consumer_backend:
+    build:
+      context: .
+      dockerfile: ./Dockerfile.http-pull-consumer-backend
+    container_name: http_pull_consumer_backend
+    ports:
+      - "8000:8000"
+    networks:
+      - http_pull_net
+networks:
+  http_pull_net:
+    name: ${HTTP_PULL_NETWORK:-edc_http_pull}
