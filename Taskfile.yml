@@ -2,9 +2,6 @@
 
 version: "3"
 
-vars:
-  JDK_IMAGE: openjdk:17-bullseye
-
 env:
   DATA_DASHBOARD_COMMIT: c3ec34f
   DATA_DASHBOARD_DIR: data-dashboard
@@ -19,9 +16,11 @@ tasks:
     cmds:
       - cmd: docker compose --profile ui -f {{.MVD_DIR}}/system-tests/docker-compose.yml down -v
         ignore_error: true
+      - docker compose -f docker-compose-http-pull.yml down -v
       - rm -fr {{.DATA_DASHBOARD_DIR}}
       - rm -fr {{.MVD_DIR}}
       - rm -fr {{.DC_CERTS_DIR}}
+      - cd {{.DC_CONNECTOR_DIR}} && gradle clean
 
   clone-data-dashboard:
     cmds:
@@ -40,12 +39,9 @@ tasks:
   build-mvd:
     deps:
       - clone-mvd
+    dir: "{{.MVD_DIR}}"
     cmds:
-      - >
-        docker run --rm -it 
-        -v {{.USER_WORKING_DIR}}/{{.MVD_DIR}}:/mvd 
-        {{.JDK_IMAGE}} 
-        /bin/bash -c "cd /mvd && ./gradlew build -x test"
+      - gradle build -x test
     status:
       - ls {{.USER_WORKING_DIR}}/{{.MVD_DIR}}/build/libs/*.jar
 
@@ -54,12 +50,9 @@ tasks:
       - clone-mvd
     vars:
       BUILD_MARK: "{{.USER_WORKING_DIR}}/{{.MVD_DIR}}/.build-connector.log"
+    dir: "{{.MVD_DIR}}"
     cmds:
-      - >
-        docker run --rm -it 
-        -v {{.USER_WORKING_DIR}}/{{.MVD_DIR}}:/mvd 
-        {{.JDK_IMAGE}} 
-        /bin/bash -c "cd /mvd && ./gradlew -DuseFsVault="true" :launchers:connector:shadowJar"
+      - gradle -DuseFsVault="true" :launchers:connector:shadowJar
       - touch {{.BUILD_MARK}}
     status:
       - test -f {{.BUILD_MARK}}
@@ -69,12 +62,9 @@ tasks:
       - clone-mvd
     vars:
       BUILD_MARK: "{{.USER_WORKING_DIR}}/{{.MVD_DIR}}/.build-reg-svc.log"
+    dir: "{{.MVD_DIR}}"
     cmds:
-      - >
-        docker run --rm -it 
-        -v {{.USER_WORKING_DIR}}/{{.MVD_DIR}}:/mvd 
-        {{.JDK_IMAGE}} 
-        /bin/bash -c "cd /mvd && ./gradlew -DuseFsVault="true" :launchers:registrationservice:shadowJar"
+      - gradle -DuseFsVault="true" :launchers:registrationservice:shadowJar
       - touch {{.BUILD_MARK}}
     status:
       - test -f {{.BUILD_MARK}}
@@ -108,19 +98,17 @@ tasks:
       - mvd-system-tests-up
     cmds:
       - >
-        docker run --rm -it --network host
+        docker run --rm -it 
+        --network host
         -v {{.USER_WORKING_DIR}}/{{.MVD_DIR}}:/mvd 
         -v {{.USER_WORKING_DIR}}/scripts:/scripts
         mcr.microsoft.com/azure-cli:2.48.1 
         /bin/bash /scripts/upload-test-doc.sh
 
   build-datacellar-connector:
+    dir: "{{.DC_CONNECTOR_DIR}}"
     cmds:
-      - >
-        docker run --rm -it 
-        -v {{.USER_WORKING_DIR}}/{{.DC_CONNECTOR_DIR}}:/conn 
-        {{.JDK_IMAGE}} 
-        /bin/bash -c "cd /conn && ./gradlew clean build"
+      - gradle clean build
 
   create-datacellar-certs:
     vars:
@@ -136,3 +124,10 @@ tasks:
         /bin/bash -c "OUT_DIR=/out KEY_ALIAS={{.KEY_ALIAS}} KEY_PASSW={{.KEY_PASSW}} /scripts/create-certs.sh"
     status:
       - test -f {{.USER_WORKING_DIR}}/{{.DC_CERTS_DIR}}/*.pfx
+
+  run-http-pull-sample-services:
+    deps:
+      - build-datacellar-connector
+      - create-datacellar-certs
+    cmds:
+      - docker compose -f docker-compose-http-pull.yml up -d --build
