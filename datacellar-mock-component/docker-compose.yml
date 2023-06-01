@@ -1,0 +1,30 @@
+services:
+  broker:
+    image: rabbitmq:3.11
+    container_name: mock_broker
+    restart: on-failure
+    ports:
+      - "5672:5672"
+  event_api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: datacellar-mock-api
+    container_name: mock_event_api
+    pull_policy: never
+    depends_on:
+      - broker
+    command: ["propan", "run", "event-api:app"]
+    restart: on-failure
+    environment:
+      RABBITMQ_URL: "amqp://guest:guest@broker:5672"
+  http_api:
+    image: datacellar-mock-api
+    container_name: mock_http_api
+    pull_policy: never
+    depends_on:
+      - event_api
+    command: ["uvicorn", "http-api:app", "--host", "0.0.0.0", "--port", "9090"]
+    restart: on-failure
+    ports:
+      - "9090:9090"
