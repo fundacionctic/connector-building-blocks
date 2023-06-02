@@ -15,7 +15,7 @@
     "info": {
         "title": "Data Cellar Mock Event-Driven API",
         "version": "1.0.0",
-        "description": "This is an example of a mock event-driven API\nthat illustrates how to integrate arbitrary components \ninto the Data Cellar Data Space.\n",
+        "description": "This is an example of a mock event-driven API that illustrates how to integrate arbitrary components into the Data Cellar Data Space.",
         "contact": {
             "name": "Andrés García Mangas",
             "url": "https://github.com/agmangas",
