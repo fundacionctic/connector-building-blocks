@@ -43,3 +43,5 @@ include("transfer-provider")
 include("transfer-consumer")
 
 include("http-pull-connector")
+
+include("datacellar-openapi-adapter")
