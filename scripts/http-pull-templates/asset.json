@@ -1,9 +1,12 @@
 {
+    "@context": {
+        "edc": "https://w3id.org/edc/v0.0.1/ns/"
+    },
     "asset": {
+        "@id": null,
         "properties": {
-            "asset:prop:id": null,
-            "asset:prop:name": null,
-            "asset:prop:contenttype": "application/json"
+            "name": null,
+            "contenttype": "application/json"
         }
     },
     "dataAddress": {

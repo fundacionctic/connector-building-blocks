@@ -4,48 +4,42 @@ plugins {
 
 repositories {
     mavenCentral()
-    gradlePluginPortal()
 }
 
-val javaVersion: String by project
-val edcGroupId: String by project
-val defaultVersion: String by project
-val annotationProcessorVersion: String by project
 val edcVersion: String by project
-
-val actualVersion: String = (project.findProperty("version") ?: defaultVersion) as String
+val edcGroupId: String by project
 
 buildscript {
     dependencies {
-        val edcGradlePluginsVersion: String by project
-        classpath("org.eclipse.edc.edc-build:org.eclipse.edc.edc-build.gradle.plugin:$edcGradlePluginsVersion")
+        val edcVersion: String by project
+        classpath("org.eclipse.edc.edc-build:org.eclipse.edc.edc-build.gradle.plugin:$edcVersion")
     }
 }
 
 allprojects {
-    // Disable the default style enforcer from the edc-build plugin to avoid unnecessary noise.
-    gradle.projectsEvaluated {
-        tasks.withType<Checkstyle> {
-            enabled = false
-        }
-    }
 
     apply(plugin = "$edcGroupId.edc-build")
 
-    // Configure which version of the annotation processor to use. Defaults to the same version as the plugin.
+    // configure which version of the annotation processor to use. defaults to the same version as the plugin
     configure<org.eclipse.edc.plugins.autodoc.AutodocExtension> {
-        processorVersion.set(annotationProcessorVersion)
+        processorVersion.set(edcVersion)
         outputDirectory.set(project.buildDir)
     }
 
     configure<org.eclipse.edc.plugins.edcbuild.extensions.BuildExtension> {
         versions {
-            // Override default dependency versions here.
-            projectVersion.set(actualVersion)
+            // override default dependency versions here
+            projectVersion.set(edcVersion)
             metaModel.set(edcVersion)
         }
-        javaLanguageVersion.set(JavaLanguageVersion.of(javaVersion))
         publish.set(false)
+    }
+
+    // Disable the default style enforcer from the edc-build plugin to avoid unnecessary noise.
+    gradle.projectsEvaluated {
+        tasks.withType<Checkstyle> {
+            enabled = false
+        }
     }
 
     // EdcRuntimeExtension uses this to determine the runtime classpath of the module to run.

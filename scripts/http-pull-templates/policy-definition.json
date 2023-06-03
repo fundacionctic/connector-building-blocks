@@ -1,18 +1,13 @@
 {
-    "id": null,
+    "@context": {
+        "edc": "https://w3id.org/edc/v0.0.1/ns/"
+    },
+    "@id": null,
     "policy": {
-        "uid": null,
-        "permissions": [
-            {
-                "target": null,
-                "action": {
-                    "type": "USE"
-                },
-                "edctype": "dataspaceconnector:permission"
-            }
-        ],
-        "@type": {
-            "@policytype": "set"
-        }
+        "@context": "http://www.w3.org/ns/odrl.jsonld",
+        "@type": "set",
+        "permission": [],
+        "prohibition": [],
+        "obligation": []
     }
 }

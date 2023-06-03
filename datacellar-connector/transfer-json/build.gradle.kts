@@ -7,17 +7,17 @@ val edcGroupId: String by project
 val edcVersion: String by project
 
 dependencies {
-    api("$edcGroupId:control-plane-spi:$edcVersion")
-    api("$edcGroupId:data-plane-spi:$edcVersion")
-    implementation("$edcGroupId:control-plane-core:$edcVersion")
-    implementation("$edcGroupId:data-plane-core:$edcVersion")
-    implementation("$edcGroupId:data-plane-util:$edcVersion")
-    implementation("$edcGroupId:data-plane-client:$edcVersion")
-    implementation("$edcGroupId:data-plane-selector-client:$edcVersion")
-    implementation("$edcGroupId:data-plane-selector-core:$edcVersion")
-    implementation("$edcGroupId:transfer-data-plane:$edcVersion")
-    implementation("org.json:json:20230227")
+    api(libs.edc.control.plane.spi)
+    api(libs.edc.data.plane.spi)
+    implementation(libs.edc.control.plane.core)
+    implementation(libs.edc.data.plane.core)
+    implementation(libs.edc.data.plane.util)
+    implementation(libs.edc.data.plane.client)
+    implementation(libs.edc.data.plane.selector.client)
+    implementation(libs.edc.data.plane.selector.core)
+    implementation(libs.edc.transfer.data.plane)
     implementation(libs.opentelemetry.annotations)
+    implementation(libs.json)
 }
 
 java {

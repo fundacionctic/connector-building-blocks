@@ -1,24 +1,24 @@
 {
-    "connectorId": "http-pull-provider",
+    "@context": {
+        "edc": "https://w3id.org/edc/v0.0.1/ns/"
+    },
+    "@type": "NegotiationInitiateRequestDto",
+    "connectorId": null,
     "connectorAddress": null,
-    "protocol": "ids-multipart",
+    "consumerId": "consumer",
+    "providerId": "provider",
+    "protocol": "dataspace-protocol-http",
     "offer": {
         "offerId": null,
         "assetId": null,
         "policy": {
-            "uid": null,
-            "permissions": [
-                {
-                    "target": null,
-                    "action": {
-                        "type": "USE"
-                    },
-                    "edctype": "dataspaceconnector:permission"
-                }
-            ],
-            "@type": {
-                "@policytype": "set"
-            }
+            "@context": "http://www.w3.org/ns/odrl.jsonld",
+            "@id": null,
+            "@type": "Set",
+            "permission": [],
+            "prohibition": [],
+            "obligation": [],
+            "target": null
         }
     }
 }

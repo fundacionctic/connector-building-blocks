@@ -9,7 +9,7 @@ services:
         "-Dedc.keystore.password=datacellar",
         "-Dedc.vault=/certs/vault.properties",
         "-Dedc.fs.config=/connector/http-pull-connector/consumer/configuration.properties",
-        "-Dids.webhook.address=http://consumer:29194",
+        "-Dedc.dsp.callback.address=http://consumer:29194/protocol",
         "-Dedc.receiver.http.endpoint=http://consumer_backend:8000",
         "-jar",
         "/connector/http-pull-connector/build/libs/pull-connector.jar",
@@ -36,7 +36,7 @@ services:
         "-Dedc.keystore.password=datacellar",
         "-Dedc.vault=/certs/vault.properties",
         "-Dedc.fs.config=/connector/http-pull-connector/provider/configuration.properties",
-        "-Dids.webhook.address=http://provider:19194",
+        "-Dedc.dsp.callback.address=http://provider:19194/protocol",
         "-jar",
         "/connector/http-pull-connector/build/libs/pull-connector.jar",
       ]

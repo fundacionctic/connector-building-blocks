@@ -15,22 +15,22 @@ val edcGroupId: String by project
 val edcVersion: String by project
 
 dependencies {
-    implementation("$edcGroupId:control-plane-core:$edcVersion")
-    implementation("$edcGroupId:ids:$edcVersion")
-    implementation("$edcGroupId:configuration-filesystem:$edcVersion")
-    implementation("$edcGroupId:vault-filesystem:$edcVersion")
-    implementation("$edcGroupId:iam-mock:$edcVersion")
-    implementation("$edcGroupId:management-api:$edcVersion")
-    implementation("$edcGroupId:transfer-data-plane:$edcVersion")
-    implementation("$edcGroupId:transfer-pull-http-receiver:$edcVersion")
+    implementation(libs.edc.control.plane.core)
+    implementation(libs.edc.dsp)
+    implementation(libs.edc.configuration.filesystem)
+    implementation(libs.edc.vault.filesystem)
+    implementation(libs.edc.iam.mock)
+    implementation(libs.edc.management.api)
+    implementation(libs.edc.transfer.data.plane)
+    implementation(libs.edc.transfer.pull.http.receiver)
 
-    implementation("$edcGroupId:data-plane-selector-api:$edcVersion")
-    implementation("$edcGroupId:data-plane-selector-core:$edcVersion")
-    implementation("$edcGroupId:data-plane-selector-client:$edcVersion")
+    implementation(libs.edc.data.plane.selector.api)
+    implementation(libs.edc.data.plane.selector.core)
+    implementation(libs.edc.data.plane.selector.client)
 
-    implementation("$edcGroupId:data-plane-api:$edcVersion")
-    implementation("$edcGroupId:data-plane-core:$edcVersion")
-    implementation("$edcGroupId:data-plane-http:$edcVersion")
+    implementation(libs.edc.data.plane.api)
+    implementation(libs.edc.data.plane.core)
+    implementation(libs.edc.data.plane.http)
 }
 
 application {

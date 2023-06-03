@@ -1,13 +1,14 @@
 package datacellar.connector.extension;
 
-import org.eclipse.edc.connector.dataplane.spi.pipeline.DataSource;
-import org.eclipse.edc.spi.EdcException;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.util.stream.Stream;
+
+import org.eclipse.edc.connector.dataplane.spi.pipeline.DataSource;
+import org.eclipse.edc.connector.dataplane.spi.pipeline.StreamResult;
+import org.eclipse.edc.spi.EdcException;
 
 class JsonTransferDataSource implements DataSource {
 
@@ -18,8 +19,8 @@ class JsonTransferDataSource implements DataSource {
     }
 
     @Override
-    public Stream<Part> openPartStream() {
-        return Stream.of(new Part() {
+    public StreamResult<Stream<Part>> openPartStream() {
+        var part = new Part() {
             @Override
             public String name() {
                 return file.getName();
@@ -33,6 +34,7 @@ class JsonTransferDataSource implements DataSource {
                     throw new EdcException(e);
                 }
             }
-        });
+        };
+        return StreamResult.success(Stream.of(part));
     }
 }

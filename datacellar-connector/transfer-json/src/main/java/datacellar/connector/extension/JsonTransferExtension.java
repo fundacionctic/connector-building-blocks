@@ -1,5 +1,7 @@
 package datacellar.connector.extension;
 
+import static org.eclipse.edc.spi.query.Criterion.criterion;
+
 import java.io.File;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
@@ -19,7 +21,6 @@ import org.eclipse.edc.policy.model.Permission;
 import org.eclipse.edc.policy.model.Policy;
 import org.eclipse.edc.runtime.metamodel.annotation.Inject;
 import org.eclipse.edc.spi.asset.AssetIndex;
-import org.eclipse.edc.spi.asset.AssetSelectorExpression;
 import org.eclipse.edc.spi.system.ServiceExtension;
 import org.eclipse.edc.spi.system.ServiceExtensionContext;
 import org.eclipse.edc.spi.types.domain.DataAddress;
@@ -85,7 +86,7 @@ public class JsonTransferExtension implements ServiceExtension {
         pipelineService.registerFactory(sinkFactory);
 
         var policy = createPolicy();
-        policyStore.save(policy);
+        policyStore.create(policy);
 
         try {
             registerDataEntries(context);
@@ -130,21 +131,15 @@ public class JsonTransferExtension implements ServiceExtension {
 
         var asset = Asset.Builder.newInstance().id(ASSET_ID).build();
 
-        assetIndex.accept(asset, dataAddress);
+        assetIndex.create(asset, dataAddress);
     }
 
-    @SuppressWarnings("deprecation")
     private void registerContractDefinition(String uid) {
-        long yearSeconds = 3600 * 24 * 365;
-
         var contractDefinition = ContractDefinition.Builder.newInstance()
                 .id(CONTRACT_DEFINITION_ID)
                 .accessPolicyId(uid)
                 .contractPolicyId(uid)
-                .selectorExpression(AssetSelectorExpression.Builder.newInstance()
-                        .whenEquals(Asset.PROPERTY_ID, ASSET_ID)
-                        .build())
-                .validity(yearSeconds)
+                .assetsSelectorCriterion(criterion(Asset.PROPERTY_ID, "=", ASSET_ID))
                 .build();
 
         contractStore.save(contractDefinition);

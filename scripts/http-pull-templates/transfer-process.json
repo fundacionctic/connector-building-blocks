@@ -1,10 +1,16 @@
 {
+    "@context": {
+        "edc": "https://w3id.org/edc/v0.0.1/ns/"
+    },
+    "@type": "TransferRequestDto",
     "connectorId": null,
     "connectorAddress": null,
     "contractId": null,
     "assetId": null,
-    "managedResources": "false",
+    "managedResources": false,
+    "protocol": "dataspace-protocol-http",
     "dataDestination": {
+        "@type": "DataAddress",
         "type": "HttpProxy"
     }
 }

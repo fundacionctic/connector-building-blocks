@@ -11,16 +11,18 @@ from deepmerge import Merger
 _PROVIDER_HOST = os.getenv("PROVIDER_HOST", "localhost")
 _CONSUMER_HOST = os.getenv("CONSUMER_HOST", "localhost")
 
-_PROVIDER_MANAGEMENT_URL = f"http://{_PROVIDER_HOST}:19193/api/v1/data"
-_CONSUMER_MANAGEMENT_URL = f"http://{_CONSUMER_HOST}:29193/api/v1/data"
+_PROVIDER_MANAGEMENT_URL = f"http://{_PROVIDER_HOST}:19193/management"
+_CONSUMER_MANAGEMENT_URL = f"http://{_CONSUMER_HOST}:29193/management"
 _PROVIDER_CONTROL_URL = f"http://{_PROVIDER_HOST}:19192/control"
 _CONSUMER_CONTROL_URL = f"http://{_CONSUMER_HOST}:29192/control"
 _PROVIDER_PUBLIC_URL = f"http://{_PROVIDER_HOST}:19291/public"
 _CONSUMER_PUBLIC_URL = f"http://{_CONSUMER_HOST}:29291/public"
-_PROVIDER_IDS_URL = f"http://{_PROVIDER_HOST}:19194/api/v1/ids"
+_PROVIDER_IDS_URL = f"http://{_PROVIDER_HOST}:19194/protocol"
 _APPLICATION_JSON = "application/json"
 _DEFAULT_HEADERS = {"Content-Type": _APPLICATION_JSON}
 _CONNECTOR_ID = "http-pull-connector"
+_PARTICIPANT_PROVIDER_ID = "provider"
+_PARTICIPANT_CONSUMER_ID = "consumer"
 
 _logger = logging.getLogger(__name__)
 
@@ -92,10 +94,10 @@ def create_asset(management_url):
         data,
         {
             "asset": {
+                "@id": asset_uid,
                 "properties": {
-                    "asset:prop:id": "asset-{}".format(asset_uid),
-                    "asset:prop:name": f"Name of asset {asset_uid}",
-                }
+                    "name": f"Name of asset {asset_uid}",
+                },
             },
             "dataAddress": {
                 "properties": {
@@ -106,7 +108,7 @@ def create_asset(management_url):
         },
     )
 
-    url = join_url(management_url, "assets")
+    url = join_url(management_url, "v2/assets")
     log_req("POST", url, data)
     response = requests.post(url, headers=_DEFAULT_HEADERS, json=data)
     resp_json = response.json()
@@ -118,29 +120,20 @@ def create_asset(management_url):
 def create_policy_definition(management_url, asset_id):
     data = read_template("policy-definition.json")
 
-    policy_id = "policy-{}".format(uuid.uuid4())
     policy_def_id = "policy-def-{}".format(uuid.uuid4())
 
     data = _list_override_merger.merge(
         data,
-        {
-            "id": policy_def_id,
-            "policy": {
-                "uid": policy_id,
-                "permissions": [
-                    {**data["policy"]["permissions"][0], **{"target": asset_id}}
-                ],
-            },
-        },
+        {"@id": policy_def_id},
     )
 
-    url = join_url(management_url, "policydefinitions")
+    url = join_url(management_url, "v2/policydefinitions")
     log_req("POST", url, data)
     response = requests.post(url, headers=_DEFAULT_HEADERS, json=data)
     resp_json = response.json()
     log_res("POST", url, resp_json)
 
-    return resp_json, policy_id
+    return resp_json
 
 
 def create_contract_definition(management_url, policy_def_id):
@@ -151,13 +144,13 @@ def create_contract_definition(management_url, policy_def_id):
     data = _list_override_merger.merge(
         data,
         {
-            "id": contract_def_id,
+            "@id": contract_def_id,
             "accessPolicyId": policy_def_id,
             "contractPolicyId": policy_def_id,
         },
     )
 
-    url = join_url(management_url, "contractdefinitions")
+    url = join_url(management_url, "v2/contractdefinitions")
     log_req("POST", url, data)
     response = requests.post(url, headers=_DEFAULT_HEADERS, json=data)
     resp_json = response.json()
@@ -167,8 +160,13 @@ def create_contract_definition(management_url, policy_def_id):
 
 
 def fetch_catalog(management_url, provider_ids_url):
-    data = {"providerUrl": join_url(provider_ids_url, "data")}
-    url = join_url(management_url, "catalog/request")
+    data = {
+        "@context": {"edc": "https://w3id.org/edc/v0.0.1/ns/"},
+        "providerUrl": provider_ids_url,
+        "protocol": "dataspace-protocol-http",
+    }
+
+    url = join_url(management_url, "v2/catalog/request")
     log_req("POST", url, data)
     response = requests.post(url, headers=_DEFAULT_HEADERS, json=data)
     resp_json = response.json()
@@ -178,7 +176,13 @@ def fetch_catalog(management_url, provider_ids_url):
 
 
 def create_contract_negotiation(
-    management_url, offer_id, asset_id, policy_id, connector_ids_url, connector_id
+    management_url,
+    offer_id,
+    asset_id,
+    connector_ids_url,
+    connector_id,
+    consumer_id,
+    provider_id,
 ):
     data = read_template("contract-negotiation.json")
 
@@ -186,24 +190,21 @@ def create_contract_negotiation(
         data,
         {
             "connectorId": connector_id,
-            "connectorAddress": join_url(connector_ids_url, "data"),
+            "connectorAddress": connector_ids_url,
+            "consumerId": consumer_id,
+            "providerId": provider_id,
             "offer": {
                 "offerId": offer_id,
                 "assetId": asset_id,
                 "policy": {
-                    "uid": policy_id,
-                    "permissions": [
-                        {
-                            **data["offer"]["policy"]["permissions"][0],
-                            **{"target": asset_id},
-                        },
-                    ],
+                    "@id": offer_id,
+                    "target": asset_id,
                 },
             },
         },
     )
 
-    url = join_url(management_url, "contractnegotiations")
+    url = join_url(management_url, "v2/contractnegotiations")
     log_req("POST", url, data)
     response = requests.post(url, headers=_DEFAULT_HEADERS, json=data)
     resp_json = response.json()
@@ -215,7 +216,7 @@ def create_contract_negotiation(
 def wait_for_contract_agreement_id(
     management_url, contract_negotiation_id, iter_sleep=1
 ):
-    url = join_url(management_url, f"contractnegotiations/{contract_negotiation_id}")
+    url = join_url(management_url, f"v2/contractnegotiations/{contract_negotiation_id}")
 
     while True:
         log_req("GET", url)
@@ -223,8 +224,11 @@ def wait_for_contract_agreement_id(
         resp_json = response.json()
         log_res("GET", url, resp_json)
 
-        if resp_json.get("contractAgreementId"):
-            return resp_json["contractAgreementId"]
+        agreement_id = resp_json.get("edc:contractAgreementId")
+        state = resp_json.get("edc:state")
+
+        if state in ["FINALIZED", "VERIFIED"] and agreement_id is not None:
+            return agreement_id
 
         _logger.debug("Waiting for contract agreement id")
         time.sleep(iter_sleep)
@@ -239,13 +243,13 @@ def create_transfer_process(
         data,
         {
             "connectorId": connector_id,
-            "connectorAddress": join_url(connector_ids_url, "data"),
+            "connectorAddress": connector_ids_url,
             "contractId": contract_agreement_id,
             "assetId": asset_id,
         },
     )
 
-    url = join_url(management_url, "transferprocess")
+    url = join_url(management_url, "v2/transferprocesses")
     log_req("POST", url, data)
     response = requests.post(url, headers=_DEFAULT_HEADERS, json=data)
     resp_json = response.json()
@@ -255,7 +259,7 @@ def create_transfer_process(
 
 
 def wait_for_transfer_process(management_url, transfer_process_id, iter_sleep=1):
-    url = join_url(management_url, f"transferprocess/{transfer_process_id}")
+    url = join_url(management_url, f"v2/transferprocesses/{transfer_process_id}")
 
     while True:
         log_req("GET", url)
@@ -263,11 +267,27 @@ def wait_for_transfer_process(management_url, transfer_process_id, iter_sleep=1)
         resp_json = response.json()
         log_res("GET", url, resp_json)
 
-        if resp_json.get("state") == "COMPLETED":
+        if resp_json.get("edc:state") == "COMPLETED":
             return resp_json
 
         _logger.debug("Waiting for transfer process")
         time.sleep(iter_sleep)
+
+
+def _get_contract_offer_id(catalog):
+    dataset = (
+        catalog["dcat:dataset"][0]
+        if isinstance(catalog["dcat:dataset"], list)
+        else catalog["dcat:dataset"]
+    )
+
+    policy = (
+        dataset["odrl:hasPolicy"][0]
+        if isinstance(dataset["odrl:hasPolicy"], list)
+        else dataset["odrl:hasPolicy"]
+    )
+
+    return policy["@id"]
 
 
 def main():
@@ -284,34 +304,35 @@ def main():
     )
 
     prov_asset = create_asset(management_url=_PROVIDER_MANAGEMENT_URL)
-    prov_asset_id = prov_asset["id"]
+    prov_asset_id = prov_asset["@id"]
 
-    prov_policy_def, prov_policy_id = create_policy_definition(
+    prov_policy_def = create_policy_definition(
         management_url=_PROVIDER_MANAGEMENT_URL, asset_id=prov_asset_id
     )
 
-    prov_policy_def_id = prov_policy_def["id"]
+    prov_policy_def_id = prov_policy_def["@id"]
 
     create_contract_definition(
         management_url=_PROVIDER_MANAGEMENT_URL, policy_def_id=prov_policy_def_id
     )
 
-    prov_catalog_from_cons = fetch_catalog(
+    provider_catalog = fetch_catalog(
         management_url=_CONSUMER_MANAGEMENT_URL, provider_ids_url=_PROVIDER_IDS_URL
     )
 
-    contract_offer_id = prov_catalog_from_cons["contractOffers"][0]["id"]
+    contract_offer_id = _get_contract_offer_id(catalog=provider_catalog)
 
     contract_negotiation = create_contract_negotiation(
         management_url=_CONSUMER_MANAGEMENT_URL,
         offer_id=contract_offer_id,
         asset_id=prov_asset_id,
-        policy_id=prov_policy_id,
         connector_ids_url=_PROVIDER_IDS_URL,
         connector_id=_CONNECTOR_ID,
+        consumer_id=_PARTICIPANT_CONSUMER_ID,
+        provider_id=_PARTICIPANT_PROVIDER_ID,
     )
 
-    contract_negotiation_id = contract_negotiation["id"]
+    contract_negotiation_id = contract_negotiation["@id"]
 
     contract_agreement_id = wait_for_contract_agreement_id(
         management_url=_CONSUMER_MANAGEMENT_URL,
@@ -326,7 +347,7 @@ def main():
         connector_id=_CONNECTOR_ID,
     )
 
-    transfer_process_id = transfer_process["id"]
+    transfer_process_id = transfer_process["@id"]
 
     wait_for_transfer_process(
         management_url=_CONSUMER_MANAGEMENT_URL, transfer_process_id=transfer_process_id
