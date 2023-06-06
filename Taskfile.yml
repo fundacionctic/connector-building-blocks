@@ -21,6 +21,7 @@ tasks:
       - cmd: docker compose --profile ui -f {{.MVD_DIR}}/system-tests/docker-compose.yml down -v
         ignore_error: true
       - docker compose -f docker-compose-http-pull.yml down -v
+      - docker compose -f docker-compose-datacellar.yml down -v
       - rm -fr {{.DATA_DASHBOARD_DIR}}
       - rm -fr {{.MVD_DIR}}
       - rm -fr {{.DC_CERTS_DIR}}
@@ -169,3 +170,11 @@ tasks:
         -e CONSUMER_HOST=consumer 
         {{.SCRIPTS_IMAGE}} 
         python run-http-pull-sample.py
+
+  datacellar-services-up:
+    deps:
+      - build-datacellar-connector
+      - create-datacellar-certs
+    cmds:
+      - docker compose -f docker-compose-datacellar.yml up -d --build --wait
+      - sleep {{.HTTP_PULL_SERVICES_SLEEP}}

@@ -9,6 +9,12 @@ repositories {
     maven {
         url = uri("https://maven.iais.fraunhofer.de/artifactory/eis-ids-public/")
     }
+    // Local JARs placed on ./libs that are built for development purposes.
+    // These can be added under the dependencies block like this: 
+    // api(files("libs/filename.jar"))
+    flatDir {
+        dirs("libs")
+    }
 }
 
 val edcGroupId: String by project
@@ -42,6 +48,6 @@ var distZip = tasks.getByName("distZip")
 tasks.withType<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar> {
     exclude("**/pom.properties", "**/pom.xm")
     mergeServiceFiles()
-    archiveFileName.set("datacellar-openapi-adapter.jar")
+    archiveFileName.set("datacellar-openapi-adapter-connector.jar")
     dependsOn(distTar, distZip)
 }

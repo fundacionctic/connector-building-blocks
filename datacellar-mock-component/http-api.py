@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import pprint
 import random
 from datetime import date, datetime
 from typing import List
@@ -11,6 +12,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 coloredlogs.install(level=logging.DEBUG)
+_logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Data Cellar Mock Component",
@@ -89,3 +91,11 @@ def get_asyncapi_schema():
     """Returns the AsyncAPI schema that describes the mock event-driven API."""
 
     return FileResponse("asyncapi.json")
+
+
+@app.post("/dummy")
+async def process_data(request_body: dict):
+    """Dummy endpoint that just logs the received data and returns a dummy response."""
+
+    _logger.info("Received POST data:\n%s", pprint.pformat(request_body))
+    return {"message": "OK"}

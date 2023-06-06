@@ -1,0 +1,79 @@
+services:
+  consumer:
+    image: openjdk:17-bullseye
+    container_name: datacellar_consumer
+    command:
+      [
+        "java",
+        "-Dedc.hostname=consumer",
+        "-Dedc.keystore=/certs/cert.pfx",
+        "-Dedc.keystore.password=datacellar",
+        "-Dedc.vault=/certs/vault.properties",
+        "-Dedc.fs.config=/connector/datacellar-openapi-adapter/consumer.properties",
+        "-Dedc.dsp.callback.address=http://consumer:29194/protocol",
+        "-Deu.datacellar.openapiurl=http://host.docker.internal:9090/openapi.json",
+        "-Dedc.receiver.http.endpoint=http://consumer_backend:8000",
+        "-jar",
+        "/connector/datacellar-openapi-adapter/build/libs/datacellar-openapi-adapter-connector.jar"
+      ]
+    ports:
+      - "29194:29194"
+      - "29191:29191"
+      - "29193:29193"
+      - "29195:29195"
+      - "29291:29291"
+      - "29192:29192"
+    networks:
+      - datacellar_net
+    volumes:
+      - ./datacellar-connector:/connector
+      - ./datacellar-certs:/certs
+  provider:
+    image: openjdk:17-bullseye
+    container_name: datacellar_provider
+    command:
+      [
+        "java",
+        "-Dedc.hostname=provider",
+        "-Dedc.keystore=/certs/cert.pfx",
+        "-Dedc.keystore.password=datacellar",
+        "-Dedc.vault=/certs/vault.properties",
+        "-Dedc.fs.config=/connector/datacellar-openapi-adapter/provider.properties",
+        "-Dedc.dsp.callback.address=http://provider:9194/protocol",
+        "-Deu.datacellar.openapiurl=http://host.docker.internal:9090/openapi.json",
+        "-jar",
+        "/connector/datacellar-openapi-adapter/build/libs/datacellar-openapi-adapter-connector.jar"
+      ]
+    ports:
+      - "9194:9194"
+      - "9191:9191"
+      - "9193:9193"
+      - "9195:9195"
+      - "9291:9291"
+      - "9192:9192"
+    networks:
+      - datacellar_net
+    volumes:
+      - ./datacellar-connector:/connector
+      - ./datacellar-certs:/certs
+  consumer_backend:
+    build:
+      context: .
+      dockerfile: ./Dockerfile.http-pull-consumer-backend
+    container_name: datacellar_consumer_backend
+    ports:
+      - "8000:8000"
+    networks:
+      - datacellar_net
+  sandbox:
+    build:
+      context: scripts
+    container_name: datacellar_sandbox
+    command: sleep infinity
+    networks:
+      - datacellar_net
+    volumes:
+      - ./scripts:/root/scripts
+networks:
+  datacellar_net:
+    name: ${DATACELLAR_NETWORK:-datacellar}
