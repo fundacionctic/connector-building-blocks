@@ -12,7 +12,7 @@ services:
         "-Dedc.dsp.callback.address=http://consumer:29194/protocol",
         "-Dedc.receiver.http.endpoint=http://consumer_backend:8000",
         "-jar",
-        "/connector/http-pull-connector/build/libs/pull-connector.jar",
+        "/connector/http-pull-connector/build/libs/pull-connector.jar"
       ]
     ports:
       - "29194:29194"
@@ -38,7 +38,7 @@ services:
         "-Dedc.fs.config=/connector/http-pull-connector/provider/configuration.properties",
         "-Dedc.dsp.callback.address=http://provider:19194/protocol",
         "-jar",
-        "/connector/http-pull-connector/build/libs/pull-connector.jar",
+        "/connector/http-pull-connector/build/libs/pull-connector.jar"
       ]
     ports:
       - "19194:19194"
@@ -54,9 +54,14 @@ services:
       - ./datacellar-certs:/certs
   consumer_backend:
     build:
-      context: .
-      dockerfile: ./Dockerfile.http-pull-consumer-backend
+      dockerfile: Dockerfile.edcpy
     container_name: http_pull_consumer_backend
+    command: [ "run-http-pull-backend" ]
+    volumes:
+      - ./datacellar-certs:/certs
+    environment:
+      CERT_PATH: /certs/cert.pem
+      PORT: 8000
     ports:
       - "8000:8000"
     networks:

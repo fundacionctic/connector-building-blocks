@@ -1,0 +1,11 @@
+FROM python:3.10-bullseye
+ENV VENV_PATH /root/venv
+ENV APP_PATH /app
+RUN python3 -m venv ${VENV_PATH}
+RUN ${VENV_PATH}/bin/pip install -U pip setuptools
+RUN ${VENV_PATH}/bin/pip install poetry
+WORKDIR ${APP_PATH}
+COPY . .
+WORKDIR ${APP_PATH}/edcpy
+RUN ${VENV_PATH}/bin/poetry build
+RUN pip install -U dist/*.whl

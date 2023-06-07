@@ -6,19 +6,12 @@ import pprint
 import coloredlogs
 import jwt
 import requests
+import uvicorn
 from cryptography.hazmat.backends import default_backend
 from cryptography.x509 import load_pem_x509_certificate
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-_CERT_PATH = os.getenv(
-    "CERT_PATH",
-    os.path.join(
-        os.path.dirname(os.path.realpath(__file__)), "../datacellar-certs/cert.pem"
-    ),
-)
-
-coloredlogs.install(level=logging.DEBUG)
 _logger = logging.getLogger(__name__)
 
 app = FastAPI()
@@ -33,7 +26,13 @@ class EndpointDataReference(BaseModel):
 
 
 def _decode_endpoint_data_ref(item: EndpointDataReference) -> dict:
-    with open(_CERT_PATH, "rb") as fh:
+    """Decode the authCode and authKey using the public key from the
+    certificate file specified by the CERT_PATH environment variable."""
+
+    cert_path = os.getenv("CERT_PATH")
+    assert cert_path, "CERT_PATH environment variable must be set"
+
+    with open(cert_path, "rb") as fh:
         cert_str = fh.read()
         cert_obj = load_pem_x509_certificate(cert_str, default_backend())
         public_key = cert_obj.public_key()
@@ -52,7 +51,10 @@ def _decode_endpoint_data_ref(item: EndpointDataReference) -> dict:
 
 
 @app.post("/")
-async def root(item: EndpointDataReference):
+async def listen_for_endpoint_data_references(item: EndpointDataReference):
+    """Listen for EndpointDataReference items and send requests to the
+    specified endpoint with the specified authKey and authCode."""
+
     _logger.debug(
         "Received %s:\n%s",
         EndpointDataReference,
@@ -78,3 +80,11 @@ async def root(item: EndpointDataReference):
     )
 
     return item
+
+
+def run_server():
+    """Run the server."""
+
+    coloredlogs.install(level=logging.DEBUG)
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="debug")

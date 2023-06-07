@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "edcpy"
+version = "0.1.0"
+description = "Package that provides a series of utilities to facilitate interaction with the Management and Control APIs of an EDC connector"
+authors = ["Andres Garcia Mangas <andres.garcia@fundacionctic.org>"]
+license = "EUPL-1.2"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+requests = "^2.31.0"
+coloredlogs = "^15.0.1"
+deepmerge = "^1.1.0"
+fastapi = { extras = ["all"], version = "^0.96.0" }
+pyjwt = "^2.7.0"
+cryptography = "^41.0.1"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.3.1"
+black = "^23.3.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+run-http-pull-sample = "edcpy.main:run_http_pull_sample"
+run-http-pull-backend = "edcpy.pull_backend:run_server"

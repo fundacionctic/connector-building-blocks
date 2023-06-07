@@ -12,6 +12,7 @@ env:
   DC_CERTS_DIR: datacellar-certs
   HTTP_PULL_NETWORK: edc_http_pull
   SCRIPTS_IMAGE: edc-poc-scripts
+  EDCPY_IMAGE: edcpy
   HTTP_PULL_SERVICES_SLEEP: 5
 
 tasks:
@@ -21,12 +22,14 @@ tasks:
       - cmd: docker compose --profile ui -f {{.MVD_DIR}}/system-tests/docker-compose.yml down -v
         ignore_error: true
       - docker compose -f docker-compose-http-pull.yml down -v
-      - docker compose -f docker-compose-datacellar.yml down -v
+      - docker compose -f docker-compose-http-push.yml down -v
       - rm -fr {{.DATA_DASHBOARD_DIR}}
       - rm -fr {{.MVD_DIR}}
       - rm -fr {{.DC_CERTS_DIR}}
       - cd {{.DC_CONNECTOR_DIR}} && gradle clean
       - cmd: docker rmi -f {{.SCRIPTS_IMAGE}}
+        ignore_error: true
+      - cmd: docker rmi -f {{.EDCPY_IMAGE}}
         ignore_error: true
 
   clone-data-dashboard:
@@ -149,6 +152,11 @@ tasks:
     status:
       - test -f {{.USER_WORKING_DIR}}/{{.DC_CERTS_DIR}}/*.pfx
 
+  build-edcpy-image:
+    desc: Builds the Docker image that contains the EDC Python SDK
+    cmds:
+      - docker build -t {{.EDCPY_IMAGE}} -f Dockerfile.edcpy .
+
   http-pull-sample-services-up:
     desc: Starts the Compose stack of the HTTP Pull sample
     deps:
@@ -161,20 +169,20 @@ tasks:
   run-http-pull-sample:
     desc: Runs the HTTP Pull sample
     deps:
+      - build-edcpy-image
       - http-pull-sample-services-up
     cmds:
       - >
         docker run --rm -it 
         --network {{.HTTP_PULL_NETWORK}} 
-        -e PROVIDER_HOST=provider 
-        -e CONSUMER_HOST=consumer 
-        {{.SCRIPTS_IMAGE}} 
-        python run-http-pull-sample.py
+        --env-file {{.USER_WORKING_DIR}}/.env.http-pull-sample
+        {{.EDCPY_IMAGE}} 
+        run-http-pull-sample
 
   datacellar-services-up:
     deps:
       - build-datacellar-connector
       - create-datacellar-certs
     cmds:
-      - docker compose -f docker-compose-datacellar.yml up -d --build --wait
+      - docker compose -f docker-compose-http-push.yml up -d --build --wait
       - sleep {{.HTTP_PULL_SERVICES_SLEEP}}
