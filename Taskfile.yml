@@ -7,7 +7,7 @@ env:
   DATA_DASHBOARD_DIR: data-dashboard
   MVD_COMMIT: 8141afc
   MVD_DIR: mvd
-  MVD_UI_PATH: "{{.USER_WORKING_DIR}}/{{.DATA_DASHBOARD_DIR}}"
+  MVD_UI_PATH: "{{.ROOT_DIR}}/{{.DATA_DASHBOARD_DIR}}"
   DC_CONNECTOR_DIR: datacellar-connector
   DC_CERTS_DIR: datacellar-certs
   HTTP_PULL_NETWORK: edc_http_pull
@@ -63,14 +63,14 @@ tasks:
     cmds:
       - gradle build -x test
     status:
-      - ls {{.USER_WORKING_DIR}}/{{.MVD_DIR}}/build/libs/*.jar
+      - ls {{.ROOT_DIR}}/{{.MVD_DIR}}/build/libs/*.jar
 
   build-mvd-connector:
     desc: Builds the MinimumViableDataspace connector
     deps:
       - clone-mvd
     vars:
-      BUILD_MARK: "{{.USER_WORKING_DIR}}/{{.MVD_DIR}}/.build-connector.log"
+      BUILD_MARK: "{{.ROOT_DIR}}/{{.MVD_DIR}}/.build-connector.log"
     dir: "{{.MVD_DIR}}"
     cmds:
       - gradle -DuseFsVault="true" :launchers:connector:shadowJar
@@ -83,7 +83,7 @@ tasks:
     deps:
       - clone-mvd
     vars:
-      BUILD_MARK: "{{.USER_WORKING_DIR}}/{{.MVD_DIR}}/.build-reg-svc.log"
+      BUILD_MARK: "{{.ROOT_DIR}}/{{.MVD_DIR}}/.build-reg-svc.log"
     dir: "{{.MVD_DIR}}"
     cmds:
       - gradle -DuseFsVault="true" :launchers:registrationservice:shadowJar
@@ -125,8 +125,8 @@ tasks:
       - >
         docker run --rm -it 
         --network host
-        -v {{.USER_WORKING_DIR}}/{{.MVD_DIR}}:/mvd 
-        -v {{.USER_WORKING_DIR}}/scripts:/scripts
+        -v {{.ROOT_DIR}}/{{.MVD_DIR}}:/mvd 
+        -v {{.ROOT_DIR}}/scripts:/scripts
         mcr.microsoft.com/azure-cli:2.48.1 
         /bin/bash /scripts/upload-test-doc.sh
 
@@ -144,14 +144,14 @@ tasks:
       KEY_ALIAS: "datacellar"
       KEY_PASSW: "datacellar"
     cmds:
-      - mkdir -p {{.USER_WORKING_DIR}}/{{.DC_CERTS_DIR}}
+      - mkdir -p {{.ROOT_DIR}}/{{.DC_CERTS_DIR}}
       - >
         docker run --rm -it 
-        -v {{.USER_WORKING_DIR}}/{{.DC_CERTS_DIR}}:/out 
+        -v {{.ROOT_DIR}}/{{.DC_CERTS_DIR}}:/out 
         {{.SCRIPTS_IMAGE}}
         /bin/bash -c "OUT_DIR=/out KEY_ALIAS={{.KEY_ALIAS}} KEY_PASSW={{.KEY_PASSW}} ./create-certs.sh"
     status:
-      - test -f {{.USER_WORKING_DIR}}/{{.DC_CERTS_DIR}}/*.pfx
+      - test -f {{.ROOT_DIR}}/{{.DC_CERTS_DIR}}/*.pfx
 
   build-edcpy-image:
     desc: Builds the Docker image that contains the EDC Python SDK
@@ -176,7 +176,7 @@ tasks:
       - >
         docker run --rm -it 
         --network {{.HTTP_PULL_NETWORK}} 
-        --env-file {{.USER_WORKING_DIR}}/.env.http-pull-sample
+        --env-file {{.ROOT_DIR}}/.env.http-pull-sample
         {{.EDCPY_IMAGE}} 
         run-http-pull-sample
 
@@ -198,6 +198,6 @@ tasks:
       - >
         docker run --rm -it 
         --network {{.HTTP_PUSH_NETWORK}} 
-        --env-file {{.USER_WORKING_DIR}}/.env.http-push-sample
+        --env-file {{.ROOT_DIR}}/.env.http-push-sample
         {{.EDCPY_IMAGE}} 
         run-http-push-sample
