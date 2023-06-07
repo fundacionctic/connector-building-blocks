@@ -13,7 +13,7 @@ env:
   HTTP_PULL_NETWORK: edc_http_pull
   SCRIPTS_IMAGE: edc-poc-scripts
   EDCPY_IMAGE: edcpy
-  HTTP_PULL_SERVICES_SLEEP: 5
+  SERVICES_SLEEP: 5
 
 tasks:
   clean:
@@ -164,7 +164,7 @@ tasks:
       - create-datacellar-certs
     cmds:
       - docker compose -f docker-compose-http-pull.yml up -d --build --wait
-      - sleep {{.HTTP_PULL_SERVICES_SLEEP}}
+      - sleep {{.SERVICES_SLEEP}}
 
   run-http-pull-sample:
     desc: Runs the HTTP Pull sample
@@ -185,4 +185,4 @@ tasks:
       - create-datacellar-certs
     cmds:
       - docker compose -f docker-compose-http-push.yml up -d --build --wait
-      - sleep {{.HTTP_PULL_SERVICES_SLEEP}}
+      - sleep {{.SERVICES_SLEEP}}

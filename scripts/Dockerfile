@@ -6,6 +6,4 @@ RUN apt-get update -y && apt-get install -y \
     iputils-ping
 
 WORKDIR /root
-COPY requirements.txt .
-RUN pip install -r requirements.txt
 COPY . .

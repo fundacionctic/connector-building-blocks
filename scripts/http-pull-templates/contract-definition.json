@@ -1,9 +1,0 @@
-{
-    "@context": {
-        "edc": "https://w3id.org/edc/v0.0.1/ns/"
-    },
-    "@id": null,
-    "accessPolicyId": null,
-    "contractPolicyId": null,
-    "assetsSelector": []
-}
