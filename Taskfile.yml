@@ -11,6 +11,7 @@ env:
   DC_CONNECTOR_DIR: datacellar-connector
   DC_CERTS_DIR: datacellar-certs
   HTTP_PULL_NETWORK: edc_http_pull
+  HTTP_PUSH_NETWORK: edc_http_push
   SCRIPTS_IMAGE: edc-poc-scripts
   EDCPY_IMAGE: edcpy
   SERVICES_SLEEP: 5
@@ -179,10 +180,24 @@ tasks:
         {{.EDCPY_IMAGE}} 
         run-http-pull-sample
 
-  datacellar-services-up:
+  http-push-sample-services-up:
+    desc: Starts the Compose stack of the HTTP Push sample
     deps:
       - build-datacellar-connector
       - create-datacellar-certs
     cmds:
       - docker compose -f docker-compose-http-push.yml up -d --build --wait
       - sleep {{.SERVICES_SLEEP}}
+
+  run-http-push-sample:
+    desc: Runs the HTTP Push sample
+    deps:
+      - build-edcpy-image
+      - http-push-sample-services-up
+    cmds:
+      - >
+        docker run --rm -it 
+        --network {{.HTTP_PUSH_NETWORK}} 
+        --env-file {{.USER_WORKING_DIR}}/.env.http-push-sample
+        {{.EDCPY_IMAGE}} 
+        run-http-push-sample

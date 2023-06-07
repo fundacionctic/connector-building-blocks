@@ -59,10 +59,14 @@ public class OpenapiAdapterExtension implements ServiceExtension {
 
     @Override
     public void initialize(ServiceExtensionContext context) {
+        Monitor monitor = context.getMonitor();
+
         var openapiUrl = context.getSetting(OPENAPI_URL, null);
 
         if (openapiUrl == null) {
-            throw new IllegalStateException(String.format("OpenAPI URL (property '%s') is not set", OPENAPI_URL));
+            monitor.warning("OpenAPI URL is not set");
+            // throw new IllegalStateException(String.format("OpenAPI URL (property '%s') is
+            // not set", OPENAPI_URL));
         }
 
         paramsProvider.registerSourceDecorator(
@@ -96,10 +100,6 @@ public class OpenapiAdapterExtension implements ServiceExtension {
                 .baseUrl("https://dummyjson.com")
                 .path("/carts")
                 .method("GET")
-                // .proxyBody("true")
-                // .proxyMethod("true")
-                // .proxyPath("true")
-                // .proxyQueryParams("true")
                 .contentType("application/json")
                 .build();
 
@@ -108,7 +108,6 @@ public class OpenapiAdapterExtension implements ServiceExtension {
 
         saveContractDefinition(policy.getUid(), assetId);
 
-        Monitor monitor = context.getMonitor();
         monitor.info(String.format("Initialized extension: %s", this.getClass().getName()));
     }
 

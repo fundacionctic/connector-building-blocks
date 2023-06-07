@@ -24,4 +24,5 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
 run-http-pull-sample = "edcpy.main:run_http_pull_sample"
-run-http-pull-backend = "edcpy.pull_backend:run_server"
+run-http-push-sample = "edcpy.main:run_http_push_sample"
+run-http-backend = "edcpy.backend:run_server"

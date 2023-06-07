@@ -82,6 +82,14 @@ async def listen_for_endpoint_data_references(item: EndpointDataReference):
     return item
 
 
+@app.post("/log")
+async def dummy_log(body: dict):
+    """Dummy endpoint for logging the request body."""
+
+    _logger.info("Received request with body:\n%s", pprint.pformat(body))
+    return {"ok": True}
+
+
 def run_server():
     """Run the server."""
 

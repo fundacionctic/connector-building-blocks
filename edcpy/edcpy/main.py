@@ -42,7 +42,7 @@ def run_http_pull_sample(
     source_path: str = "/users",
     source_method: str = "GET",
 ):
-    coloredlogs.install(level="DEBUG")
+    coloredlogs.install(level=logging.DEBUG)
 
     config = get_env_config()
     orchestrator = RequestOrchestrator(config=config)
@@ -86,6 +86,51 @@ def run_http_pull_sample(
 
     transfer_process = orchestrator.create_consumer_pull_transfer_process(
         contract_agreement_id=contract_agreement_id, asset_id=asset_id
+    )
+
+    transfer_process_id = transfer_process["@id"]
+    _logger.info(f"Transfer Process ID: {transfer_process_id}")
+
+    orchestrator.wait_for_transfer_process(transfer_process_id=transfer_process_id)
+
+
+def run_http_push_sample(
+    sink_base_url: str = "http://consumer_backend:8000",
+    sink_path: str = "/log",
+    sink_method: str = "POST",
+):
+    coloredlogs.install(level=logging.DEBUG)
+
+    config = get_env_config()
+    orchestrator = RequestOrchestrator(config=config)
+
+    _logger.debug("Configuration:\n%s", pprint.pformat(config.__dict__))
+
+    catalog = orchestrator.fetch_provider_catalog_from_consumer()
+
+    contract_offer_id = RequestOrchestrator.get_catalog_contract_offer_id(catalog)
+    _logger.info(f"Contract Offer ID: {contract_offer_id}")
+
+    asset_id = RequestOrchestrator.get_catalog_asset_id(catalog)
+    _logger.info(f"Asset ID: {asset_id}")
+
+    contract_negotiation = orchestrator.create_contract_negotiation_from_consumer(
+        offer_id=contract_offer_id, asset_id=asset_id
+    )
+
+    contract_negotiation_id = contract_negotiation["@id"]
+    _logger.info(f"Contract Negotiation ID: {contract_negotiation_id}")
+
+    contract_agreement_id = orchestrator.wait_for_consumer_contract_agreement_id(
+        contract_negotiation_id=contract_negotiation_id
+    )
+
+    transfer_process = orchestrator.create_provider_push_transfer_process(
+        contract_agreement_id=contract_agreement_id,
+        asset_id=asset_id,
+        sink_base_url=sink_base_url,
+        sink_path=sink_path,
+        sink_method=sink_method,
     )
 
     transfer_process_id = transfer_process["@id"]
