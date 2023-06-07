@@ -14,7 +14,6 @@ import org.eclipse.edc.connector.transfer.dataplane.spi.TransferDataPlaneConstan
 import org.eclipse.edc.policy.model.Policy;
 import org.eclipse.edc.runtime.metamodel.annotation.Extension;
 import org.eclipse.edc.runtime.metamodel.annotation.Inject;
-import org.eclipse.edc.runtime.metamodel.annotation.Setting;
 import org.eclipse.edc.spi.asset.AssetIndex;
 import org.eclipse.edc.spi.monitor.Monitor;
 import org.eclipse.edc.spi.system.ServiceExtension;
@@ -26,16 +25,13 @@ import org.eclipse.edc.spi.types.domain.asset.Asset;
  * An extension that acts as a thin layer between the Data Cellar data space
  * and an existing HTTP API in a private backend accessible by the connector.
  */
-@Extension(value = OpenapiAdapterExtension.NAME)
-public class OpenapiAdapterExtension implements ServiceExtension {
+@Extension(value = DataCellarPushSampleExtension.NAME)
+public class DataCellarPushSampleExtension implements ServiceExtension {
 
     /**
      * The name of the extension.
      */
-    public static final String NAME = "Data Cellar OpenAPI Adapter Extension";
-
-    @Setting
-    private static final String OPENAPI_URL = "eu.datacellar.openapiurl";
+    public static final String NAME = "Data Cellar HTTP Push Sample Connector";
 
     @Inject
     private HttpRequestParamsProvider paramsProvider;
@@ -61,14 +57,6 @@ public class OpenapiAdapterExtension implements ServiceExtension {
     public void initialize(ServiceExtensionContext context) {
         Monitor monitor = context.getMonitor();
 
-        var openapiUrl = context.getSetting(OPENAPI_URL, null);
-
-        if (openapiUrl == null) {
-            monitor.warning("OpenAPI URL is not set");
-            // throw new IllegalStateException(String.format("OpenAPI URL (property '%s') is
-            // not set", OPENAPI_URL));
-        }
-
         paramsProvider.registerSourceDecorator(
                 (request, address, builder) -> builder.header("X-Data-Cellar", "source"));
 
@@ -83,11 +71,11 @@ public class OpenapiAdapterExtension implements ServiceExtension {
 
         DataPlaneInstance dataPlaneInstance = DataPlaneInstance.Builder.newInstance()
                 .id(dataPlaneId)
-                .url(String.format("http://%s:9192/control/transfer", hostname))
+                .url(String.format("http://%s:19192/control/transfer", hostname))
                 .allowedSourceType(HttpDataAddress.HTTP_DATA)
                 .allowedDestType(HttpDataAddress.HTTP_DATA)
                 .allowedDestType(TransferDataPlaneConstants.HTTP_PROXY)
-                .property("publicApiUrl", String.format("http://%s:9291/public/", hostname))
+                .property("publicApiUrl", String.format("http://%s:19291/public/", hostname))
                 .build();
 
         dataPlaneStore.create(dataPlaneInstance);

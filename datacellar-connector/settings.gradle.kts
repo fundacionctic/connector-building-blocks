@@ -26,4 +26,4 @@ include("transfer-consumer")
 
 include("http-pull-connector")
 
-include("datacellar-openapi-adapter")
+include("datacellar-push-sample-connector")

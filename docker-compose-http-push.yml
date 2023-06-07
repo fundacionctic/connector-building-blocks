@@ -9,11 +9,11 @@ services:
         "-Dedc.keystore=/certs/cert.pfx",
         "-Dedc.keystore.password=datacellar",
         "-Dedc.vault=/certs/vault.properties",
-        "-Dedc.fs.config=/connector/datacellar-openapi-adapter/consumer.properties",
+        "-Dedc.fs.config=/connector/datacellar-push-sample-connector/consumer.properties",
         "-Dedc.dsp.callback.address=http://consumer:29194/protocol",
         "-Dedc.receiver.http.endpoint=http://consumer_backend:8000",
         "-jar",
-        "/connector/datacellar-openapi-adapter/build/libs/datacellar-openapi-adapter-connector.jar"
+        "/connector/datacellar-push-sample-connector/build/libs/datacellar-push-sample-connector.jar"
       ]
     ports:
       - "29194:29194"
@@ -37,10 +37,10 @@ services:
         "-Dedc.keystore=/certs/cert.pfx",
         "-Dedc.keystore.password=datacellar",
         "-Dedc.vault=/certs/vault.properties",
-        "-Dedc.fs.config=/connector/datacellar-openapi-adapter/provider.properties",
+        "-Dedc.fs.config=/connector/datacellar-push-sample-connector/provider.properties",
         "-Dedc.dsp.callback.address=http://provider:19194/protocol",
         "-jar",
-        "/connector/datacellar-openapi-adapter/build/libs/datacellar-openapi-adapter-connector.jar"
+        "/connector/datacellar-push-sample-connector/build/libs/datacellar-push-sample-connector.jar"
       ]
     ports:
       - "19194:19194"

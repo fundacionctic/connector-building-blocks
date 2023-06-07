@@ -48,6 +48,6 @@ var distZip = tasks.getByName("distZip")
 tasks.withType<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar> {
     exclude("**/pom.properties", "**/pom.xm")
     mergeServiceFiles()
-    archiveFileName.set("datacellar-openapi-adapter-connector.jar")
+    archiveFileName.set("datacellar-push-sample-connector.jar")
     dependsOn(distTar, distZip)
 }
