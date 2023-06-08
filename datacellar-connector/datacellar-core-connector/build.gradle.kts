@@ -30,6 +30,7 @@ dependencies {
     implementation(libs.edc.data.plane.selector.client)
 
     implementation(libs.swaggerParser)
+    implementation(libs.slugify)
 }
 
 application {

@@ -2,6 +2,9 @@ package eu.datacellar.connector;
 
 import static org.eclipse.edc.spi.query.Criterion.criterion;
 
+import java.net.MalformedURLException;
+import java.net.URL;
+
 import org.eclipse.edc.connector.contract.spi.offer.store.ContractDefinitionStore;
 import org.eclipse.edc.connector.contract.spi.types.offer.ContractDefinition;
 import org.eclipse.edc.connector.core.CoreServicesExtension;
@@ -22,6 +25,8 @@ import org.eclipse.edc.spi.system.ServiceExtensionContext;
 import org.eclipse.edc.spi.types.domain.HttpDataAddress;
 import org.eclipse.edc.spi.types.domain.asset.Asset;
 import org.eclipse.edc.web.jetty.JettyConfiguration;
+
+import com.github.slugify.Slugify;
 
 import io.swagger.parser.OpenAPIParser;
 import io.swagger.v3.oas.models.OpenAPI;
@@ -58,10 +63,13 @@ public class DataCellarCoreExtension implements ServiceExtension {
     public String openapiUrl;
 
     @Setting
-    private static final String OPENAPI_URL = "eu.datacellar.openapiurl";
+    private static final String OPENAPI_URL = "eu.datacellar.openapi.url";
 
     @Setting
-    private static final String HTTP_SCHEME = "eu.datacellar.httpscheme";
+    private static final String HTTP_SCHEME = "eu.datacellar.http.scheme";
+
+    @Setting
+    private static final String API_BASE_URL = "eu.datacellar.base.url";
 
     @Inject
     private HttpRequestParamsProvider paramsProvider;
@@ -116,7 +124,7 @@ public class DataCellarCoreExtension implements ServiceExtension {
     }
 
     private void saveContractDefinition(String policyUid, String assetId) {
-        String contractDefinitionId = String.format("contract-def-%s", assetId);
+        String contractDefinitionId = String.format("contractdef-%s", assetId);
 
         var contractDefinition = ContractDefinition.Builder.newInstance()
                 .id(contractDefinitionId)
@@ -128,18 +136,36 @@ public class DataCellarCoreExtension implements ServiceExtension {
         contractStore.save(contractDefinition);
     }
 
+    /**
+     * Takes a URL that may contain a path and query parameters and returns the
+     * base URL, namely the scheme, host and port only.
+     * 
+     * @param fullUrl The full URL.
+     * @return The base URL.
+     */
+    private String extractBaseUrl(String fullUrl) {
+        try {
+            URL url = new URL(fullUrl);
+            return String.format("%s://%s:%s", url.getProtocol(), url.getHost(), url.getPort());
+        } catch (MalformedURLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     private void createAssets(ServiceExtensionContext context, String policyUid) {
         Monitor monitor = context.getMonitor();
+        Slugify slg = Slugify.builder().lowerCase(false).build();
         OpenAPI openAPI = readOpenAPISchema(context.getMonitor());
+        String baseUrl = context.getSetting(API_BASE_URL, extractBaseUrl(openapiUrl));
 
         openAPI.getPaths().forEach((path, pathItem) -> {
             pathItem.readOperationsMap().forEach((method, operation) -> {
                 String operationId = operation.getOperationId();
-                String assetId = String.format("%s-%s", path, operationId);
+                String assetId = slg.slugify(String.format("%s-%s-op-%s", method, path, operationId));
 
                 HttpDataAddress dataAddress = HttpDataAddress.Builder.newInstance()
                         .name(String.format("data-address-%s", assetId))
-                        .baseUrl("http://host.docker.internal:9090")
+                        .baseUrl(baseUrl)
                         .path(path)
                         .method(method.name())
                         .contentType("application/json")
