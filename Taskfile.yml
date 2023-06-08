@@ -24,6 +24,7 @@ tasks:
         ignore_error: true
       - docker compose -f docker-compose-http-pull.yml down -v
       - docker compose -f docker-compose-http-push.yml down -v
+      - docker compose -f docker-compose-datacellar-example.yml down -v
       - rm -fr {{.DATA_DASHBOARD_DIR}}
       - rm -fr {{.MVD_DIR}}
       - rm -fr {{.DC_CERTS_DIR}}

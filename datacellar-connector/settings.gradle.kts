@@ -27,3 +27,4 @@ include("transfer-consumer")
 include("http-pull-connector")
 
 include("datacellar-push-sample-connector")
+include("datacellar-core-connector")

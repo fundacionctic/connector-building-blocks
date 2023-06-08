@@ -22,8 +22,8 @@ import org.eclipse.edc.spi.types.domain.HttpDataAddress;
 import org.eclipse.edc.spi.types.domain.asset.Asset;
 
 /**
- * An extension that acts as a thin layer between the Data Cellar data space
- * and an existing HTTP API in a private backend accessible by the connector.
+ * An extension that serves as a companion for the HTTP push sample that is part
+ * of this repository.
  */
 @Extension(value = DataCellarPushSampleExtension.NAME)
 public class DataCellarPushSampleExtension implements ServiceExtension {
