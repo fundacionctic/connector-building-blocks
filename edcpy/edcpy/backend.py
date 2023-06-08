@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import pprint
+from typing import Union
 
 import coloredlogs
 import jwt
@@ -25,9 +26,9 @@ class EndpointDataReference(BaseModel):
     properties: dict
 
 
-def _decode_endpoint_data_ref(item: EndpointDataReference) -> dict:
-    """Decode the authCode and authKey using the public key from the
-    certificate file specified by the CERT_PATH environment variable."""
+def _read_public_key() -> str:
+    """Read the public key from the certificate file specified by the
+    CERT_PATH environment variable."""
 
     cert_path = os.getenv("CERT_PATH")
     assert cert_path, "CERT_PATH environment variable must be set"
@@ -36,8 +37,13 @@ def _decode_endpoint_data_ref(item: EndpointDataReference) -> dict:
         cert_str = fh.read()
         cert_obj = load_pem_x509_certificate(cert_str, default_backend())
         public_key = cert_obj.public_key()
+        return public_key
 
-    decode_kwargs = {"key": public_key, "algorithms": ["RS256"]}
+
+def _decode_auth_code(item: EndpointDataReference) -> dict:
+    """Decode the EndpointDataReference element received from the data space."""
+
+    decode_kwargs = {"key": _read_public_key(), "algorithms": ["RS256"]}
 
     ret = jwt.decode(item.authCode, **decode_kwargs)
 
@@ -48,6 +54,26 @@ def _decode_endpoint_data_ref(item: EndpointDataReference) -> dict:
     )
 
     return ret
+
+
+def _get_method(decoded_auth_code: dict) -> Union[str, None]:
+    source_json_dad = (
+        decoded_auth_code.get("dad", {})
+        .get("properties", {})
+        .get("authCode", {})
+        .get("dad")
+    )
+
+    if not source_json_dad:
+        return None
+
+    try:
+        props = json.loads(source_json_dad)["properties"]
+    except:
+        _logger.warning("Could not parse HttpData properties from decoded auth code")
+        return None
+
+    return next((val for key, val in props.items() if key.endswith("method")), None)
 
 
 @app.post("/")
@@ -61,17 +87,21 @@ async def listen_for_endpoint_data_references(item: EndpointDataReference):
         pprint.pformat(item.dict()),
     )
 
-    decoded = _decode_endpoint_data_ref(item)
+    decoded_auth_code = _decode_auth_code(item)
+    method = _get_method(decoded_auth_code)
+    method = method if method is not None else "GET"
 
     _logger.debug(
-        "Decoded %s:\n%s",
+        "Decoded authCode %s:\n%s",
         EndpointDataReference,
-        pprint.pformat(decoded),
+        pprint.pformat(decoded_auth_code),
     )
 
-    _logger.info("Sending request to: %s", item.endpoint)
+    _logger.info("Sending %s request to: %s", method, item.endpoint)
 
-    res = requests.get(item.endpoint, headers={item.authKey: item.authCode})
+    res = requests.request(
+        method=method, url=item.endpoint, headers={item.authKey: item.authCode}
+    )
 
     _logger.info(
         "Response from %s:\n%s",
