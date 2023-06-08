@@ -2,8 +2,6 @@ package eu.datacellar.connector;
 
 import static org.eclipse.edc.spi.query.Criterion.criterion;
 
-import java.util.List;
-
 import org.eclipse.edc.connector.contract.spi.offer.store.ContractDefinitionStore;
 import org.eclipse.edc.connector.contract.spi.types.offer.ContractDefinition;
 import org.eclipse.edc.connector.core.CoreServicesExtension;
@@ -27,7 +25,6 @@ import org.eclipse.edc.web.jetty.JettyConfiguration;
 
 import io.swagger.parser.OpenAPIParser;
 import io.swagger.v3.oas.models.OpenAPI;
-import io.swagger.v3.oas.models.servers.Server;
 import io.swagger.v3.parser.core.models.SwaggerParseResult;
 
 /**
