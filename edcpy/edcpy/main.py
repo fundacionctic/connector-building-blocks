@@ -42,6 +42,9 @@ def run_http_pull_sample(
     source_path: str = "/users",
     source_method: str = "GET",
 ):
+    """Runs an end-to-end example to demonstrate the Eclipse Dataspace Connector HTTP pull pattern. 
+    This sample is based on the HTTP pull connector that is available in the EDC samples repository."""
+
     coloredlogs.install(level=logging.DEBUG)
 
     config = get_env_config()
@@ -99,6 +102,10 @@ def run_http_push_sample(
     sink_path: str = "/log",
     sink_method: str = "POST",
 ):
+    """Runs an end-to-end example to demonstrate the Eclipse Dataspace Connector HTTP push pattern. 
+    This sample is based on a custom connector that takes care of creating 
+    the data plane, asset, contract definition and policy definition."""
+
     coloredlogs.install(level=logging.DEBUG)
 
     config = get_env_config()
