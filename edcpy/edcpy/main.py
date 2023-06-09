@@ -2,8 +2,6 @@ import logging
 import os
 import pprint
 
-import coloredlogs
-
 from edcpy.config import ConsumerProviderPairConfig
 from edcpy.orchestrator import RequestOrchestrator
 
@@ -42,10 +40,9 @@ def run_http_pull_sample(
     source_path: str = "/users",
     source_method: str = "GET",
 ):
-    """Runs an end-to-end example to demonstrate the Eclipse Dataspace Connector HTTP pull pattern. 
-    This sample is based on the HTTP pull connector that is available in the EDC samples repository."""
-
-    coloredlogs.install(level=logging.DEBUG)
+    """Runs an end-to-end example to demonstrate the Eclipse Dataspace Connector HTTP pull pattern.
+    This sample is based on the HTTP pull connector that is available in the EDC samples repository.
+    """
 
     config = get_env_config()
     orchestrator = RequestOrchestrator(config=config)
@@ -71,24 +68,12 @@ def run_http_pull_sample(
         policy_definition_id=policy_definition_id
     )
 
-    catalog = orchestrator.fetch_provider_catalog_from_consumer()
-
-    contract_offer_id = RequestOrchestrator.get_catalog_contract_offer_id(catalog)
-    _logger.info(f"Contract Offer ID: {contract_offer_id}")
-
-    contract_negotiation = orchestrator.create_contract_negotiation_from_consumer(
-        offer_id=contract_offer_id, asset_id=asset_id
-    )
-
-    contract_negotiation_id = contract_negotiation["@id"]
-    _logger.info(f"Contract Negotiation ID: {contract_negotiation_id}")
-
-    contract_agreement_id = orchestrator.wait_for_consumer_contract_agreement_id(
-        contract_negotiation_id=contract_negotiation_id
-    )
+    transfer_details = orchestrator.prepare_to_transfer_asset(asset_query=None)
+    assert transfer_details.asset_id == asset_id
 
     transfer_process = orchestrator.create_consumer_pull_transfer_process(
-        contract_agreement_id=contract_agreement_id, asset_id=asset_id
+        contract_agreement_id=transfer_details.contract_agreement_id,
+        asset_id=transfer_details.asset_id,
     )
 
     transfer_process_id = transfer_process["@id"]
@@ -102,39 +87,20 @@ def run_http_push_sample(
     sink_path: str = "/log",
     sink_method: str = "POST",
 ):
-    """Runs an end-to-end example to demonstrate the Eclipse Dataspace Connector HTTP push pattern. 
-    This sample is based on a custom connector that takes care of creating 
+    """Runs an end-to-end example to demonstrate the Eclipse Dataspace Connector HTTP push pattern.
+    This sample is based on a custom connector that takes care of creating
     the data plane, asset, contract definition and policy definition."""
-
-    coloredlogs.install(level=logging.DEBUG)
 
     config = get_env_config()
     orchestrator = RequestOrchestrator(config=config)
 
     _logger.debug("Configuration:\n%s", pprint.pformat(config.__dict__))
 
-    catalog = orchestrator.fetch_provider_catalog_from_consumer()
-
-    contract_offer_id = RequestOrchestrator.get_catalog_contract_offer_id(catalog)
-    _logger.info(f"Contract Offer ID: {contract_offer_id}")
-
-    asset_id = RequestOrchestrator.get_catalog_asset_id(catalog)
-    _logger.info(f"Asset ID: {asset_id}")
-
-    contract_negotiation = orchestrator.create_contract_negotiation_from_consumer(
-        offer_id=contract_offer_id, asset_id=asset_id
-    )
-
-    contract_negotiation_id = contract_negotiation["@id"]
-    _logger.info(f"Contract Negotiation ID: {contract_negotiation_id}")
-
-    contract_agreement_id = orchestrator.wait_for_consumer_contract_agreement_id(
-        contract_negotiation_id=contract_negotiation_id
-    )
+    transfer_details = orchestrator.prepare_to_transfer_asset(asset_query=None)
 
     transfer_process = orchestrator.create_provider_push_transfer_process(
-        contract_agreement_id=contract_agreement_id,
-        asset_id=asset_id,
+        contract_agreement_id=transfer_details.contract_agreement_id,
+        asset_id=transfer_details.asset_id,
         sink_base_url=sink_base_url,
         sink_path=sink_path,
         sink_method=sink_method,

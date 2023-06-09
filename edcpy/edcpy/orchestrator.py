@@ -1,6 +1,8 @@
 import logging
 import pprint
 import time
+from dataclasses import dataclass
+from typing import Iterator, Union
 
 import requests
 
@@ -24,35 +26,64 @@ def _log_res(method, url, data):
     _logger.debug("<- %s %s\n%s", method, url, pprint.pformat(data))
 
 
+@dataclass
+class TransferProcessDetails:
+    asset_id: str
+    contract_agreement_id: str
+
+
+@dataclass
+class CatalogContent:
+    data: dict
+
+    @property
+    def datasets(self) -> Iterator[dict]:
+        if not self.data.get("dcat:dataset"):
+            return iter([])
+        elif isinstance(self.data["dcat:dataset"], list):
+            return iter(self.data["dcat:dataset"])
+        else:
+            return iter([self.data["dcat:dataset"]])
+
+    def find_one_dataset(self, asset_query: Union[str, None]) -> Union[dict, None]:
+        return next(
+            (
+                dset
+                for dset in self.datasets
+                if not asset_query
+                or asset_query.lower() in dset["edc:id"].lower()
+                or asset_query.lower() in dset["edc:name"].lower()
+            ),
+            None,
+        )
+
+
+@dataclass
+class CatalogDataset:
+    data: dict
+
+    @property
+    def default_policy(self) -> dict:
+        return (
+            self.data["odrl:hasPolicy"][0]
+            if isinstance(self.data["odrl:hasPolicy"], list)
+            else self.data["odrl:hasPolicy"]
+        )
+
+    @property
+    def default_contract_offer_id(self) -> str:
+        return self.default_policy["@id"]
+
+    @property
+    def default_asset_id(self) -> str:
+        return self.default_policy["odrl:target"]
+
+
 class RequestOrchestrator:
     DEFAULT_HEADERS = {"Content-Type": "application/json"}
 
     def __init__(self, config: ConsumerProviderPairConfig) -> None:
         self.config = config
-
-    @classmethod
-    def get_catalog_policy(cls, catalog: dict) -> dict:
-        dataset = (
-            catalog["dcat:dataset"][0]
-            if isinstance(catalog["dcat:dataset"], list)
-            else catalog["dcat:dataset"]
-        )
-
-        policy = (
-            dataset["odrl:hasPolicy"][0]
-            if isinstance(dataset["odrl:hasPolicy"], list)
-            else dataset["odrl:hasPolicy"]
-        )
-
-        return policy
-
-    @classmethod
-    def get_catalog_contract_offer_id(cls, catalog: dict) -> str:
-        return cls.get_catalog_policy(catalog=catalog)["@id"]
-
-    @classmethod
-    def get_catalog_asset_id(cls, catalog: dict) -> str:
-        return cls.get_catalog_policy(catalog=catalog)["odrl:target"]
 
     def fetch_provider_catalog_from_consumer(self) -> dict:
         data = {
@@ -247,3 +278,34 @@ class RequestOrchestrator:
 
             _logger.debug("Waiting for transfer process")
             time.sleep(iter_sleep)
+
+    def prepare_to_transfer_asset(
+        self, asset_query: Union[str, None]
+    ) -> TransferProcessDetails:
+        _logger.info("Preparing to transfer asset (query: %s)", asset_query)
+
+        catalog = self.fetch_provider_catalog_from_consumer()
+        catalog_content = CatalogContent(data=catalog)
+        dataset_dict = catalog_content.find_one_dataset(asset_query)
+        assert dataset_dict, f"Dataset not found for query: {asset_query}"
+        _logger.debug("Selected dataset:\n%s", pprint.pformat(dataset_dict))
+        dataset = CatalogDataset(data=dataset_dict)
+        contract_offer_id = dataset.default_contract_offer_id
+        _logger.debug(f"Contract Offer ID: {contract_offer_id}")
+        asset_id = dataset.default_asset_id
+        _logger.debug(f"Asset ID: {asset_id}")
+
+        contract_negotiation = self.create_contract_negotiation_from_consumer(
+            offer_id=contract_offer_id, asset_id=asset_id
+        )
+
+        contract_negotiation_id = contract_negotiation["@id"]
+        _logger.debug(f"Contract Negotiation ID: {contract_negotiation_id}")
+
+        contract_agreement_id = self.wait_for_consumer_contract_agreement_id(
+            contract_negotiation_id=contract_negotiation_id
+        )
+
+        return TransferProcessDetails(
+            asset_id=asset_id, contract_agreement_id=contract_agreement_id
+        )
