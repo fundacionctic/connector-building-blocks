@@ -4,7 +4,16 @@ import os
 import pprint
 
 from edcpy.config import ConsumerProviderPairConfig
-from edcpy.orchestrator import RequestOrchestrator
+from edcpy.orchestrator import CatalogContent, RequestOrchestrator
+
+_DEFAULT_PULL_BASE_URL = "https://jsonplaceholder.typicode.com"
+_DEFAULT_PULL_PATH = "/users"
+_DEFAULT_PULL_METHOD = "GET"
+
+_DEFAULT_PUSH_BASE_URL = "http://consumer_backend:8000"
+_DEFAULT_PUSH_PATH = "/log"
+_DEFAULT_PUSH_METHOD = "POST"
+
 
 _logger = logging.getLogger(__name__)
 
@@ -41,9 +50,9 @@ def get_env_config() -> ConsumerProviderPairConfig:
 
 
 def run_http_pull_sample(
-    source_base_url: str = "https://jsonplaceholder.typicode.com",
-    source_path: str = "/users",
-    source_method: str = "GET",
+    source_base_url: str = _DEFAULT_PULL_BASE_URL,
+    source_path: str = _DEFAULT_PULL_PATH,
+    source_method: str = _DEFAULT_PULL_METHOD,
 ):
     """Runs an end-to-end example to demonstrate the Eclipse Dataspace Connector HTTP pull pattern.
     This sample is based on the HTTP pull connector that is available in the EDC samples repository.
@@ -88,9 +97,9 @@ def run_http_pull_sample(
 
 
 def run_http_push_sample(
-    sink_base_url: str = "http://consumer_backend:8000",
-    sink_path: str = "/log",
-    sink_method: str = "POST",
+    sink_base_url: str = _DEFAULT_PUSH_BASE_URL,
+    sink_path: str = _DEFAULT_PUSH_PATH,
+    sink_method: str = _DEFAULT_PUSH_METHOD,
 ):
     """Runs an end-to-end example to demonstrate the Eclipse Dataspace Connector HTTP push pattern.
     This sample is based on a custom connector that takes care of creating
@@ -117,15 +126,27 @@ def run_http_push_sample(
     orchestrator.wait_for_transfer_process(transfer_process_id=transfer_process_id)
 
 
+def list_assets():
+    """A command line utility to list all assets that are available."""
+
+    config = get_env_config()
+    orchestrator = RequestOrchestrator(config=config)
+    _logger.debug("Configuration:\n%s", pprint.pformat(config.__dict__))
+    catalog = orchestrator.fetch_provider_catalog_from_consumer()
+    catalog_content = CatalogContent(catalog)
+    _logger.info("Found datasets:\n%s", pprint.pformat(list(catalog_content.datasets)))
+
+
 def http_pull():
-    """Receive an HTTP URL, path and method by argument."""
+    """A command line utility to create a transfer process
+    for an arbitrary asset using the HTTP pull pattern."""
 
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
         "--asset",
         type=str,
-        help="The name or ID of the asset.",
+        help="The approximate name of the asset to transfer",
         required=True,
     )
 

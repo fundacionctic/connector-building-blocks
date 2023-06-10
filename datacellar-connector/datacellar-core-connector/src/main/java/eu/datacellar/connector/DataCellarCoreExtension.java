@@ -162,7 +162,7 @@ public class DataCellarCoreExtension implements ServiceExtension {
         openAPI.getPaths().forEach((path, pathItem) -> {
             pathItem.readOperationsMap().forEach((method, operation) -> {
                 String operationId = operation.getOperationId();
-                String assetId = slg.slugify(String.format("%s-%s-op-%s", method, path, operationId));
+                String assetId = slg.slugify(String.format("%s-%s", method, path));
 
                 HttpDataAddress dataAddress = HttpDataAddress.Builder.newInstance()
                         .name(String.format("data-address-%s", assetId))
@@ -172,7 +172,10 @@ public class DataCellarCoreExtension implements ServiceExtension {
                         .contentType("application/json")
                         .build();
 
-                Asset asset = Asset.Builder.newInstance().id(assetId).build();
+                Asset asset = Asset.Builder.newInstance().id(assetId)
+                        .name(String.format("%s %s (%s)", method, path, operationId))
+                        .build();
+
                 assetIndex.create(asset, dataAddress);
 
                 monitor.debug(String.format("Created asset '%s' with data address: %s", assetId,
