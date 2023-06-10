@@ -51,8 +51,8 @@ class CatalogContent:
                 dset
                 for dset in self.datasets
                 if not asset_query
-                or asset_query.lower() in dset["edc:id"].lower()
-                or asset_query.lower() in dset["edc:name"].lower()
+                or asset_query.lower() in dset.get("edc:id", "").lower()
+                or asset_query.lower() in dset.get("edc:name", "").lower()
             ),
             None,
         )

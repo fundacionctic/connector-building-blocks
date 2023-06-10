@@ -1,3 +1,4 @@
+import argparse
 import logging
 import os
 import pprint
@@ -18,12 +19,16 @@ def get_env_config() -> ConsumerProviderPairConfig:
     )
 
     return ConsumerProviderPairConfig(
-        provider_host=os.getenv("PROVIDER_HOST", "provider"),
-        consumer_host=os.getenv("CONSUMER_HOST", "consumer"),
-        provider_connector_id=prov_conn_id,
-        consumer_connector_id=cons_conn_id,
-        provider_participant_id=os.getenv("PROVIDER_PARTICIPANT_ID", prov_conn_id),
-        consumer_participant_id=os.getenv("CONSUMER_PARTICIPANT_ID", cons_conn_id),
+        provider_host=os.getenv("PROVIDER_HOST", "provider").strip(),
+        consumer_host=os.getenv("CONSUMER_HOST", "consumer").strip(),
+        provider_connector_id=prov_conn_id.strip(),
+        consumer_connector_id=cons_conn_id.strip(),
+        provider_participant_id=os.getenv(
+            "PROVIDER_PARTICIPANT_ID", prov_conn_id
+        ).strip(),
+        consumer_participant_id=os.getenv(
+            "CONSUMER_PARTICIPANT_ID", cons_conn_id
+        ).strip(),
         provider_management_port=int(os.getenv("PROVIDER_MANAGEMENT_PORT", None)),
         consumer_management_port=int(os.getenv("CONSUMER_MANAGEMENT_PORT", None)),
         provider_control_port=int(os.getenv("PROVIDER_CONTROL_PORT", None)),
@@ -104,6 +109,40 @@ def run_http_push_sample(
         sink_base_url=sink_base_url,
         sink_path=sink_path,
         sink_method=sink_method,
+    )
+
+    transfer_process_id = transfer_process["@id"]
+    _logger.info(f"Transfer Process ID: {transfer_process_id}")
+
+    orchestrator.wait_for_transfer_process(transfer_process_id=transfer_process_id)
+
+
+def http_pull():
+    """Receive an HTTP URL, path and method by argument."""
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "--asset",
+        type=str,
+        help="The name or ID of the asset.",
+        required=True,
+    )
+
+    args = parser.parse_args()
+
+    _logger.info("Running HTTP pull with arguments: %s", args)
+
+    config = get_env_config()
+    orchestrator = RequestOrchestrator(config=config)
+
+    _logger.debug("Configuration:\n%s", pprint.pformat(config.__dict__))
+
+    transfer_details = orchestrator.prepare_to_transfer_asset(asset_query=args.asset)
+
+    transfer_process = orchestrator.create_consumer_pull_transfer_process(
+        contract_agreement_id=transfer_details.contract_agreement_id,
+        asset_id=transfer_details.asset_id,
     )
 
     transfer_process_id = transfer_process["@id"]

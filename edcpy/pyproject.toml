@@ -11,8 +11,9 @@ requests = "^2.31.0"
 coloredlogs = "^15.0.1"
 deepmerge = "^1.1.0"
 fastapi = { extras = ["all"], version = "^0.96.0" }
-pyjwt = "^2.7.0"
+pyjwt = {extras = ["crypto"], version = "^2.7.0"}
 cryptography = "^41.0.1"
+python-slugify = "^8.0.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.3.1"
@@ -26,3 +27,4 @@ build-backend = "poetry.core.masonry.api"
 run-http-pull-sample = "edcpy.main:run_http_pull_sample"
 run-http-push-sample = "edcpy.main:run_http_push_sample"
 run-http-backend = "edcpy.backend:run_server"
+http-pull = "edcpy.main:http_pull"

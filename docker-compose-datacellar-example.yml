@@ -5,20 +5,57 @@ services:
     command:
       [
         "java",
+        "-Dedc.hostname=datacellar_provider",
         "-Dedc.keystore=/opt/src/datacellar-certs/cert.pfx",
         "-Dedc.keystore.password=datacellar",
         "-Dedc.vault=/opt/src/datacellar-certs/vault.properties",
-        "-Dedc.fs.config=/opt/src/example.properties",
+        "-Dedc.fs.config=/opt/src/datacellar-connector/datacellar-core-connector/example-configs/provider.properties",
         "-Dedc.dsp.callback.address=http://datacellar_provider:9194/protocol",
         "-jar",
         "/opt/src/datacellar-connector/datacellar-core-connector/build/libs/datacellar-core-connector.jar"
       ]
     ports:
-      - "9194:9194"
-      - "9191:9191"
-      - "9193:9193"
-      - "9195:9195"
-      - "9291:9291"
-      - "9192:9192"
+      - "19291:19291"
     volumes:
       - .:/opt/src
+  datacellar_consumer:
+    image: openjdk:17-bullseye
+    container_name: datacellar_consumer
+    command:
+      [
+        "java",
+        "-Dedc.hostname=datacellar_consumer",
+        "-Dedc.keystore=/opt/src/datacellar-certs/cert.pfx",
+        "-Dedc.keystore.password=datacellar",
+        "-Dedc.vault=/opt/src/datacellar-certs/vault.properties",
+        "-Dedc.fs.config=/opt/src/datacellar-connector/datacellar-core-connector/example-configs/consumer.properties",
+        "-Dedc.dsp.callback.address=http://datacellar_consumer:9194/protocol",
+        "-jar",
+        "/opt/src/datacellar-connector/datacellar-core-connector/build/libs/datacellar-core-connector.jar"
+      ]
+    ports:
+      - "29291:29291"
+    volumes:
+      - .:/opt/src
+  datacellar_consumer_backend:
+    build:
+      dockerfile: Dockerfile.edcpy
+    container_name: datacellar_consumer_backend
+    command: [ "run-http-backend" ]
+    volumes:
+      - .:/opt/src
+    environment:
+      CERT_PATH: /opt/src/datacellar-certs/cert.pem
+      PORT: 8000
+    ports:
+      - "8000:8000"
+  datacellar_sandbox:
+    build:
+      dockerfile: Dockerfile.edcpy
+    container_name: datacellar_sandbox
+    command: [ "sleep", "infinity" ]
+    volumes:
+      - .:/opt/src
+    environment:
+      CERT_PATH: /opt/src/datacellar-certs/cert.pem
+    env_file: ./.env.datacellar-example

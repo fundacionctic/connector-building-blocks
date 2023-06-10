@@ -9,6 +9,8 @@ import jwt
 import requests
 import uvicorn
 from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.x509 import load_pem_x509_certificate
 from fastapi import FastAPI
 from pydantic import BaseModel
@@ -36,16 +38,31 @@ def _read_public_key() -> str:
     with open(cert_path, "rb") as fh:
         cert_str = fh.read()
         cert_obj = load_pem_x509_certificate(cert_str, default_backend())
-        public_key = cert_obj.public_key()
+
+        public_key = cert_obj.public_key().public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+
+        _logger.debug(
+            "Public key read from certificate '%s':\n%s", cert_path, public_key.decode()
+        )
+
         return public_key
 
 
 def _decode_auth_code(item: EndpointDataReference) -> dict:
     """Decode the EndpointDataReference element received from the data space."""
 
-    decode_kwargs = {"key": _read_public_key(), "algorithms": ["RS256"]}
+    decode_kwargs = {
+        "key": _read_public_key(),
+        "algorithms": ["RS256"],
+        "options": {"verify_signature": True},
+    }
 
-    ret = jwt.decode(item.authCode, **decode_kwargs)
+    _logger.debug("JWT decode kwargs:\n%s", pprint.pformat(decode_kwargs))
+
+    ret = jwt.decode(jwt=item.authCode, **decode_kwargs)
 
     ret["dad"] = json.loads(ret["dad"])
 

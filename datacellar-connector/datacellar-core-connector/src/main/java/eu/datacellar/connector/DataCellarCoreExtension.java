@@ -24,7 +24,6 @@ import org.eclipse.edc.spi.system.ServiceExtension;
 import org.eclipse.edc.spi.system.ServiceExtensionContext;
 import org.eclipse.edc.spi.types.domain.HttpDataAddress;
 import org.eclipse.edc.spi.types.domain.asset.Asset;
-import org.eclipse.edc.web.jetty.JettyConfiguration;
 
 import com.github.slugify.Slugify;
 
@@ -39,8 +38,13 @@ import io.swagger.v3.parser.core.models.SwaggerParseResult;
 @Extension(value = DataCellarCoreExtension.NAME)
 public class DataCellarCoreExtension implements ServiceExtension {
 
-    private static final String WEB_HTTP_PORT = "web.http.port";
+    private static final String WEB_HTTP_CONTROL_PORT = "web.http.control.port";
+    private static final int DEFAULT_WEB_HTTP_CONTROL_PORT = 9192;
+    private static final String WEB_HTTP_PUBLIC_PORT = "web.http.public.port";
+    private static final int DEFAULT_WEB_HTTP_PUBLIC_PORT = 9291;
     private static final String DEFAULT_HTTP_SCHEME = "http";
+    private static final String PUBLIC_API_URL_KEY = "publicApiUrl";
+    private static final String DEFAULT_HOSTNAME = "localhost";
 
     /**
      * The name of the extension.
@@ -91,32 +95,29 @@ public class DataCellarCoreExtension implements ServiceExtension {
         return NAME;
     }
 
-    private String getHostname(ServiceExtensionContext context) {
-        return context.getSetting(CoreServicesExtension.HOSTNAME_SETTING, "localhost");
-    }
-
-    private DataPlaneInstance createDataPlaneInstance(ServiceExtensionContext context) {
+    private DataPlaneInstance buildDataPlaneInstance(ServiceExtensionContext context) {
         Monitor monitor = context.getMonitor();
 
-        String hostname = getHostname(context);
-        String httpPort = context.getSetting(WEB_HTTP_PORT, String.valueOf(JettyConfiguration.DEFAULT_PORT));
+        String hostname = context.getSetting(CoreServicesExtension.HOSTNAME_SETTING, DEFAULT_HOSTNAME);
+        String controlPort = context.getSetting(WEB_HTTP_CONTROL_PORT, String.valueOf(DEFAULT_WEB_HTTP_CONTROL_PORT));
+        String publicPort = context.getSetting(WEB_HTTP_PUBLIC_PORT, String.valueOf(DEFAULT_WEB_HTTP_PUBLIC_PORT));
         String scheme = context.getSetting(HTTP_SCHEME, DEFAULT_HTTP_SCHEME);
 
         DataPlaneInstance dataPlaneInstance = DataPlaneInstance.Builder.newInstance()
                 .id(DATA_PLANE_ID)
-                .url(String.format("%s://%s:%s/control/transfer", scheme, hostname, httpPort))
+                .url(String.format("%s://%s:%s/control/transfer", scheme, hostname, controlPort))
                 .allowedSourceType(HttpDataAddress.HTTP_DATA)
                 .allowedDestType(HttpDataAddress.HTTP_DATA)
                 .allowedDestType(TransferDataPlaneConstants.HTTP_PROXY)
-                .property("publicApiUrl", String.format("%s://%s:%s/public/", scheme, hostname, httpPort))
+                .property(PUBLIC_API_URL_KEY, String.format("%s://%s:%s/public/", scheme, hostname, publicPort))
                 .build();
 
-        monitor.debug(String.format("Created data plane instance: %s", DATA_PLANE_ID));
+        monitor.debug(String.format("Built data plane instance: %s", dataPlaneInstance.getProperties()));
 
         return dataPlaneInstance;
     }
 
-    private PolicyDefinition createPolicyDefinition() {
+    private PolicyDefinition buildPolicyDefinition() {
         return PolicyDefinition.Builder.newInstance()
                 .id(POLICY_DEFINITION_ID)
                 .policy(Policy.Builder.newInstance().build())
@@ -209,10 +210,16 @@ public class DataCellarCoreExtension implements ServiceExtension {
     public void initialize(ServiceExtensionContext context) {
         Monitor monitor = context.getMonitor();
 
+        DataPlaneInstance dataPlane = buildDataPlaneInstance(context);
+        dataPlaneStore.create(dataPlane);
+
         openapiUrl = context.getSetting(OPENAPI_URL, null);
 
-        if (openapiUrl == null) {
-            throw new IllegalStateException(String.format("OpenAPI URL (property '%s') is not set", OPENAPI_URL));
+        if (openapiUrl != null) {
+            monitor.warning(String.format("OpenAPI URL (property '%s') is not set", OPENAPI_URL));
+            PolicyDefinition policy = buildPolicyDefinition();
+            policyStore.create(policy);
+            createAssets(context, policy.getUid());
         }
 
         Package pkg = DataCellarCoreExtension.class.getPackage();
@@ -233,10 +240,6 @@ public class DataCellarCoreExtension implements ServiceExtension {
 
             return builder;
         });
-
-        createDataPlaneInstance(context);
-        PolicyDefinition policy = createPolicyDefinition();
-        createAssets(context, policy.getUid());
 
         monitor.info(String.format("Initialized extension: %s", this.getClass().getName()));
     }
