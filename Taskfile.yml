@@ -15,6 +15,8 @@ env:
   SCRIPTS_IMAGE: edc-poc-scripts
   EDCPY_IMAGE: edcpy
   SERVICES_SLEEP: 5
+  EXAMPLE_CONSUMER_CERTS_DIR: "{{.ROOT_DIR}}/example/certs-consumer"
+  EXAMPLE_PROVIDER_CERTS_DIR: "{{.ROOT_DIR}}/example/certs-provider"
 
 tasks:
   clean:
@@ -25,6 +27,10 @@ tasks:
       - docker compose -f docker-compose-http-pull.yml down -v
       - docker compose -f docker-compose-http-push.yml down -v
       - docker compose -f docker-compose-datacellar-example.yml down -v
+      - docker compose -f {{.ROOT_DIR}}/example/docker-compose-consumer.yml down -v
+      - docker compose -f {{.ROOT_DIR}}/example/docker-compose-provider.yml down -v
+      - rm -fr {{.ROOT_DIR}}/example/certs-*
+      - rm -fr {{.ROOT_DIR}}/example/*.jar
       - rm -fr {{.DATA_DASHBOARD_DIR}}
       - rm -fr {{.MVD_DIR}}
       - rm -fr {{.DC_CERTS_DIR}}
@@ -202,3 +208,59 @@ tasks:
         --env-file {{.ROOT_DIR}}/.env.http-push-sample
         {{.EDCPY_IMAGE}} 
         run-http-push-sample
+
+  create-datacellar-example-certs-consumer:
+    deps:
+      - build-scripts-image
+    vars:
+      KEY_ALIAS: "datacellar"
+      KEY_PASSW: "datacellar"
+    cmds:
+      - mkdir -p {{.EXAMPLE_CONSUMER_CERTS_DIR}}
+      - >
+        docker run --rm -it 
+        -v {{.EXAMPLE_CONSUMER_CERTS_DIR}}:/out 
+        {{.SCRIPTS_IMAGE}}
+        /bin/bash -c "OUT_DIR=/out KEY_ALIAS={{.KEY_ALIAS}} KEY_PASSW={{.KEY_PASSW}} ./create-certs.sh"
+    status:
+      - test -f {{.EXAMPLE_CONSUMER_CERTS_DIR}}/*.pfx
+
+  create-datacellar-example-certs-provider:
+    deps:
+      - build-scripts-image
+    vars:
+      KEY_ALIAS: "datacellar"
+      KEY_PASSW: "datacellar"
+    cmds:
+      - mkdir -p {{.EXAMPLE_PROVIDER_CERTS_DIR}}
+      - >
+        docker run --rm -it 
+        -v {{.EXAMPLE_PROVIDER_CERTS_DIR}}:/out 
+        {{.SCRIPTS_IMAGE}}
+        /bin/bash -c "OUT_DIR=/out KEY_ALIAS={{.KEY_ALIAS}} KEY_PASSW={{.KEY_PASSW}} ./create-certs.sh"
+    status:
+      - test -f {{.EXAMPLE_PROVIDER_CERTS_DIR}}/*.pfx
+
+  move-datacellar-connector-jar:
+    deps:
+      - build-datacellar-connector
+    cmds:
+      - >
+        cp -f 
+        {{.ROOT_DIR}}/{{.DC_CONNECTOR_DIR}}/datacellar-core-connector/build/libs/datacellar-core-connector.jar 
+        {{.ROOT_DIR}}/example/
+
+  prepare-example:
+    cmds:
+      - { task: create-datacellar-example-certs-consumer }
+      - { task: create-datacellar-example-certs-provider }
+      - { task: build-edcpy-image }
+      - { task: move-datacellar-connector-jar }
+
+  example-services-up:
+    deps:
+      - prepare-example
+    cmds:
+      - docker compose -f {{.ROOT_DIR}}/example/docker-compose-provider.yml up -d --build --wait
+      - docker compose -f {{.ROOT_DIR}}/example/docker-compose-consumer.yml up -d --build --wait
+      - sleep {{.SERVICES_SLEEP}}
