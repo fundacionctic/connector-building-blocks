@@ -153,7 +153,7 @@ tasks:
     cmds:
       - mkdir -p {{.ROOT_DIR}}/{{.DC_CERTS_DIR}}
       - >
-        docker run --rm -it 
+        docker run --rm 
         -v {{.ROOT_DIR}}/{{.DC_CERTS_DIR}}:/out 
         {{.SCRIPTS_IMAGE}}
         /bin/bash -c "OUT_DIR=/out KEY_ALIAS={{.KEY_ALIAS}} KEY_PASSW={{.KEY_PASSW}} ./create-certs.sh"
@@ -218,7 +218,7 @@ tasks:
     cmds:
       - mkdir -p {{.EXAMPLE_CONSUMER_CERTS_DIR}}
       - >
-        docker run --rm -it 
+        docker run --rm 
         -v {{.EXAMPLE_CONSUMER_CERTS_DIR}}:/out 
         {{.SCRIPTS_IMAGE}}
         /bin/bash -c "OUT_DIR=/out KEY_ALIAS={{.KEY_ALIAS}} KEY_PASSW={{.KEY_PASSW}} ./create-certs.sh"
@@ -234,7 +234,7 @@ tasks:
     cmds:
       - mkdir -p {{.EXAMPLE_PROVIDER_CERTS_DIR}}
       - >
-        docker run --rm -it 
+        docker run --rm 
         -v {{.EXAMPLE_PROVIDER_CERTS_DIR}}:/out 
         {{.SCRIPTS_IMAGE}}
         /bin/bash -c "OUT_DIR=/out KEY_ALIAS={{.KEY_ALIAS}} KEY_PASSW={{.KEY_PASSW}} ./create-certs.sh"
