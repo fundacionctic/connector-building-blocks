@@ -3,5 +3,10 @@
 set -e
 set -x
 
-cd /vagrant/example
+BASE_DIR=/vagrant
+
+cd ${BASE_DIR}
+task create-datacellar-example-certs-consumer
+
+cd ${BASE_DIR}
 docker compose -f ./docker-compose-consumer.yml up -d --build --wait

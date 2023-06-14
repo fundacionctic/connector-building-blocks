@@ -1,2 +1,5 @@
 **/*/.venv
 **/*/build/distributions
+**/*/.gradle
+**/*/.vagrant
+**/*/.vscode

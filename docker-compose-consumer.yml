@@ -1,0 +1,57 @@
+services:
+  datacellar_consumer:
+    build:
+      context: .
+      dockerfile: Dockerfile.openjdk
+    container_name: datacellar_consumer
+    command:
+      [
+        "java",
+        "-Dedc.hostname=consumer.local",
+        "-Dedc.keystore=/opt/src/example/certs-consumer/cert.pfx",
+        "-Dedc.keystore.password=datacellar",
+        "-Dedc.vault=/opt/src/example/certs-consumer/vault.properties",
+        "-Dedc.fs.config=/opt/src/example/consumer.properties",
+        "-Dedc.dsp.callback.address=http://consumer.local:9194/protocol",
+        "-jar",
+        "/opt/src/example/datacellar-core-connector.jar"
+      ]
+    ports:
+      - "9191:9191"
+      - "9193:9193"
+      - "9194:9194"
+      - "9291:9291"
+      - "9192:9192"
+    volumes:
+      - .:/opt/src
+      # To ensure that mDNS resolution is enabled in the container
+      - /var/run/dbus:/var/run/dbus
+      - /var/run/avahi-daemon/socket:/var/run/avahi-daemon/socket
+  datacellar_consumer_backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.edcpy
+    container_name: datacellar_consumer_backend
+    command: [ "run-http-backend" ]
+    volumes:
+      - .:/opt/src
+      - /var/run/dbus:/var/run/dbus
+      - /var/run/avahi-daemon/socket:/var/run/avahi-daemon/socket
+    environment:
+      CERT_PATH: /opt/src/example/certs-consumer/cert.pem
+      PORT: 8000
+    ports:
+      - "8000:8000"
+  datacellar_consumer_sandbox:
+    build:
+      context: .
+      dockerfile: Dockerfile.edcpy
+    container_name: datacellar_consumer_sandbox
+    command: [ "sleep", "infinity" ]
+    volumes:
+      - .:/opt/src
+      - /var/run/dbus:/var/run/dbus
+      - /var/run/avahi-daemon/socket:/var/run/avahi-daemon/socket
+    environment:
+      CERT_PATH: /opt/src/example/certs-consumer/cert.pem
+    env_file: ./example/.env.example

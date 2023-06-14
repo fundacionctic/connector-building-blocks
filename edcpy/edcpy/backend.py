@@ -67,7 +67,7 @@ def _decode_auth_code(item: EndpointDataReference) -> dict:
     ret["dad"] = json.loads(ret["dad"])
 
     ret["dad"]["properties"]["authCode"] = jwt.decode(
-        ret["dad"]["properties"]["authCode"], **decode_kwargs
+        ret["dad"]["properties"]["authCode"], options={"verify_signature": False}
     )
 
     return ret

@@ -6,15 +6,27 @@ Vagrant.configure("2") do |config|
     v.cpus = 1
   end
 
-  # config.vm.provision "shell", path: "scripts/provision-common.sh"
+  config.vm.provision "shell", path: "scripts/provision-common.sh"
 
+  # Install Avahi to enable mDNS resolution between boxes
+  # https://stackoverflow.com/a/30780347
+  config.vm.provision "allow_guest_host_resolution",
+  type: "shell",
+  inline: <<-SHELL
+    apt-get update -y
+    apt-get install -y avahi-daemon libnss-mdns
+  SHELL
+
+  # The provider must be provisioned before the consumer
   config.vm.define "provider", primary: true do |c|
     c.vm.hostname = "provider"
-    # c.vm.provision "shell", path: "scripts/provision-provider.sh"
+    c.vm.provision "shell", path: "scripts/provision-provider.sh"
+    c.vm.network "private_network", type: "dhcp"
   end
 
-  # config.vm.define "consumer" do |c|
-  #   c.vm.hostname = "consumer"
-  #   c.vm.provision "shell", path: "scripts/provision-consumer.sh"
-  # end
+  config.vm.define "consumer" do |c|
+    c.vm.hostname = "consumer"
+    c.vm.provision "shell", path: "scripts/provision-consumer.sh"
+    c.vm.network "private_network", type: "dhcp"
+  end
 end

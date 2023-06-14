@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# This Bash script generates a self-signed SSL/TLS certificate and converts it into a PKCS12 format. 
+# The script uses OpenSSL to create the certificate and private key files, saving them in the specified ${OUT_DIR} directory. 
+
 set -e
 set -x
 
@@ -13,7 +16,7 @@ openssl req -x509 \
     -keyout ${OUT_DIR}/key.pem \
     -out ${OUT_DIR}/cert.pem \
     -days 365 \
-    -subj "/C=ES/ST=Asturias/L=Gijon/O=CTIC/OU=CTIC/CN=www.datacellar.eu"
+    -subj "/C=ES/ST=Asturias/L=Gijon/O=CTIC/OU=CTIC/CN=datacellarproject.eu"
 
 openssl pkcs12 -export \
     -in ${OUT_DIR}/cert.pem \
