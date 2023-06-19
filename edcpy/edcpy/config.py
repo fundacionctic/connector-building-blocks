@@ -10,7 +10,7 @@ PREFIX = "EDC"
 class AppConfig:
     cert_path = environ.var()
 
-    @environ.config(prefix="")
+    @environ.config
     class ConsumerProviderPair:
         provider_host = environ.var("provider")
         consumer_host = environ.var("consumer")
