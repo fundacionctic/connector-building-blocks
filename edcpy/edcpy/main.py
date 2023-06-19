@@ -1,6 +1,5 @@
 import argparse
 import logging
-import os
 import pprint
 
 from edcpy.config import ConsumerProviderPairConfig
@@ -19,34 +18,7 @@ _logger = logging.getLogger(__name__)
 
 
 def get_env_config() -> ConsumerProviderPairConfig:
-    prov_conn_id = os.getenv(
-        "PROVIDER_CONNECTOR_ID", "urn:connector:datacellar:provider"
-    )
-
-    cons_conn_id = os.getenv(
-        "CONSUMER_CONNECTOR_ID", "urn:connector:datacellar:consumer"
-    )
-
-    return ConsumerProviderPairConfig(
-        provider_host=os.getenv("PROVIDER_HOST", "provider").strip(),
-        consumer_host=os.getenv("CONSUMER_HOST", "consumer").strip(),
-        provider_connector_id=prov_conn_id.strip(),
-        consumer_connector_id=cons_conn_id.strip(),
-        provider_participant_id=os.getenv(
-            "PROVIDER_PARTICIPANT_ID", prov_conn_id
-        ).strip(),
-        consumer_participant_id=os.getenv(
-            "CONSUMER_PARTICIPANT_ID", cons_conn_id
-        ).strip(),
-        provider_management_port=int(os.getenv("PROVIDER_MANAGEMENT_PORT", None)),
-        consumer_management_port=int(os.getenv("CONSUMER_MANAGEMENT_PORT", None)),
-        provider_control_port=int(os.getenv("PROVIDER_CONTROL_PORT", None)),
-        consumer_control_port=int(os.getenv("CONSUMER_CONTROL_PORT", None)),
-        provider_public_port=int(os.getenv("PROVIDER_PUBLIC_PORT", None)),
-        consumer_public_port=int(os.getenv("CONSUMER_PUBLIC_PORT", None)),
-        provider_protocol_port=int(os.getenv("PROVIDER_PROTOCOL_PORT", None)),
-        consumer_protocol_port=int(os.getenv("CONSUMER_PROTOCOL_PORT", None)),
-    )
+    return ConsumerProviderPairConfig.from_env()
 
 
 def run_http_pull_sample(
@@ -55,8 +27,7 @@ def run_http_pull_sample(
     source_method: str = _DEFAULT_PULL_METHOD,
 ):
     """Runs an end-to-end example to demonstrate the Eclipse Dataspace Connector HTTP pull pattern.
-    This sample is based on the HTTP pull connector that is available in the EDC samples repository.
-    """
+    This sample is based on the HTTP pull connector that is available in the EDC samples repository."""
 
     config = get_env_config()
     orchestrator = RequestOrchestrator(config=config)

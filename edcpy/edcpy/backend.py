@@ -10,10 +10,11 @@ import requests
 import uvicorn
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.x509 import load_pem_x509_certificate
 from fastapi import FastAPI
 from pydantic import BaseModel
+
+from edcpy.config import AppConfig
 
 _logger = logging.getLogger(__name__)
 
@@ -30,10 +31,9 @@ class EndpointDataReference(BaseModel):
 
 def _read_public_key() -> str:
     """Read the public key from the certificate file specified by the
-    CERT_PATH environment variable."""
+    EDC_CERT_PATH environment variable."""
 
-    cert_path = os.getenv("CERT_PATH")
-    assert cert_path, "CERT_PATH environment variable must be set"
+    cert_path = AppConfig.from_environ().cert_path
 
     with open(cert_path, "rb") as fh:
         cert_str = fh.read()

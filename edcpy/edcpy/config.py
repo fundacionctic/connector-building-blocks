@@ -1,6 +1,33 @@
 from dataclasses import dataclass
 
+import environ
+
 from edcpy.utils import join_url
+
+PREFIX = "EDC"
+
+@environ.config(prefix=PREFIX)
+class AppConfig:
+    cert_path = environ.var()
+
+    @environ.config(prefix="")
+    class ConsumerProviderPair:
+        provider_host = environ.var("provider")
+        consumer_host = environ.var("consumer")
+        provider_connector_id = environ.var("urn:connector:datacellar:provider")
+        consumer_connector_id = environ.var("urn:connector:datacellar:consumer")
+        provider_participant_id = environ.var(provider_connector_id)
+        consumer_participant_id = environ.var(consumer_connector_id)
+        provider_management_port = environ.var(converter=int)
+        consumer_management_port = environ.var(converter=int)
+        provider_control_port = environ.var(converter=int)
+        consumer_control_port = environ.var(converter=int)
+        provider_public_port = environ.var(converter=int)
+        consumer_public_port = environ.var(converter=int)
+        provider_protocol_port = environ.var(converter=int)
+        consumer_protocol_port = environ.var(converter=int)
+
+    cons_prov_pair = environ.group(ConsumerProviderPair, optional=True)
 
 
 @dataclass
@@ -28,6 +55,29 @@ class ConsumerProviderPairConfig:
     consumer_public_path: str = "/public"
     provider_protocol_path: str = "/protocol"
     consumer_protocol_path: str = "/protocol"
+
+    @classmethod
+    def from_env(cls):
+        app_config = AppConfig.from_environ()
+        assert app_config.cons_prov_pair, "ConsumerProviderPair not configured"
+        cnf = app_config.cons_prov_pair
+
+        return cls(
+            provider_host=cnf.provider_host,
+            consumer_host=cnf.consumer_host,
+            provider_connector_id=cnf.provider_connector_id,
+            consumer_connector_id=cnf.consumer_connector_id,
+            provider_participant_id=cnf.provider_participant_id,
+            consumer_participant_id=cnf.consumer_participant_id,
+            provider_management_port=cnf.provider_management_port,
+            consumer_management_port=cnf.consumer_management_port,
+            provider_control_port=cnf.provider_control_port,
+            consumer_control_port=cnf.consumer_control_port,
+            provider_public_port=cnf.provider_public_port,
+            consumer_public_port=cnf.consumer_public_port,
+            provider_protocol_port=cnf.provider_protocol_port,
+            consumer_protocol_port=cnf.consumer_protocol_port
+        )
 
     @property
     def provider_management_url(self):

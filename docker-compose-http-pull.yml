@@ -60,7 +60,7 @@ services:
     volumes:
       - ./datacellar-certs:/certs
     environment:
-      CERT_PATH: /certs/cert.pem
+      EDC_CERT_PATH: /certs/cert.pem
       PORT: 8000
     ports:
       - "8000:8000"
