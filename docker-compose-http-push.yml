@@ -11,7 +11,7 @@ services:
         "-Dedc.vault=/certs/vault.properties",
         "-Dedc.fs.config=/connector/datacellar-push-sample-connector/consumer.properties",
         "-Dedc.dsp.callback.address=http://consumer:29194/protocol",
-        "-Dedc.receiver.http.endpoint=http://consumer_backend:8000",
+        "-Dedc.receiver.http.endpoint=http://consumer_backend:8000/pull",
         "-jar",
         "/connector/datacellar-push-sample-connector/build/libs/datacellar-push-sample-connector.jar"
       ]

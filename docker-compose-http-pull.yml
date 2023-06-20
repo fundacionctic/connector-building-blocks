@@ -10,7 +10,7 @@ services:
         "-Dedc.vault=/certs/vault.properties",
         "-Dedc.fs.config=/connector/http-pull-connector/consumer/configuration.properties",
         "-Dedc.dsp.callback.address=http://consumer:29194/protocol",
-        "-Dedc.receiver.http.endpoint=http://consumer_backend:8000",
+        "-Dedc.receiver.http.endpoint=http://consumer_backend:8000/pull",
         "-jar",
         "/connector/http-pull-connector/build/libs/pull-connector.jar"
       ]

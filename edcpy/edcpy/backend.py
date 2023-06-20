@@ -107,13 +107,10 @@ def _get_method(decoded_auth_code: dict) -> Union[str, None]:
     return next((val for key, val in props.items() if key.endswith("method")), None)
 
 
-@app.post("/")
-async def listen_for_endpoint_data_references(
+@app.post("/pull")
+async def http_pull_endpoint(
     item: EndpointDataReference, messaging_app: MessagingAppDep
 ):
-    """Listen for EndpointDataReference items and send requests to the
-    specified endpoint with the specified authKey and authCode."""
-
     _logger.debug(
         "Received %s:\n%s",
         EndpointDataReference,
@@ -145,10 +142,8 @@ async def listen_for_endpoint_data_references(
     return item
 
 
-@app.post("/log")
-async def dummy_log(body: dict, messaging_app: MessagingAppDep):
-    """Dummy endpoint for logging the request body."""
-
+@app.post("/push")
+async def http_push_endpoint(body: dict, messaging_app: MessagingAppDep):
     _logger.info("Received request with body:\n%s", pprint.pformat(body))
     return {"ok": True}
 

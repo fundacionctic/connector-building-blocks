@@ -11,7 +11,7 @@ _DEFAULT_PULL_PATH = "/users"
 _DEFAULT_PULL_METHOD = "GET"
 
 _DEFAULT_PUSH_BASE_URL = "http://consumer_backend:8000"
-_DEFAULT_PUSH_PATH = "/log"
+_DEFAULT_PUSH_PATH = "/push"
 _DEFAULT_PUSH_METHOD = "POST"
 
 
