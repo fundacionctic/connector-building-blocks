@@ -27,7 +27,7 @@ class AppConfig:
         provider_protocol_port = environ.var(converter=int)
         consumer_protocol_port = environ.var(converter=int)
 
-    cons_prov_pair = environ.group(ConsumerProviderPair, optional=True)
+    orchestrator = environ.group(ConsumerProviderPair, optional=True)
 
 
 @dataclass
@@ -59,8 +59,8 @@ class ConsumerProviderPairConfig:
     @classmethod
     def from_env(cls):
         app_config = AppConfig.from_environ()
-        assert app_config.cons_prov_pair, "ConsumerProviderPair not configured"
-        cnf = app_config.cons_prov_pair
+        assert app_config.orchestrator, "ConsumerProviderPair not configured"
+        cnf = app_config.orchestrator
 
         return cls(
             provider_host=cnf.provider_host,
