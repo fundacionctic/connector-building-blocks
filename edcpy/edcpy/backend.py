@@ -11,10 +11,12 @@ import uvicorn
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.x509 import load_pem_x509_certificate
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from pydantic import BaseModel
+from typing_extensions import Annotated
 
 from edcpy.config import AppConfig
+from edcpy.messaging import MessagingApp, start_messaging_app
 
 _logger = logging.getLogger(__name__)
 
@@ -27,6 +29,17 @@ class EndpointDataReference(BaseModel):
     authKey: str
     authCode: str
     properties: dict
+
+
+async def get_messaging_app() -> Union[MessagingApp, None]:
+    try:
+        return await start_messaging_app()
+    except:
+        _logger.warning("Could not start messaging app", exc_info=True)
+        return None
+
+
+MessagingAppDep = Annotated[Union[MessagingApp, None], Depends(get_messaging_app)]
 
 
 def _read_public_key() -> str:
@@ -95,7 +108,9 @@ def _get_method(decoded_auth_code: dict) -> Union[str, None]:
 
 
 @app.post("/")
-async def listen_for_endpoint_data_references(item: EndpointDataReference):
+async def listen_for_endpoint_data_references(
+    item: EndpointDataReference, messaging_app: MessagingAppDep
+):
     """Listen for EndpointDataReference items and send requests to the
     specified endpoint with the specified authKey and authCode."""
 
@@ -131,7 +146,7 @@ async def listen_for_endpoint_data_references(item: EndpointDataReference):
 
 
 @app.post("/log")
-async def dummy_log(body: dict):
+async def dummy_log(body: dict, messaging_app: MessagingAppDep):
     """Dummy endpoint for logging the request body."""
 
     _logger.info("Received request with body:\n%s", pprint.pformat(body))
