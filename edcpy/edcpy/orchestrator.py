@@ -1,10 +1,11 @@
+import asyncio
 import logging
 import pprint
 import time
 from dataclasses import dataclass
 from typing import Iterator, Union
 
-import requests
+import httpx
 
 from edcpy.config import ConsumerProviderPairConfig
 from edcpy.models.asset import Asset
@@ -85,48 +86,52 @@ class RequestOrchestrator:
     def __init__(self, config: ConsumerProviderPairConfig) -> None:
         self.config = config
 
-    def fetch_provider_catalog_from_consumer(self) -> dict:
+    async def fetch_provider_catalog_from_consumer(self) -> dict:
         data = {
             "@context": {"edc": "https://w3id.org/edc/v0.0.1/ns/"},
             "providerUrl": self.config.provider_protocol_url,
             "protocol": "dataspace-protocol-http",
         }
 
-        url = join_url(self.config.consumer_management_url, "v2/catalog/request")
-        _log_req("POST", url, data)
-        response = requests.post(url, headers=self.DEFAULT_HEADERS, json=data)
-        resp_json = response.json()
-        _log_res("POST", url, resp_json)
+        async with httpx.AsyncClient() as client:
+            url = join_url(self.config.consumer_management_url, "v2/catalog/request")
+            _log_req("POST", url, data)
+            response = await client.post(url, headers=self.DEFAULT_HEADERS, json=data)
+            resp_json = response.json()
+            _log_res("POST", url, resp_json)
 
         return resp_json
 
-    def _register_data_plane(self, management_url, control_url, public_api_url) -> dict:
+    async def _register_data_plane(
+        self, management_url, control_url, public_api_url
+    ) -> dict:
         data = DataPlaneInstance.build(
             control_url=control_url, public_api_url=public_api_url
         )
 
-        url = join_url(management_url, "instances")
-        _log_req("POST", url, data)
-        response = requests.post(url, headers=self.DEFAULT_HEADERS, json=data)
-        response.raise_for_status()
+        async with httpx.AsyncClient() as client:
+            url = join_url(management_url, "instances")
+            _log_req("POST", url, data)
+            response = await client.post(url, headers=self.DEFAULT_HEADERS, json=data)
+            response.raise_for_status()
 
         return data
 
-    def register_consumer_data_plane(self) -> dict:
-        return self._register_data_plane(
+    async def register_consumer_data_plane(self) -> dict:
+        return await self._register_data_plane(
             management_url=self.config.consumer_management_url,
             control_url=self.config.consumer_control_url,
             public_api_url=self.config.consumer_public_url,
         )
 
-    def register_provider_data_plane(self) -> dict:
-        return self._register_data_plane(
+    async def register_provider_data_plane(self) -> dict:
+        return await self._register_data_plane(
             management_url=self.config.provider_management_url,
             control_url=self.config.provider_control_url,
             public_api_url=self.config.provider_public_url,
         )
 
-    def create_provider_http_data_asset(
+    async def create_provider_http_data_asset(
         self,
         base_url: str,
         path: str,
@@ -140,37 +145,45 @@ class RequestOrchestrator:
             source_content_type=content_type,
         )
 
-        url = join_url(self.config.provider_management_url, "v2/assets")
-        _log_req("POST", url, data)
-        response = requests.post(url, headers=self.DEFAULT_HEADERS, json=data)
-        resp_json = response.json()
-        _log_res("POST", url, resp_json)
+        async with httpx.AsyncClient() as client:
+            url = join_url(self.config.provider_management_url, "v2/assets")
+            _log_req("POST", url, data)
+            response = await client.post(url, headers=self.DEFAULT_HEADERS, json=data)
+            resp_json = response.json()
+            _log_res("POST", url, resp_json)
 
         return resp_json
 
-    def create_provider_policy_definition(self) -> dict:
+    async def create_provider_policy_definition(self) -> dict:
         data = PolicyDefinition.build()
 
-        url = join_url(self.config.provider_management_url, "v2/policydefinitions")
-        _log_req("POST", url, data)
-        response = requests.post(url, headers=self.DEFAULT_HEADERS, json=data)
-        resp_json = response.json()
-        _log_res("POST", url, resp_json)
+        async with httpx.AsyncClient() as client:
+            url = join_url(self.config.provider_management_url, "v2/policydefinitions")
+            _log_req("POST", url, data)
+            response = await client.post(url, headers=self.DEFAULT_HEADERS, json=data)
+            resp_json = response.json()
+            _log_res("POST", url, resp_json)
 
         return resp_json
 
-    def create_provider_contract_definition(self, policy_definition_id: str) -> dict:
+    async def create_provider_contract_definition(
+        self, policy_definition_id: str
+    ) -> dict:
         data = ContractDefinition.build(policy_definition_id=policy_definition_id)
 
-        url = join_url(self.config.provider_management_url, "v2/contractdefinitions")
-        _log_req("POST", url, data)
-        response = requests.post(url, headers=self.DEFAULT_HEADERS, json=data)
-        resp_json = response.json()
-        _log_res("POST", url, resp_json)
+        async with httpx.AsyncClient() as client:
+            url = join_url(
+                self.config.provider_management_url, "v2/contractdefinitions"
+            )
+
+            _log_req("POST", url, data)
+            response = await client.post(url, headers=self.DEFAULT_HEADERS, json=data)
+            resp_json = response.json()
+            _log_res("POST", url, resp_json)
 
         return resp_json
 
-    def create_contract_negotiation_from_consumer(
+    async def create_contract_negotiation_from_consumer(
         self, offer_id: str, asset_id: str
     ) -> dict:
         data = ContractNegotiation.build(
@@ -182,15 +195,19 @@ class RequestOrchestrator:
             asset_id=asset_id,
         )
 
-        url = join_url(self.config.consumer_management_url, "v2/contractnegotiations")
-        _log_req("POST", url, data)
-        response = requests.post(url, headers=self.DEFAULT_HEADERS, json=data)
-        resp_json = response.json()
-        _log_res("POST", url, resp_json)
+        async with httpx.AsyncClient() as client:
+            url = join_url(
+                self.config.consumer_management_url, "v2/contractnegotiations"
+            )
+
+            _log_req("POST", url, data)
+            response = await client.post(url, headers=self.DEFAULT_HEADERS, json=data)
+            resp_json = response.json()
+            _log_res("POST", url, resp_json)
 
         return resp_json
 
-    def wait_for_consumer_contract_agreement_id(
+    async def wait_for_consumer_contract_agreement_id(
         self, contract_negotiation_id: str, iter_sleep: float = 1.0
     ) -> str:
         url = join_url(
@@ -198,22 +215,23 @@ class RequestOrchestrator:
             f"v2/contractnegotiations/{contract_negotiation_id}",
         )
 
-        while True:
-            _log_req("GET", url)
-            response = requests.get(url, headers=self.DEFAULT_HEADERS)
-            resp_json = response.json()
-            _log_res("GET", url, resp_json)
+        async with httpx.AsyncClient() as client:
+            while True:
+                _log_req("GET", url)
+                response = await client.get(url, headers=self.DEFAULT_HEADERS)
+                resp_json = response.json()
+                _log_res("GET", url, resp_json)
 
-            agreement_id = resp_json.get("edc:contractAgreementId")
-            state = resp_json.get("edc:state")
+                agreement_id = resp_json.get("edc:contractAgreementId")
+                state = resp_json.get("edc:state")
 
-            if state in ["FINALIZED", "VERIFIED"] and agreement_id is not None:
-                return agreement_id
+                if state in ["FINALIZED", "VERIFIED"] and agreement_id is not None:
+                    return agreement_id
 
-            _logger.debug("Waiting for contract agreement id")
-            time.sleep(iter_sleep)
+                _logger.debug("Waiting for contract agreement id")
+                await asyncio.sleep(iter_sleep)
 
-    def create_provider_push_transfer_process(
+    async def create_provider_push_transfer_process(
         self,
         contract_agreement_id: str,
         asset_id: str,
@@ -233,15 +251,16 @@ class RequestOrchestrator:
             sink_content_type=sink_content_type,
         )
 
-        url = join_url(self.config.consumer_management_url, "v2/transferprocesses")
-        _log_req("POST", url, data)
-        response = requests.post(url, headers=self.DEFAULT_HEADERS, json=data)
-        resp_json = response.json()
-        _log_res("POST", url, resp_json)
+        async with httpx.AsyncClient() as client:
+            url = join_url(self.config.consumer_management_url, "v2/transferprocesses")
+            _log_req("POST", url, data)
+            response = await client.post(url, headers=self.DEFAULT_HEADERS, json=data)
+            resp_json = response.json()
+            _log_res("POST", url, resp_json)
 
         return resp_json
 
-    def create_consumer_pull_transfer_process(
+    async def create_consumer_pull_transfer_process(
         self, contract_agreement_id: str, asset_id: str
     ) -> dict:
         data = TransferProcess.build_for_consumer_http_pull(
@@ -251,15 +270,16 @@ class RequestOrchestrator:
             asset_id=asset_id,
         )
 
-        url = join_url(self.config.consumer_management_url, "v2/transferprocesses")
-        _log_req("POST", url, data)
-        response = requests.post(url, headers=self.DEFAULT_HEADERS, json=data)
-        resp_json = response.json()
-        _log_res("POST", url, resp_json)
+        async with httpx.AsyncClient() as client:
+            url = join_url(self.config.consumer_management_url, "v2/transferprocesses")
+            _log_req("POST", url, data)
+            response = await client.post(url, headers=self.DEFAULT_HEADERS, json=data)
+            resp_json = response.json()
+            _log_res("POST", url, resp_json)
 
         return resp_json
 
-    def wait_for_transfer_process(
+    async def wait_for_transfer_process(
         self, transfer_process_id: str, iter_sleep: float = 1.0
     ) -> None:
         url = join_url(
@@ -267,24 +287,25 @@ class RequestOrchestrator:
             f"v2/transferprocesses/{transfer_process_id}",
         )
 
-        while True:
-            _log_req("GET", url)
-            response = requests.get(url, headers=self.DEFAULT_HEADERS)
-            resp_json = response.json()
-            _log_res("GET", url, resp_json)
+        async with httpx.AsyncClient() as client:
+            while True:
+                _log_req("GET", url)
+                response = await client.get(url, headers=self.DEFAULT_HEADERS)
+                resp_json = response.json()
+                _log_res("GET", url, resp_json)
 
-            if resp_json.get("edc:state") == "COMPLETED":
-                return resp_json
+                if resp_json.get("edc:state") == "COMPLETED":
+                    return resp_json
 
-            _logger.debug("Waiting for transfer process")
-            time.sleep(iter_sleep)
+                _logger.debug("Waiting for transfer process")
+                await asyncio.sleep(iter_sleep)
 
-    def prepare_to_transfer_asset(
+    async def prepare_to_transfer_asset(
         self, asset_query: Union[str, None]
     ) -> TransferProcessDetails:
         _logger.info("Preparing to transfer asset (query: %s)", asset_query)
 
-        catalog = self.fetch_provider_catalog_from_consumer()
+        catalog = await self.fetch_provider_catalog_from_consumer()
         catalog_content = CatalogContent(data=catalog)
         dataset_dict = catalog_content.find_one_dataset(asset_query)
         assert dataset_dict, f"Dataset not found for query: {asset_query}"
@@ -295,14 +316,14 @@ class RequestOrchestrator:
         asset_id = dataset.default_asset_id
         _logger.debug(f"Asset ID: {asset_id}")
 
-        contract_negotiation = self.create_contract_negotiation_from_consumer(
+        contract_negotiation = await self.create_contract_negotiation_from_consumer(
             offer_id=contract_offer_id, asset_id=asset_id
         )
 
         contract_negotiation_id = contract_negotiation["@id"]
         _logger.debug(f"Contract Negotiation ID: {contract_negotiation_id}")
 
-        contract_agreement_id = self.wait_for_consumer_contract_agreement_id(
+        contract_agreement_id = await self.wait_for_consumer_contract_agreement_id(
             contract_negotiation_id=contract_negotiation_id
         )
 

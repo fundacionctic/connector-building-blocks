@@ -6,9 +6,11 @@ from edcpy.utils import join_url
 
 PREFIX = "EDC"
 
+
 @environ.config(prefix=PREFIX)
 class AppConfig:
-    cert_path = environ.var()
+    cert_path = environ.var(default=None)
+    rabbit_url = environ.var(default=None)
 
     @environ.config
     class ConsumerProviderPair:
@@ -76,7 +78,7 @@ class ConsumerProviderPairConfig:
             provider_public_port=cnf.provider_public_port,
             consumer_public_port=cnf.consumer_public_port,
             provider_protocol_port=cnf.provider_protocol_port,
-            consumer_protocol_port=cnf.consumer_protocol_port
+            consumer_protocol_port=cnf.consumer_protocol_port,
         )
 
     @property

@@ -34,6 +34,7 @@ def _read_public_key() -> str:
     EDC_CERT_PATH environment variable."""
 
     cert_path = AppConfig.from_environ().cert_path
+    assert cert_path, "EDC_CERT_PATH environment variable not set"
 
     with open(cert_path, "rb") as fh:
         cert_str = fh.read()
