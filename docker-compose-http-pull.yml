@@ -61,7 +61,7 @@ services:
       - ./datacellar-certs:/certs
     environment:
       EDC_CERT_PATH: /certs/cert.pem
-      PORT: 8000
+      EDC_HTTP_API_PORT: 8000
     ports:
       - "8000:8000"
     networks:

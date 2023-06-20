@@ -4,6 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile.openjdk
     container_name: datacellar_consumer
+    restart: on-failure
     command:
       [
         "java",
@@ -32,6 +33,7 @@ services:
       context: .
       dockerfile: Dockerfile.edcpy
     container_name: datacellar_consumer_backend
+    restart: on-failure
     command: [ "run-http-backend" ]
     volumes:
       - .:/opt/src
@@ -39,7 +41,8 @@ services:
       - /var/run/avahi-daemon/socket:/var/run/avahi-daemon/socket
     environment:
       EDC_CERT_PATH: /opt/src/example/certs-consumer/cert.pem
-      PORT: 8000
+      EDC_RABBIT_URL: "amqp://guest:guest@broker:5672"
+      EDC_HTTP_API_PORT: 8000
     ports:
       - "8000:8000"
   datacellar_consumer_sandbox:
@@ -47,6 +50,7 @@ services:
       context: .
       dockerfile: Dockerfile.edcpy
     container_name: datacellar_consumer_sandbox
+    restart: on-failure
     command: [ "sleep", "infinity" ]
     volumes:
       - .:/opt/src
@@ -54,4 +58,11 @@ services:
       - /var/run/avahi-daemon/socket:/var/run/avahi-daemon/socket
     environment:
       EDC_CERT_PATH: /opt/src/example/certs-consumer/cert.pem
+      EDC_RABBIT_URL: "amqp://guest:guest@broker:5672"
     env_file: ./example/.env.example
+  broker:
+    image: rabbitmq:3.11
+    container_name: datacellar_consumer_broker
+    restart: on-failure
+    ports:
+      - "5672:5672"

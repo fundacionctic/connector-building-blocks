@@ -4,6 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile.openjdk
     container_name: datacellar_provider
+    restart: on-failure
     command:
       [
         "java",

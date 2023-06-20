@@ -151,6 +151,5 @@ async def http_push_endpoint(body: dict, messaging_app: MessagingAppDep):
 def run_server():
     """Run the server."""
 
-    coloredlogs.install(level=logging.DEBUG)
-    port = int(os.getenv("PORT", 8000))
+    port = AppConfig.from_environ().http_api_port
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="debug")

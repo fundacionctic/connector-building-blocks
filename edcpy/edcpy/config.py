@@ -11,6 +11,7 @@ PREFIX = "EDC"
 class AppConfig:
     cert_path = environ.var(default=None)
     rabbit_url = environ.var(default=None)
+    http_api_port = environ.var(converter=int, default=8000)
 
     @environ.config
     class ConsumerProviderPair:

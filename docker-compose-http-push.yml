@@ -60,7 +60,7 @@ services:
     container_name: http_push_consumer_backend
     command: [ "run-http-backend" ]
     environment:
-      PORT: 8000
+      EDC_HTTP_API_PORT: 8000
     ports:
       - "8000:8000"
     networks:
