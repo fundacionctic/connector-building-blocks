@@ -114,8 +114,8 @@ async def http_pull_endpoint(
     decoded_auth_code = _decode_auth_code(item)
 
     message = HttpPullMessage(
-        auth_code=decoded_auth_code,
-        auth_code_encoded=item.authCode,
+        auth_code_decoded=decoded_auth_code,
+        auth_code=item.authCode,
         auth_key=item.authKey,
         endpoint=item.endpoint,
         id=item.id,

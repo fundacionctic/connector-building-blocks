@@ -2,6 +2,7 @@ import json
 import logging
 import pprint
 from dataclasses import dataclass
+from typing import Union
 
 from propan import PropanApp, RabbitBroker
 from propan.brokers.rabbit import ExchangeType, RabbitExchange, RabbitQueue
@@ -19,17 +20,16 @@ _logger = logging.getLogger(__name__)
 
 
 class HttpPullMessage(BaseModel):
-    auth_code: dict
-    auth_code_encoded: str
+    auth_code_decoded: dict
+    auth_code: str
     auth_key: str
     endpoint: str
     id: str
     properties: dict
 
-    @property
-    def http_method(self) -> str:
+    def _source_data_address_property(self, prop: str):
         source_json_dad = (
-            self.auth_code.get("dad", {})
+            self.auth_code_decoded.get("dad", {})
             .get("properties", {})
             .get("authCode", {})
             .get("dad")
@@ -37,21 +37,28 @@ class HttpPullMessage(BaseModel):
 
         try:
             props = json.loads(source_json_dad)["properties"]
-            return next(val for key, val in props.items() if key.endswith("method"))
+            return next(val for key, val in props.items() if key.endswith(prop))
         except:
-            raise Exception("Failed to parse HTTP method from decoded auth code")
+            raise Exception(
+                "Failed to parse property '%s' from source data address in decoded auth code",
+                prop,
+            )
 
+    @property
+    def http_method(self) -> str:
+        return self._source_data_address_property("method")
 
-async def default_pull_handler(message: HttpPullMessage):
-    _logger.warning("Unhandled HTTP Pull request:\n%s", pprint.pformat(message.dict()))
+    @property
+    def request_args(self) -> dict:
+        return {
+            "method": self.http_method,
+            "url": self.endpoint,
+            "headers": {self.auth_key: self.auth_code},
+        }
 
 
 class HttpPushMessage(BaseModel):
     body: dict
-
-
-async def default_push_handler(message: HttpPushMessage):
-    _logger.warning("Unhandled HTTP Push request:\n%s", pprint.pformat(message.dict()))
 
 
 @dataclass
@@ -65,8 +72,8 @@ async def start_messaging_app(
     exchange_name: str = DEFAULT_EXCHANGE_NAME,
     http_pull_queue_name: str = DEFAULT_HTTP_PULL_QUEUE_NAME,
     http_push_queue_name: str = DEFAULT_HTTP_PUSH_QUEUE_NAME,
-    http_pull_handler: callable = default_pull_handler,
-    http_push_handler: callable = default_push_handler,
+    http_pull_handler: Union[callable, None] = None,
+    http_push_handler: Union[callable, None] = None,
 ) -> MessagingApp:
     rabbit_url = AppConfig.from_environ().rabbit_url
     assert rabbit_url, "RabbitMQ URL is not set"
@@ -89,7 +96,8 @@ async def start_messaging_app(
         routing_key=HTTP_PULL_QUEUE_ROUTING_KEY,
     )
 
-    broker.handle(http_pull_queue, topic_exchange)(http_pull_handler)
+    if http_pull_handler is not None:
+        broker.handle(http_pull_queue, topic_exchange)(http_pull_handler)
 
     _logger.info(f"Declaring queue {http_push_queue_name}")
 
@@ -99,7 +107,8 @@ async def start_messaging_app(
         routing_key=HTTP_PUSH_QUEUE_ROUTING_KEY,
     )
 
-    broker.handle(http_push_queue, topic_exchange)(http_push_handler)
+    if http_push_handler is not None:
+        broker.handle(http_push_queue, topic_exchange)(http_push_handler)
 
     _logger.info("Starting broker")
     await broker.start()
