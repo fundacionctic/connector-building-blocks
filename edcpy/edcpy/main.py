@@ -4,6 +4,7 @@ import logging
 import pprint
 
 from edcpy.config import ConsumerProviderPairConfig
+from edcpy.messaging import start_messaging_app
 from edcpy.orchestrator import CatalogContent, RequestOrchestrator
 
 _DEFAULT_PULL_BASE_URL = "https://jsonplaceholder.typicode.com"
@@ -141,6 +142,8 @@ async def _http_pull():
     args = parser.parse_args()
 
     _logger.info("Running HTTP pull with arguments: %s", args)
+
+    await start_messaging_app()
 
     config = get_env_config()
     orchestrator = RequestOrchestrator(config=config)

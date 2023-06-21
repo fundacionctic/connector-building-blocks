@@ -1,12 +1,9 @@
 import json
 import logging
-import os
 import pprint
 from typing import Union
 
-import coloredlogs
 import jwt
-import requests
 import uvicorn
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
@@ -16,7 +13,14 @@ from pydantic import BaseModel
 from typing_extensions import Annotated
 
 from edcpy.config import AppConfig
-from edcpy.messaging import MessagingApp, start_messaging_app
+from edcpy.messaging import (
+    HTTP_PULL_QUEUE_ROUTING_KEY,
+    HTTP_PUSH_QUEUE_ROUTING_KEY,
+    HttpPullMessage,
+    HttpPushMessage,
+    MessagingApp,
+    start_messaging_app,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -31,9 +35,19 @@ class EndpointDataReference(BaseModel):
     properties: dict
 
 
+_state = {
+    "messaging_app": None,
+}
+
+
 async def get_messaging_app() -> Union[MessagingApp, None]:
+    if _state.get("messaging_app", None) is not None:
+        return _state["messaging_app"]
+
     try:
-        return await start_messaging_app()
+        msg_app = await start_messaging_app()
+        _state["messaging_app"] = msg_app
+        return _state["messaging_app"]
     except:
         _logger.warning("Could not start messaging app", exc_info=True)
         return None
@@ -87,69 +101,58 @@ def _decode_auth_code(item: EndpointDataReference) -> dict:
     return ret
 
 
-def _get_method(decoded_auth_code: dict) -> Union[str, None]:
-    source_json_dad = (
-        decoded_auth_code.get("dad", {})
-        .get("properties", {})
-        .get("authCode", {})
-        .get("dad")
-    )
-
-    if not source_json_dad:
-        return None
-
-    try:
-        props = json.loads(source_json_dad)["properties"]
-    except:
-        _logger.warning("Could not parse HttpData properties from decoded auth code")
-        return None
-
-    return next((val for key, val in props.items() if key.endswith("method")), None)
-
-
 @app.post("/pull")
 async def http_pull_endpoint(
     item: EndpointDataReference, messaging_app: MessagingAppDep
 ):
     _logger.debug(
-        "Received %s:\n%s",
+        "Received HTTP Pull request %s:\n%s",
         EndpointDataReference,
         pprint.pformat(item.dict()),
     )
 
     decoded_auth_code = _decode_auth_code(item)
-    method = _get_method(decoded_auth_code)
-    method = method if method is not None else "GET"
 
-    _logger.debug(
-        "Decoded authCode %s:\n%s",
-        EndpointDataReference,
-        pprint.pformat(decoded_auth_code),
+    message = HttpPullMessage(
+        auth_code=decoded_auth_code,
+        auth_code_encoded=item.authCode,
+        auth_key=item.authKey,
+        endpoint=item.endpoint,
+        id=item.id,
+        properties=item.properties,
     )
 
-    _logger.info("Sending %s request to: %s", method, item.endpoint)
-
-    res = requests.request(
-        method=method, url=item.endpoint, headers={item.authKey: item.authCode}
+    await messaging_app.broker.publish(
+        message=message,
+        routing_key=HTTP_PULL_QUEUE_ROUTING_KEY,
+        exchange=messaging_app.exchange,
     )
 
-    _logger.info(
-        "Response from %s:\n%s",
-        item.endpoint,
-        pprint.pformat(res.text),
-    )
-
-    return item
+    return {
+        "broker": str(messaging_app.broker),
+        "exchange": str(messaging_app.exchange),
+    }
 
 
 @app.post("/push")
 async def http_push_endpoint(body: dict, messaging_app: MessagingAppDep):
-    _logger.info("Received request with body:\n%s", pprint.pformat(body))
-    return {"ok": True}
+    _logger.debug("Received HTTP Push request:\n%s", pprint.pformat(body))
+    message = HttpPushMessage(body=body)
+
+    await messaging_app.broker.publish(
+        message=message,
+        routing_key=HTTP_PUSH_QUEUE_ROUTING_KEY,
+        exchange=messaging_app.exchange,
+    )
+
+    return {
+        "broker": str(messaging_app.broker),
+        "exchange": str(messaging_app.exchange),
+    }
 
 
 def run_server():
-    """Run the server."""
+    """Run the HTTP server that exposes the HTTP API backend."""
 
     port = AppConfig.from_environ().http_api_port
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="debug")
