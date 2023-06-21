@@ -170,6 +170,8 @@ public class DataCellarCoreExtension implements ServiceExtension {
                         .path(path)
                         .method(method.name())
                         .contentType("application/json")
+                        .proxyBody(Boolean.toString(true))
+                        .proxyQueryParams(Boolean.toString(true))
                         .build();
 
                 Asset asset = Asset.Builder.newInstance().id(assetId)
