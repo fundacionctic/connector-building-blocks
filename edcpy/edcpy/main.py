@@ -1,10 +1,8 @@
-import argparse
 import asyncio
 import logging
 import pprint
 
 from edcpy.config import ConsumerProviderPairConfig
-from edcpy.messaging import start_messaging_app
 from edcpy.orchestrator import CatalogContent, RequestOrchestrator
 
 _DEFAULT_PULL_BASE_URL = "https://jsonplaceholder.typicode.com"
@@ -124,48 +122,3 @@ async def _list_assets():
 
 def list_assets(*args, **kwargs):
     asyncio.run(_list_assets(*args, **kwargs))
-
-
-async def _http_pull():
-    """A command line utility to create a transfer process
-    for an arbitrary asset using the HTTP pull pattern."""
-
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument(
-        "--asset",
-        type=str,
-        help="The approximate name of the asset to transfer",
-        required=True,
-    )
-
-    args = parser.parse_args()
-
-    _logger.info("Running HTTP pull with arguments: %s", args)
-
-    await start_messaging_app()
-
-    config = get_env_config()
-    orchestrator = RequestOrchestrator(config=config)
-
-    _logger.debug("Configuration:\n%s", pprint.pformat(config.__dict__))
-
-    transfer_details = await orchestrator.prepare_to_transfer_asset(
-        asset_query=args.asset
-    )
-
-    transfer_process = await orchestrator.create_consumer_pull_transfer_process(
-        contract_agreement_id=transfer_details.contract_agreement_id,
-        asset_id=transfer_details.asset_id,
-    )
-
-    transfer_process_id = transfer_process["@id"]
-    _logger.info(f"Transfer Process ID: {transfer_process_id}")
-
-    await orchestrator.wait_for_transfer_process(
-        transfer_process_id=transfer_process_id
-    )
-
-
-def http_pull(*args, **kwargs):
-    asyncio.run(_http_pull(*args, **kwargs))
