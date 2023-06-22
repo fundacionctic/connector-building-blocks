@@ -17,13 +17,15 @@ There is a `Vagrantfile` in the root of the repository, which serves as the conf
 
 After installing Vagrant on your system, simply run `vagrant up` to create both the provider and the consumer. The `Vagrantfile` is configured to handle all the necessary provisioning steps, such as installing dependencies and building the connector. Once the build process is complete, you can log into the consumer and provider by using `vagrant ssh consumer` or `vagrant ssh provider`.
 
-> Note that we use Multicast DNS to ensure that `provider.local` resolves to the provider’s IP and that `consumer.local` resolves to the consumers’ IP. This forces us to install `avahi-daemon` and `libnss-mdns` in both the consumer and provider, and also to bind the volumes `/var/run/dbus` and `/var/run/avahi-daemon/socket` on all Docker containers.
+We use Multicast DNS to ensure that `provider.local` resolves to the provider’s IP and that `consumer.local` resolves to the consumers’ IP. This forces us to install `avahi-daemon` and `libnss-mdns` in both the consumer and provider, and also to bind the volumes `/var/run/dbus` and `/var/run/avahi-daemon/socket` on all Docker containers.
+
+> Please note that the examples below are run in the Consumer VM, which can be accessed by running `vagrant ssh consumer`.
 
 ### Consumer Pull
 
 This example demonstrates the _Consumer Pull_ use case as defined in the [documentation of the Transfer Data Plane extension](https://github.com/eclipse-edc/Connector/tree/main/extensions/control-plane/transfer/transfer-data-plane).
 
-This approach tends to be more efficient than the Provider Push approach, as a single access token can be reused to send multiple requests to the same HTTP endpoint with different body contents and query arguments.
+This approach tends to be more efficient than the _Provider Push_ approach, as a single access token can be reused to send multiple requests to the same HTTP endpoint with different body contents and query arguments.
 
 
 ![HTTP Pull example](./diagrams/http-pull-example.png "HTTP Pull example")
@@ -89,3 +91,20 @@ vagrant@consumer:~$ docker exec -it datacellar_consumer_sandbox python /opt/src/
                                                                    'name': 'aggregation-task-queue'}}},
                                    'publish': {'message': {'$ref': '#/components/messages/ConsumptionAggregationTaskMessage'}, [...]
 ```
+
+## Frequently Asked Questions
+
+**How does the provider know how to expose the Mock HTTP API and create the related assets in the data space?**
+
+The Mock HTTP API must expose a schema file that adheres to the [OpenAPI specifications](https://spec.openapis.org/oas/latest.html). The URL to this file is provided as a configuration property (`eu.datacellar.openapi.url`) to the provider. Upon initialization, the provider retrieves the schema file and builds the necessary assets.
+
+The JSON file of the API schema serves as the authoritative source, determining how the HTTP API will be represented within the data space.
+
+**What is the role of the RabbitMQ message broker**
+
+In both the _Consumer Pull_ and _Provider Push_ approaches, an HTTP server (i.e. _Consumer Backend_) needs to be running on the consumer's side.
+
+In this project, [RabbitMQ](https://www.rabbitmq.com/) was chosen as a tool to decouple the messages received by the _Consumer Backend_ and enable arbitrary applications to subscribe to and process them asynchronously.
+
+RabbitMQ was selected due to its popularity and ease of use as a message broker. Other options, such as Redis, could have been chosen as well. It's worth noting that a message broker is not strictly necessary. Any mechanism capable of passing the messages received on the _Consumer Backend_ to the application would be suitable.
+
