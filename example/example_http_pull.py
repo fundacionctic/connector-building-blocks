@@ -3,7 +3,7 @@ An example of the Consumer Pull use case from the Transfer Data Plane extension:
 https://github.com/eclipse-edc/Connector/tree/main/extensions/control-plane/transfer/transfer-data-plane
 
 In this case the Provider serves as a proxy for the 
-Mock HTTP API contained in the 'datacellar-mock-component' folder.
+Mock HTTP API contained in the 'mock-component' folder.
 The Provider sends the access token to the Consumer Backend through the Consumer. 
 Then, the Consumer Backend uses the access token to send requests 
 to the Mock HTTP API through the Data Plane of the Connector.

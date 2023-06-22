@@ -17,8 +17,8 @@ class AppConfig:
     class ConsumerProviderPair:
         provider_host = environ.var("provider")
         consumer_host = environ.var("consumer")
-        provider_connector_id = environ.var("urn:connector:datacellar:provider")
-        consumer_connector_id = environ.var("urn:connector:datacellar:consumer")
+        provider_connector_id = environ.var("urn:connector:provider")
+        consumer_connector_id = environ.var("urn:connector:consumer")
         provider_participant_id = environ.var(provider_connector_id)
         consumer_participant_id = environ.var(consumer_connector_id)
         provider_management_port = environ.var(converter=int)

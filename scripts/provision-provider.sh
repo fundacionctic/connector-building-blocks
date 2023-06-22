@@ -9,10 +9,10 @@ BASE_DIR=/vagrant
 # Therefore, we only need to clean and build the connector JAR once.
 cd ${BASE_DIR}
 task clean
-task create-datacellar-example-certs-provider
-task move-datacellar-connector-jar
+task create-example-certs-provider
+task move-connector-jar
 
-cd ${BASE_DIR}/datacellar-mock-component
+cd ${BASE_DIR}/mock-component
 docker compose up -d --build --wait
 
 cd ${BASE_DIR}

@@ -16,7 +16,7 @@ openssl req -x509 \
     -keyout ${OUT_DIR}/key.pem \
     -out ${OUT_DIR}/cert.pem \
     -days 365 \
-    -subj "/C=ES/ST=Asturias/L=Gijon/O=CTIC/OU=CTIC/CN=datacellarproject.eu"
+    -subj "/C=ES/ST=Asturias/L=Gijon/O=CTIC/OU=CTIC/CN=ctic.es"
 
 openssl pkcs12 -export \
     -in ${OUT_DIR}/cert.pem \

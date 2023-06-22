@@ -8,7 +8,7 @@ env:
   MVD_COMMIT: 8141afc
   MVD_DIR: mvd
   MVD_UI_PATH: "{{.ROOT_DIR}}/{{.DATA_DASHBOARD_DIR}}"
-  DC_CONNECTOR_DIR: datacellar-connector
+  CONNECTOR_DIR: connector
   SCRIPTS_IMAGE: edc-poc-scripts
   EDCPY_IMAGE: edcpy
   SERVICES_SLEEP: 10
@@ -27,7 +27,7 @@ tasks:
       - rm -fr {{.ROOT_DIR}}/example/*.jar
       - rm -fr {{.DATA_DASHBOARD_DIR}}
       - rm -fr {{.MVD_DIR}}
-      - cd {{.DC_CONNECTOR_DIR}} && gradle clean
+      - cd {{.CONNECTOR_DIR}} && gradle clean
       - cmd: docker rmi -f {{.SCRIPTS_IMAGE}}
         ignore_error: true
       - cmd: docker rmi -f {{.EDCPY_IMAGE}}
@@ -130,9 +130,9 @@ tasks:
         mcr.microsoft.com/azure-cli:2.48.1 
         /bin/bash /scripts/upload-test-doc.sh
 
-  build-datacellar-connector:
-    desc: Builds the Data Cellar connector
-    dir: "{{.DC_CONNECTOR_DIR}}"
+  build-connector:
+    desc: Builds the connector
+    dir: "{{.CONNECTOR_DIR}}"
     cmds:
       - gradle clean build
 
@@ -141,8 +141,8 @@ tasks:
     cmds:
       - docker build -t {{.EDCPY_IMAGE}} -f Dockerfile.edcpy .
 
-  create-datacellar-example-certs-consumer:
-    desc: Creates the certificates used by the Data Cellar example consumer
+  create-example-certs-consumer:
+    desc: Creates the certificates used by the example consumer
     deps:
       - build-scripts-image
     vars:
@@ -158,8 +158,8 @@ tasks:
     status:
       - test -f {{.EXAMPLE_CONSUMER_CERTS_DIR}}/*.pfx
 
-  create-datacellar-example-certs-provider:
-    desc: Creates the certificates used by the Data Cellar example provider
+  create-example-certs-provider:
+    desc: Creates the certificates used by the example provider
     deps:
       - build-scripts-image
     vars:
@@ -175,12 +175,12 @@ tasks:
     status:
       - test -f {{.EXAMPLE_PROVIDER_CERTS_DIR}}/*.pfx
 
-  move-datacellar-connector-jar:
-    desc: Moves the Data Cellar connector JAR to the example directory
+  move-connector-jar:
+    desc: Moves the connector JAR to the example directory
     deps:
-      - build-datacellar-connector
+      - build-connector
     cmds:
       - >
         cp -f 
-        {{.ROOT_DIR}}/{{.DC_CONNECTOR_DIR}}/datacellar-core-connector/build/libs/datacellar-core-connector.jar 
+        {{.ROOT_DIR}}/{{.CONNECTOR_DIR}}/core-connector/build/libs/core-connector.jar 
         {{.ROOT_DIR}}/example/

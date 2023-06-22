@@ -3,7 +3,7 @@ An example of the Provider Push use case from the Transfer Data Plane extension:
 https://github.com/eclipse-edc/Connector/tree/main/extensions/control-plane/transfer/transfer-data-plane
 
 In this case the Provider calls the Mock HTTP API contained in the 
-'datacellar-mock-component' folder and then 'pushes' the result to the Consumer Backend.
+'mock-component' folder and then 'pushes' the result to the Consumer Backend.
 """
 
 import asyncio
