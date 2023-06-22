@@ -2,32 +2,11 @@
 An example of the Consumer Pull use case from the Transfer Data Plane extension:
 https://github.com/eclipse-edc/Connector/tree/main/extensions/control-plane/transfer/transfer-data-plane
 
-More specifically, the Provider serves as a proxy for the 
+In this case the Provider serves as a proxy for the 
 Mock HTTP API contained in the 'datacellar-mock-component' folder.
-Both the Provider and the Mock HTTP API are deployed in the same private network. 
-The Consumer browses the catalog of the Provider and initiates the 
-transfer for assets that represent endpoints in the Mock HTTP API. 
 The Provider sends the access token to the Consumer Backend through the Consumer. 
-Then, the Consumer Backend, of which this example is a part, uses the access token 
-to send requests to the Mock HTTP API through the Data Plane of the Connector.
-
-        Consumer network                             Provider network
-
-┌────────────────────────────────┐          ┌────────────────────────────────┐
-│                                │          │                                │
-│  ┌──────────┐    ┌──────────┐  │          │  ┌──────────┐    ┌──────────┐  │
-│  │          │    │          │  │          │  │          │    │          │  │
-│  │          │◄───┤          ├──┼──────────┼─►│          ├───►│   Mock   │  │
-│  │ Consumer │    │ Consumer │  │          │  │ Provider │    │   HTTP   │  │
-│  │ Backend  ├───►│          │◄─┼──────────┼──┤          │◄───┤   API    │  │
-│  │          │    │          │  │    ^     │  │          │    │          │  │
-│  └──────────┘    └──────────┘  │    │     │  └──────────┘    └──────────┘  │
-│                                │    │     │                                │
-└────────────────────────────────┘    │     └────────────────────────────────┘
-
-                         Communications managed by the
-                         Eclipse Connector that comply
-                         with the Data Space protocol
+Then, the Consumer Backend uses the access token to send requests 
+to the Mock HTTP API through the Data Plane of the Connector.
 """
 
 import asyncio

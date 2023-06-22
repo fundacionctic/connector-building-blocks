@@ -1,3 +1,11 @@
+"""
+An example of the Provider Push use case from the Transfer Data Plane extension:
+https://github.com/eclipse-edc/Connector/tree/main/extensions/control-plane/transfer/transfer-data-plane
+
+In this case the Provider calls the Mock HTTP API contained in the 
+'datacellar-mock-component' folder and then 'pushes' the result to the Consumer Backend.
+"""
+
 import asyncio
 import logging
 import os
@@ -38,6 +46,7 @@ async def main():
     orchestrator = RequestOrchestrator(config=config)
     _logger.debug("Configuration:\n%s", pprint.pformat(config.__dict__))
 
+    # Initiate the transfer processfor the asset.
     transfer_details = await orchestrator.prepare_to_transfer_asset(
         asset_query=_ASSET_ASYNCAPI_JSON
     )
@@ -56,6 +65,9 @@ async def main():
         transfer_process_id=transfer_process_id
     )
 
+    # Wait for the message published by the Consumer Backend to the Rabbit broker.
+    # The message contains the response from the Mock HTTP API without any modification.
+    # That is, the message has been 'pushed' from the Provider to the Consumer Backend.
     http_push_msg = await _queue.get()
 
     _logger.info(

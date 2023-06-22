@@ -1,3 +1,7 @@
+"""
+This example shows how the Consumer can list the assets available in the Provider's catalogue.
+"""
+
 import asyncio
 import logging
 import os
