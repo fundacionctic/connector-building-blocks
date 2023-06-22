@@ -9,9 +9,6 @@ env:
   MVD_DIR: mvd
   MVD_UI_PATH: "{{.ROOT_DIR}}/{{.DATA_DASHBOARD_DIR}}"
   DC_CONNECTOR_DIR: datacellar-connector
-  DC_CERTS_DIR: datacellar-certs
-  HTTP_PULL_NETWORK: edc_http_pull
-  HTTP_PUSH_NETWORK: edc_http_push
   SCRIPTS_IMAGE: edc-poc-scripts
   EDCPY_IMAGE: edcpy
   SERVICES_SLEEP: 10
@@ -24,15 +21,12 @@ tasks:
     cmds:
       - cmd: docker compose --profile ui -f {{.MVD_DIR}}/system-tests/docker-compose.yml down -v
         ignore_error: true
-      - docker compose -f docker-compose-http-pull.yml down -v
-      - docker compose -f docker-compose-http-push.yml down -v
       - docker compose -f {{.ROOT_DIR}}/docker-compose-consumer.yml down -v
       - docker compose -f {{.ROOT_DIR}}/docker-compose-provider.yml down -v
       - rm -fr {{.ROOT_DIR}}/example/certs-*
       - rm -fr {{.ROOT_DIR}}/example/*.jar
       - rm -fr {{.DATA_DASHBOARD_DIR}}
       - rm -fr {{.MVD_DIR}}
-      - rm -fr {{.DC_CERTS_DIR}}
       - cd {{.DC_CONNECTOR_DIR}} && gradle clean
       - cmd: docker rmi -f {{.SCRIPTS_IMAGE}}
         ignore_error: true
@@ -142,71 +136,10 @@ tasks:
     cmds:
       - gradle clean build
 
-  create-datacellar-certs:
-    desc: Creates the certificates used by the Data Cellar connector
-    deps:
-      - build-scripts-image
-    vars:
-      KEY_ALIAS: "datacellar"
-      KEY_PASSW: "datacellar"
-    cmds:
-      - mkdir -p {{.ROOT_DIR}}/{{.DC_CERTS_DIR}}
-      - >
-        docker run --rm 
-        -v {{.ROOT_DIR}}/{{.DC_CERTS_DIR}}:/out 
-        {{.SCRIPTS_IMAGE}}
-        /bin/bash -c "OUT_DIR=/out KEY_ALIAS={{.KEY_ALIAS}} KEY_PASSW={{.KEY_PASSW}} ./create-certs.sh"
-    status:
-      - test -f {{.ROOT_DIR}}/{{.DC_CERTS_DIR}}/*.pfx
-
   build-edcpy-image:
     desc: Builds the Docker image that contains the EDC Python SDK
     cmds:
       - docker build -t {{.EDCPY_IMAGE}} -f Dockerfile.edcpy .
-
-  http-pull-sample-services-up:
-    desc: Starts the Compose stack of the HTTP Pull sample
-    deps:
-      - build-datacellar-connector
-      - create-datacellar-certs
-    cmds:
-      - docker compose -f docker-compose-http-pull.yml up -d --build --wait
-      - sleep {{.SERVICES_SLEEP}}
-
-  run-http-pull-sample:
-    desc: Runs the HTTP Pull sample
-    deps:
-      - build-edcpy-image
-      - http-pull-sample-services-up
-    cmds:
-      - >
-        docker run --rm -it 
-        --network {{.HTTP_PULL_NETWORK}} 
-        --env-file {{.ROOT_DIR}}/.env.http-pull-sample
-        {{.EDCPY_IMAGE}} 
-        run-http-pull-sample
-
-  http-push-sample-services-up:
-    desc: Starts the Compose stack of the HTTP Push sample
-    deps:
-      - build-datacellar-connector
-      - create-datacellar-certs
-    cmds:
-      - docker compose -f docker-compose-http-push.yml up -d --build --wait
-      - sleep {{.SERVICES_SLEEP}}
-
-  run-http-push-sample:
-    desc: Runs the HTTP Push sample
-    deps:
-      - build-edcpy-image
-      - http-push-sample-services-up
-    cmds:
-      - >
-        docker run --rm -it 
-        --network {{.HTTP_PUSH_NETWORK}} 
-        --env-file {{.ROOT_DIR}}/.env.http-push-sample
-        {{.EDCPY_IMAGE}} 
-        run-http-push-sample
 
   create-datacellar-example-certs-consumer:
     desc: Creates the certificates used by the Data Cellar example consumer

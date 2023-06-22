@@ -24,7 +24,4 @@ include("transfer-status-checker")
 include("transfer-provider")
 include("transfer-consumer")
 
-include("http-pull-connector")
-
-include("datacellar-push-sample-connector")
 include("datacellar-core-connector")
