@@ -100,7 +100,7 @@ The Mock HTTP API must expose a schema file that adheres to the [OpenAPI specifi
 
 The JSON file of the API schema serves as the authoritative source, determining how the HTTP API will be represented within the data space.
 
-**What is the role of the RabbitMQ message broker**
+**What is the role of the RabbitMQ message broker?**
 
 In both the _Consumer Pull_ and _Provider Push_ approaches, an HTTP server (i.e. _Consumer Backend_) needs to be running on the consumer's side.
 
