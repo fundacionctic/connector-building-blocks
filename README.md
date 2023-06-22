@@ -108,3 +108,8 @@ In this project, [RabbitMQ](https://www.rabbitmq.com/) was chosen as a tool to d
 
 RabbitMQ was selected due to its popularity and ease of use as a message broker. Other options, such as Redis, could have been chosen as well. It's worth noting that a message broker is not strictly necessary. Any mechanism capable of passing the messages received on the _Consumer Backend_ to the application would be suitable.
 
+**What is the `edcpy` package, and is Python required?**
+
+The [Management](https://app.swaggerhub.com/apis/eclipse-edc-bot/management-api/0.1.0-SNAPSHOT) and [Control](https://app.swaggerhub.com/apis/eclipse-edc-bot/control-api/0.1.0-SNAPSHOT) APIs of the Eclipse Connector involve complex interactions with multiple steps that need to be repeated. The `edcpy` package serves as a means to encapsulate this logic, making it reusable. Additionally, it provides a ready-to-use _Consumer Backend_ that integrates with RabbitMQ.
+
+However, it's important to note that the use of Python is not mandatory. The `edcpy` package is designed to (hopefully) facilitate the development process, but if you prefer to use another programming language, you have the flexibility to build your own _Consumer Backend_ and directly communicate with the Management API.
