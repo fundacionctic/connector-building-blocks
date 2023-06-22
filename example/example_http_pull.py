@@ -32,6 +32,7 @@ to send requests to the Mock HTTP API through the Data Plane of the Connector.
 
 import asyncio
 import logging
+import os
 import pprint
 
 import coloredlogs
@@ -147,5 +148,5 @@ async def main():
 
 
 if __name__ == "__main__":
-    coloredlogs.install(level=logging.DEBUG)
+    coloredlogs.install(level=os.getenv("LOG_LEVEL", "DEBUG"))
     asyncio.run(main())
