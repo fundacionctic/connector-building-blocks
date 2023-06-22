@@ -142,4 +142,4 @@ However, it's important to note that the use of Python is not mandatory. The `ed
 
 We will strive to ensure that the core connector is compatible with any arbitrary HTTP API, as long as it is properly described using the OpenAPI specification.
 
-This means that you should have the liberty of using whatever technology technology stack you feel more comfortable with to develop the API.
+This means that you should have the liberty of using whatever technology stack you feel more comfortable with to develop the API.
