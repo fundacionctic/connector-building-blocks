@@ -27,8 +27,9 @@ This example demonstrates the _Consumer Pull_ use case as defined in the [docume
 
 This approach tends to be more efficient than the _Provider Push_ approach, as a single access token can be reused to send multiple requests to the same HTTP endpoint with different body contents and query arguments.
 
-
 ![HTTP Pull example](./diagrams/http-pull-example.png "HTTP Pull example")
+
+> The `datacellar_consumer_sandbox` container is created solely for convenience and does not perform any specific tasks. Its purpose is to facilitate the execution of example scripts. Additionally, please note that the `/opt/src` directory contains the sources in this repository.
 
 ```console
 vagrant@consumer:~$ docker exec -it datacellar_consumer_sandbox python /opt/src/example/example_http_pull.py
