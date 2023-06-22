@@ -13,7 +13,18 @@ The repository is organized as follows:
 
 ## Examples
 
+There is a `Vagrantfile` in the root of the repository, which serves as the configuration file for Vagrant. [Vagrant](https://www.vagrantup.com/) is a tool utilized here to generate reproducible versions of two separate Ubuntu Virtual Machines: one for the provider and another for the consumer. This approach guarantees that the examples portray a more realistic scenario where the consumer and provider are deployed on different instances. Consequently, this distinction is reflected in the configuration files, providing a more illustrative demonstration rather than relying only on localhost access for all configuration properties.
+
+After installing Vagrant on your system, simply run `vagrant up` to create both the provider and the consumer. The `Vagrantfile` is configured to handle all the necessary provisioning steps, such as installing dependencies and building the connector. Once the build process is complete, you can log into the consumer and provider by using `vagrant ssh consumer` or `vagrant ssh provider`.
+
+> Note that we use Multicast DNS to ensure that `provider.local` resolves to the provider’s IP and that `consumer.local` resolves to the consumers’ IP. This forces us to install `avahi-daemon` and `libnss-mdns` in both the consumer and provider, and also to bind the volumes `/var/run/dbus` and `/var/run/avahi-daemon/socket` on all Docker containers.
+
 ### Consumer Pull
+
+This example demonstrates the _Consumer Pull_ use case as defined in the [documentation of the Transfer Data Plane extension](https://github.com/eclipse-edc/Connector/tree/main/extensions/control-plane/transfer/transfer-data-plane).
+
+This approach tends to be more efficient than the Provider Push approach, as a single access token can be reused to send multiple requests to the same HTTP endpoint with different body contents and query arguments.
+
 
 ![HTTP Pull example](./diagrams/http-pull-example.png "HTTP Pull example")
 
@@ -48,6 +59,8 @@ vagrant@consumer:~$ docker exec -it datacellar_consumer_sandbox python /opt/src/
 ```
 
 ### Provider Push
+
+This example demonstrates the _Provicer Push_ use case as defined in the [documentation of the Transfer Data Plane extension](https://github.com/eclipse-edc/Connector/tree/main/extensions/control-plane/transfer/transfer-data-plane).
 
 ![HTTP Push example](./diagrams/http-push-example.png "HTTP Push example")
 
