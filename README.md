@@ -69,28 +69,48 @@ This example demonstrates the _Provider Push_ use case as defined in the [docume
 
 ```console
 vagrant@consumer:~$ docker exec -it consumer_sandbox python /opt/src/example/example_http_push.py
-2023-06-22 11:22:41 2567f5522989 edcpy.messaging[48] INFO Connecting to RabbitMQ at amqp://guest:guest@broker:5672
-2023-06-22 11:22:41 2567f5522989 edcpy.messaging[48] INFO Declaring exchange edcpy-topic-exchange
-2023-06-22 11:22:41 2567f5522989 edcpy.messaging[48] INFO Declaring queue http-pull-queue
-2023-06-22 11:22:41 2567f5522989 edcpy.messaging[48] INFO Declaring queue http-push-queue
-2023-06-22 11:22:41 2567f5522989 edcpy.messaging[48] INFO Starting broker
-2023-06-22 11:22:41 2567f5522989 edcpy.messaging[48] INFO `push_handler` waiting for messages
-2023-06-22 11:22:41 2567f5522989 edcpy.orchestrator[48] INFO Preparing to transfer asset (query: GET-asyncapi-json)
-2023-06-22 11:22:41 2567f5522989 httpx[48] INFO HTTP Request: POST http://consumer.local:9193/management/v2/catalog/request "HTTP/1.1 200 OK"
-2023-06-22 11:22:41 2567f5522989 httpx[48] INFO HTTP Request: POST http://consumer.local:9193/management/v2/contractnegotiations "HTTP/1.1 200 OK"
-2023-06-22 11:22:41 2567f5522989 httpx[48] INFO HTTP Request: GET http://consumer.local:9193/management/v2/contractnegotiations/58e6d5ec-7523-4aec-a24a-dc50b0f9f69d "HTTP/1.1 200 OK"
+2023-06-22 17:11:35 16ea40c695f8 edcpy.messaging[13] INFO Connecting to RabbitMQ at amqp://guest:guest@broker:5672
+2023-06-22 17:11:35 16ea40c695f8 edcpy.messaging[13] INFO Declaring exchange edcpy-topic-exchange
+2023-06-22 17:11:35 16ea40c695f8 edcpy.messaging[13] INFO Declaring queue http-pull-queue
+2023-06-22 17:11:35 16ea40c695f8 edcpy.messaging[13] INFO Declaring queue http-push-queue
+2023-06-22 17:11:35 16ea40c695f8 edcpy.messaging[13] INFO Starting broker
+2023-06-22 17:11:35 16ea40c695f8 edcpy.messaging[13] INFO `push_handler` waiting for messages
+2023-06-22 17:11:35 16ea40c695f8 edcpy.orchestrator[13] INFO Preparing to transfer asset (query: GET-consumption)
+2023-06-22 17:11:35 16ea40c695f8 httpx[13] INFO HTTP Request: POST http://consumer.local:9193/management/v2/catalog/request "HTTP/1.1 200 OK"
+2023-06-22 17:11:35 16ea40c695f8 httpx[13] INFO HTTP Request: POST http://consumer.local:9193/management/v2/contractnegotiations "HTTP/1.1 200 OK"
+2023-06-22 17:11:35 16ea40c695f8 httpx[13] INFO HTTP Request: GET http://consumer.local:9193/management/v2/contractnegotiations/22343903-2f1e-4ba9-b8ad-ed3c2fe7736d "HTTP/1.1 200 OK"
+2023-06-22 17:11:36 16ea40c695f8 httpx[13] INFO HTTP Request: GET http://consumer.local:9193/management/v2/contractnegotiations/22343903-2f1e-4ba9-b8ad-ed3c2fe7736d "HTTP/1.1 200 OK"
+2023-06-22 17:11:36 16ea40c695f8 httpx[13] INFO HTTP Request: POST http://consumer.local:9193/management/v2/transferprocesses "HTTP/1.1 200 OK"
+2023-06-22 17:11:36 16ea40c695f8 httpx[13] INFO HTTP Request: GET http://consumer.local:9193/management/v2/transferprocesses/ef840aaf-720e-4f16-8014-4d9c9dd6c201 "HTTP/1.1 200 OK"
 
 [...]
 
-2023-06-22 11:22:45 2567f5522989 __main__[48] INFO Received response from Mock HTTP API:
-{'asyncapi': '2.6.0',
- 'channels': {'aggregation-task': {'bindings': {'amqp': {'exchange': {'autoDelete': True,
-                                                                      'name': 'tasks-exchange',
-                                                                      'type': 'direct'},
-                                                         'is': 'queue',
-                                                         'queue': {'autoDelete': True,
-                                                                   'name': 'aggregation-task-queue'}}},
-                                   'publish': {'message': {'$ref': '#/components/messages/ConsumptionAggregationTaskMessage'}, [...]
+2023-06-22 17:11:39 16ea40c695f8 __main__[13] INFO Received response from Mock HTTP API:
+{'location': 'Asturias',
+ 'results': [{'date': '2023-06-21T00:00:00+00:00', 'value': 68},
+             {'date': '2023-06-21T01:00:00+00:00', 'value': 42},
+             {'date': '2023-06-21T02:00:00+00:00', 'value': 5},
+             {'date': '2023-06-21T03:00:00+00:00', 'value': 6},
+             {'date': '2023-06-21T04:00:00+00:00', 'value': 79},
+             {'date': '2023-06-21T05:00:00+00:00', 'value': 71},
+             {'date': '2023-06-21T06:00:00+00:00', 'value': 4},
+             {'date': '2023-06-21T07:00:00+00:00', 'value': 83},
+             {'date': '2023-06-21T08:00:00+00:00', 'value': 76},
+             {'date': '2023-06-21T09:00:00+00:00', 'value': 69},
+             {'date': '2023-06-21T10:00:00+00:00', 'value': 4},
+             {'date': '2023-06-21T11:00:00+00:00', 'value': 14},
+             {'date': '2023-06-21T12:00:00+00:00', 'value': 80},
+             {'date': '2023-06-21T13:00:00+00:00', 'value': 64},
+             {'date': '2023-06-21T14:00:00+00:00', 'value': 74},
+             {'date': '2023-06-21T15:00:00+00:00', 'value': 22},
+             {'date': '2023-06-21T16:00:00+00:00', 'value': 72},
+             {'date': '2023-06-21T17:00:00+00:00', 'value': 100},
+             {'date': '2023-06-21T18:00:00+00:00', 'value': 40},
+             {'date': '2023-06-21T19:00:00+00:00', 'value': 84},
+             {'date': '2023-06-21T20:00:00+00:00', 'value': 71},
+             {'date': '2023-06-21T21:00:00+00:00', 'value': 16},
+             {'date': '2023-06-21T22:00:00+00:00', 'value': 74},
+             {'date': '2023-06-21T23:00:00+00:00', 'value': 52}]}
 ```
 
 ## Frequently Asked Questions

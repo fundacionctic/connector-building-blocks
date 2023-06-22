@@ -17,7 +17,7 @@ from edcpy.config import ConsumerProviderPairConfig
 from edcpy.messaging import HttpPushMessage, start_messaging_app
 from edcpy.orchestrator import RequestOrchestrator
 
-_ASSET_ASYNCAPI_JSON = "GET-asyncapi-json"
+_ASSET_CONSUMPTION = "GET-consumption"
 
 _SINK_BASE_URL = "http://consumer.local:8000"
 _SINK_PATH = "/push"
@@ -48,7 +48,7 @@ async def main():
 
     # Initiate the transfer processfor the asset.
     transfer_details = await orchestrator.prepare_to_transfer_asset(
-        asset_query=_ASSET_ASYNCAPI_JSON
+        asset_query=_ASSET_CONSUMPTION
     )
 
     transfer_process = await orchestrator.create_provider_push_transfer_process(

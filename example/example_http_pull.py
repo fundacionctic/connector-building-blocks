@@ -23,8 +23,8 @@ from edcpy.orchestrator import RequestOrchestrator
 
 # These asset names are known in advance and are used to query the provider.
 # However, they could be selected dynamically by browsing the catalogue.
-_ASSET_ASYNCAPI_JSON = "asyncapi-json"
-_ASSET_CONSUMPTION_PREDICTION = "consumption-prediction"
+_ASSET_CONSUMPTION = "GET-consumption"
+_ASSET_CONSUMPTION_PREDICTION = "POST-consumption-prediction"
 
 _logger = logging.getLogger(__name__)
 _queue: asyncio.Queue[HttpPullMessage] = asyncio.Queue()
@@ -67,7 +67,7 @@ async def transfer_asset(orchestrator: RequestOrchestrator, asset_query: str):
 async def request_get(orchestrator: RequestOrchestrator):
     """In this case we request a GET endpoint from the Mock HTTP API."""
 
-    await transfer_asset(asset_query=_ASSET_ASYNCAPI_JSON, orchestrator=orchestrator)
+    await transfer_asset(asset_query=_ASSET_CONSUMPTION, orchestrator=orchestrator)
 
     http_pull_msg = await _queue.get()
 

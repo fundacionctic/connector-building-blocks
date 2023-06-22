@@ -69,12 +69,14 @@ async def run_consumption_prediction(
 
 
 @app.get("/consumption", tags=["Electricity consumption"])
-async def get_consumption_data(location: str, day: date) -> ElectrictyConsumptionData:
+async def get_consumption_data(
+    location: str = "Asturias", day: date = None
+) -> ElectrictyConsumptionData:
     """Fetch the historical time series of electricity consumption for a given day."""
 
     await asyncio.sleep(random.random())
 
-    arrow_day = arrow.get(day)
+    arrow_day = arrow.get(day) if day else arrow.utcnow().shift(days=-1).floor("day")
 
     results = [
         {"date": item.isoformat(), "value": random.randint(0, 100)}
