@@ -8,6 +8,9 @@ The repository is organized as follows:
 
 * The `connector` folder contains a Java project with several separate proofs-of-concept. Most of these are derived from and adapted from the [EDC samples repository](https://github.com/eclipse-edc/Samples). The most relevant code is located in the `core-connector` folder, which contains a very early draft version of the _Core Connector_ extension
 * The `mock-component` folder contains an example data space participant that exposes both an HTTP API and an event-driven API based on RabbitMQ. These APIs are described by [OpenAPI](https://learn.openapis.org/) and [AsyncAPI](https://www.asyncapi.com/docs) documents, respectively. The logic of the component itself does not hold any value; its purpose is to demonstrate where each partner should contribute.
+
+> Support for AsyncAPI and event-driven APIs is a nice-to-have that is not currently being prioritized. It will be addressed at a later stage if time permits and there are no technological roadblocks.
+
 * The `edcpy` folder contains a Python package built on top of [Poetry](https://python-poetry.org/), providing a series of utilities to interact with an EDC-based dataspace. For example, it contains the logic to execute all the necessary HTTP requests to successfully complete a transfer process from start to finish. Additionally, it offers an example implementation of an [HTTP pull receiver](https://github.com/eclipse-edc/Connector/tree/main/extensions/control-plane/transfer/transfer-data-plane) backend.
 * The `example` folder contains the configuration files required for the end-to-end example of an interaction between a provider and consumer. This example is one of the main contributions of this repository and aims to clarify any doubts or uncertainties regarding how to integrate a regular service or API into a data space.
 
@@ -134,3 +137,9 @@ RabbitMQ was selected due to its popularity and ease of use as a message broker.
 The [Management](https://app.swaggerhub.com/apis/eclipse-edc-bot/management-api/0.1.0-SNAPSHOT) and [Control](https://app.swaggerhub.com/apis/eclipse-edc-bot/control-api/0.1.0-SNAPSHOT) APIs of the Eclipse Connector involve complex interactions with multiple steps that need to be repeated. The `edcpy` package serves as a means to encapsulate this logic, making it reusable. Additionally, it provides a ready-to-use _Consumer Backend_ that integrates with RabbitMQ.
 
 However, it's important to note that the use of Python is not mandatory. The `edcpy` package is designed to (hopefully) facilitate the development process, but if you prefer to use another programming language, you have the flexibility to build your own _Consumer Backend_ and directly communicate with the Management API.
+
+**What are the minimum requirements that an HTTP API must have to be interoperable with the _Core Connector_?**
+
+We will strive to ensure that the core connector is compatible with any arbitrary HTTP API, as long as it is properly described using the OpenAPI specification.
+
+This means that you should have the liberty of using whatever technology technology stack you feel more comfortable with to develop the API.
