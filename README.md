@@ -60,7 +60,7 @@ vagrant@consumer:~$ docker exec -it datacellar_consumer_sandbox python /opt/src/
 
 ### Provider Push
 
-This example demonstrates the _Provicer Push_ use case as defined in the [documentation of the Transfer Data Plane extension](https://github.com/eclipse-edc/Connector/tree/main/extensions/control-plane/transfer/transfer-data-plane).
+This example demonstrates the _Provider Push_ use case as defined in the [documentation of the Transfer Data Plane extension](https://github.com/eclipse-edc/Connector/tree/main/extensions/control-plane/transfer/transfer-data-plane).
 
 ![HTTP Push example](./diagrams/http-push-example.png "HTTP Push example")
 
