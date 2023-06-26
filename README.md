@@ -11,8 +11,8 @@ The repository is organized as follows:
 
 > Support for AsyncAPI and event-driven APIs is a nice-to-have that is not currently being prioritized. It will be addressed at a later stage if time permits and there are no technological roadblocks.
 
-* The `edcpy` folder contains a Python package built on top of [Poetry](https://python-poetry.org/), providing a series of utilities to interact with an EDC-based dataspace. For example, it contains the logic to execute all the necessary HTTP requests to successfully complete a transfer process from start to finish. Additionally, it offers an example implementation of an [HTTP pull receiver](https://github.com/eclipse-edc/Connector/tree/main/extensions/control-plane/transfer/transfer-data-plane) backend.
-* The `example` folder contains the configuration files required for the end-to-end example of an interaction between a provider and consumer. This example is one of the main contributions of this repository and aims to clarify any doubts or uncertainties regarding how to integrate a regular service or API into a data space.
+* The `edcpy` folder contains a Python package built on top of [Poetry](https://python-poetry.org/), providing a series of utilities to interact with an EDC-based dataspace. For example, it contains the logic to execute all the necessary HTTP requests to successfully complete a [Transfer Process](https://eclipse-edc.github.io/docs/#/submodule/Connector/docs/developer/architecture/domain-model?id=transfer-process). Additionally, it offers an example implementation of a [Consumer Backend](https://github.com/eclipse-edc/Connector/tree/main/extensions/control-plane/transfer/transfer-data-plane).
+* The `example` folder contains the configuration files required for the end-to-end example of an interaction between a provider and consumer. This example is one of the main contributions of this repository and aims to clarify any doubts regarding how to integrate a regular service or API into a data space.
 
 ## Examples
 
@@ -36,32 +36,55 @@ This approach tends to be more efficient than the _Provider Push_ approach, as a
 
 ```console
 vagrant@consumer:~$ docker exec -it consumer_sandbox python /opt/src/example/example_http_pull.py
-2023-06-22 11:17:20 2567f5522989 edcpy.messaging[34] INFO Connecting to RabbitMQ at amqp://guest:guest@broker:5672
-2023-06-22 11:17:20 2567f5522989 edcpy.messaging[34] INFO Declaring exchange edcpy-topic-exchange
-2023-06-22 11:17:20 2567f5522989 edcpy.messaging[34] INFO Declaring queue http-pull-queue
-2023-06-22 11:17:20 2567f5522989 edcpy.messaging[34] INFO Declaring queue http-push-queue
-2023-06-22 11:17:20 2567f5522989 edcpy.messaging[34] INFO Starting broker
-2023-06-22 11:17:20 2567f5522989 edcpy.messaging[34] INFO `pull_handler` waiting for messages
-2023-06-22 11:17:20 2567f5522989 edcpy.orchestrator[34] INFO Preparing to transfer asset (query: asyncapi-json)
-2023-06-22 11:17:20 2567f5522989 httpx[34] INFO HTTP Request: POST http://consumer.local:9193/management/v2/catalog/request "HTTP/1.1 200 OK"
+2023-06-26 06:32:05 e86fae31cbca edcpy.messaging[13] INFO Connecting to RabbitMQ at amqp://guest:guest@broker:5672
+2023-06-26 06:32:05 e86fae31cbca edcpy.messaging[13] INFO Declaring exchange edcpy-topic-exchange
+2023-06-26 06:32:05 e86fae31cbca edcpy.messaging[13] INFO Declaring queue http-pull-queue
+2023-06-26 06:32:05 e86fae31cbca edcpy.messaging[13] INFO Declaring queue http-push-queue
+2023-06-26 06:32:05 e86fae31cbca edcpy.messaging[13] INFO Starting broker
+2023-06-26 06:32:05 e86fae31cbca edcpy.messaging[13] INFO `pull_handler` waiting for messages
+2023-06-26 06:32:05 e86fae31cbca edcpy.orchestrator[13] INFO Preparing to transfer asset (query: GET-consumption)
+2023-06-26 06:32:05 e86fae31cbca httpx[13] INFO HTTP Request: POST http://consumer.local:9193/management/v2/catalog/request "HTTP/1.1 200 OK"
 
 [...]
 
-2023-06-22 11:17:25 2567f5522989 httpx[34] INFO HTTP Request: GET http://consumer.local:9291/public/ "HTTP/1.1 200 OK"
-
-[...]
-
-2023-06-22 11:17:25 2567f5522989 edcpy.orchestrator[34] INFO Preparing to transfer asset (query: consumption-prediction)
-
-[...]
-
-2023-06-22 11:17:29 2567f5522989 httpx[34] INFO HTTP Request: POST http://consumer.local:9291/public/ "HTTP/1.1 200 OK"
-2023-06-22 11:17:29 2567f5522989 __main__[34] INFO Response:
+2023-06-26 06:32:10 e86fae31cbca httpx[13] INFO HTTP Request: GET http://consumer.local:9291/public/ "HTTP/1.1 200 OK"
+2023-06-26 06:32:10 e86fae31cbca __main__[13] INFO Response:
 {'location': 'Asturias',
- 'results': [{'date': '2023-06-15T14:30:00+00:00', 'value': 19},
-             {'date': '2023-06-15T15:30:00+00:00', 'value': 32},
-             {'date': '2023-06-15T16:30:00+00:00', 'value': 90},
-             {'date': '2023-06-15T17:30:00+00:00', 'value': 72}]}
+ 'results': [{'date': '2023-06-25T00:00:00+00:00', 'value': 90},
+             {'date': '2023-06-25T01:00:00+00:00', 'value': 98},
+             {'date': '2023-06-25T02:00:00+00:00', 'value': 68},
+             {'date': '2023-06-25T03:00:00+00:00', 'value': 13},
+             {'date': '2023-06-25T04:00:00+00:00', 'value': 94},
+             {'date': '2023-06-25T05:00:00+00:00', 'value': 16},
+             {'date': '2023-06-25T06:00:00+00:00', 'value': 1},
+             {'date': '2023-06-25T07:00:00+00:00', 'value': 6},
+             {'date': '2023-06-25T08:00:00+00:00', 'value': 67},
+             {'date': '2023-06-25T09:00:00+00:00', 'value': 33},
+             {'date': '2023-06-25T10:00:00+00:00', 'value': 87},
+             {'date': '2023-06-25T11:00:00+00:00', 'value': 56},
+             {'date': '2023-06-25T12:00:00+00:00', 'value': 65},
+             {'date': '2023-06-25T13:00:00+00:00', 'value': 65},
+             {'date': '2023-06-25T14:00:00+00:00', 'value': 69},
+             {'date': '2023-06-25T15:00:00+00:00', 'value': 96},
+             {'date': '2023-06-25T16:00:00+00:00', 'value': 8},
+             {'date': '2023-06-25T17:00:00+00:00', 'value': 14},
+             {'date': '2023-06-25T18:00:00+00:00', 'value': 44},
+             {'date': '2023-06-25T19:00:00+00:00', 'value': 21},
+             {'date': '2023-06-25T20:00:00+00:00', 'value': 51},
+             {'date': '2023-06-25T21:00:00+00:00', 'value': 8},
+             {'date': '2023-06-25T22:00:00+00:00', 'value': 4},
+             {'date': '2023-06-25T23:00:00+00:00', 'value': 39}]}
+2023-06-26 06:32:10 e86fae31cbca edcpy.orchestrator[13] INFO Preparing to transfer asset (query: POST-consumption-prediction)
+
+[...]
+
+2023-06-26 06:32:15 e86fae31cbca httpx[13] INFO HTTP Request: POST http://consumer.local:9291/public/ "HTTP/1.1 200 OK"
+2023-06-26 06:32:15 e86fae31cbca __main__[13] INFO Response:
+{'location': 'Asturias',
+ 'results': [{'date': '2023-06-15T14:30:00+00:00', 'value': 67},
+             {'date': '2023-06-15T15:30:00+00:00', 'value': 88},
+             {'date': '2023-06-15T16:30:00+00:00', 'value': 29},
+             {'date': '2023-06-15T17:30:00+00:00', 'value': 52}]}
 ```
 
 ### Provider Push
