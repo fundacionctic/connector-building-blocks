@@ -14,6 +14,15 @@ The repository is organized as follows:
 * The `edcpy` folder contains a Python package built on top of [Poetry](https://python-poetry.org/), providing a series of utilities to interact with an EDC-based dataspace. For example, it contains the logic to execute all the necessary HTTP requests to successfully complete a [Transfer Process](https://eclipse-edc.github.io/docs/#/submodule/Connector/docs/developer/architecture/domain-model?id=transfer-process). Additionally, it offers an example implementation of a [Consumer Backend](https://github.com/eclipse-edc/Connector/tree/main/extensions/control-plane/transfer/transfer-data-plane).
 * The `example` folder contains the configuration files required for the end-to-end example of an interaction between a provider and consumer. This example is one of the main contributions of this repository and aims to clarify any doubts regarding how to integrate a regular service or API into a data space.
 
+## Prerequisites
+
+* [VirtualBox](https://www.virtualbox.org/wiki/Downloads): a popular virtualization product.
+* [Vagrant](https://developer.hashicorp.com/vagrant/downloads): a command line tool for managing virtual machines.
+
+You just need to download and install the releases for your operating system. Vagrant should be able to find and use the [VirtualBox provider](https://developer.hashicorp.com/vagrant/docs/providers/virtualbox) automatically.
+
+There are no other prerequisites, as Vagrant will take care of installing all the necessary dependencies inside the virtual machines.
+
 ## Examples
 
 There is a `Vagrantfile` in the root of the repository, which serves as the configuration file for Vagrant. [Vagrant](https://www.vagrantup.com/) is a tool utilized here to generate reproducible versions of two separate Ubuntu Virtual Machines: one for the provider and another for the consumer. This approach guarantees that the examples portray a more realistic scenario where the consumer and provider are deployed on different instances. Consequently, this distinction is reflected in the configuration files, providing a more illustrative demonstration rather than relying only on localhost access for all configuration properties.
@@ -21,6 +30,13 @@ There is a `Vagrantfile` in the root of the repository, which serves as the conf
 After installing Vagrant on your system, simply run `vagrant up` to create both the provider and the consumer. The `Vagrantfile` is configured to handle all the necessary provisioning steps, such as installing dependencies and building the connector. Once the build process is complete, you can log into the consumer and provider by using `vagrant ssh consumer` or `vagrant ssh provider`.
 
 We use Multicast DNS to ensure that `provider.local` resolves to the provider’s IP and that `consumer.local` resolves to the consumers’ IP. This forces us to install `avahi-daemon` and `libnss-mdns` in both the consumer and provider, and also to bind the volumes `/var/run/dbus` and `/var/run/avahi-daemon/socket` on all Docker containers.
+
+The following examples demonstrate two distinct approaches, which are summarized in the table below for clarity:
+
+| Approach          | Key Characteristics                                                                                                                                              |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Provider Push** | The provider pushes data to the consumer by sending HTTP requests to the consumer's backend directly. These requests contain the responses from the mock API.    |
+| **Consumer Pull** | The consumer pulls data from the provider by sending HTTP requests to the provider’s data plane public API. The provider proxies these requests to the mock API. |
 
 > Please note that the examples below are run in the Consumer VM, which can be accessed by running `vagrant ssh consumer`.
 
