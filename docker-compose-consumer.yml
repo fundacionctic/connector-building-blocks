@@ -8,12 +8,10 @@ services:
     command:
       [
         "java",
-        "-Dedc.hostname=consumer.local",
+        "-Dedc.fs.config=/opt/src/example/consumer.properties",
         "-Dedc.keystore=/opt/src/example/certs-consumer/cert.pfx",
         "-Dedc.keystore.password=datacellar",
         "-Dedc.vault=/opt/src/example/certs-consumer/vault.properties",
-        "-Dedc.fs.config=/opt/src/example/consumer.properties",
-        "-Dedc.dsp.callback.address=http://consumer.local:9194/protocol",
         "-jar",
         "/opt/src/example/core-connector.jar"
       ]
