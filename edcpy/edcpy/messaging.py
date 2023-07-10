@@ -27,26 +27,17 @@ class HttpPullMessage(BaseModel):
     id: str
     properties: dict
 
-    def _source_data_address_property(self, prop: str):
-        source_json_dad = (
-            self.auth_code_decoded.get("dad", {})
-            .get("properties", {})
-            .get("authCode", {})
-            .get("dad")
-        )
-
-        try:
-            props = json.loads(source_json_dad)["properties"]
-            return next(val for key, val in props.items() if key.endswith(prop))
-        except:
-            raise Exception(
-                "Failed to parse property '%s' from source data address in decoded auth code",
-                prop,
-            )
-
     @property
     def http_method(self) -> str:
-        return self._source_data_address_property("method")
+        ret = (
+            self.auth_code_decoded.get("dad", {})
+            .get("properties", {})
+            .get("method", None)
+        )
+
+        assert ret is not None, "Could not find HTTP method in auth code"
+
+        return ret
 
     @property
     def request_args(self) -> dict:

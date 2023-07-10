@@ -1,8 +1,10 @@
 import json
 import logging
+import os
 import pprint
 from typing import Union
 
+import coloredlogs
 import jwt
 import uvicorn
 from cryptography.hazmat.backends import default_backend
@@ -82,21 +84,34 @@ def _read_public_key() -> str:
 def _decode_auth_code(item: EndpointDataReference) -> dict:
     """Decode the EndpointDataReference element received from the data space."""
 
-    decode_kwargs = {
-        "key": _read_public_key(),
-        "algorithms": ["RS256"],
-        "options": {"verify_signature": True},
-    }
+    try:
+        public_key = _read_public_key()
+    except:
+        _logger.warning("Could not read public key for JWT validation", exc_info=True)
+        public_key = None
 
-    _logger.debug("JWT decode kwargs:\n%s", pprint.pformat(decode_kwargs))
+    decode_kwargs = {"algorithms": ["RS256"], "options": {"verify_signature": False}}
 
-    ret = jwt.decode(jwt=item.authCode, **decode_kwargs)
+    if public_key:
+        decode_kwargs = {
+            **decode_kwargs,
+            **{
+                "key": public_key,
+                "options": {"verify_signature": True},
+            },
+        }
+
+    try:
+        _logger.debug("Trying to decode JWT:\n%s", pprint.pformat(decode_kwargs))
+        ret = jwt.decode(jwt=item.authCode, **decode_kwargs)
+    except jwt.exceptions.InvalidSignatureError:
+        _logger.warning("Invalid signature, trying to decode without signature")
+        decode_kwargs["options"]["verify_signature"] = False
+        ret = jwt.decode(jwt=item.authCode, **decode_kwargs)
 
     ret["dad"] = json.loads(ret["dad"])
 
-    ret["dad"]["properties"]["authCode"] = jwt.decode(
-        ret["dad"]["properties"]["authCode"], options={"verify_signature": False}
-    )
+    _logger.debug("Decoded JWT:\n%s", pprint.pformat(ret))
 
     return ret
 
@@ -154,5 +169,7 @@ async def http_push_endpoint(body: dict, messaging_app: MessagingAppDep):
 def run_server():
     """Run the HTTP server that exposes the HTTP API backend."""
 
+    log_level = os.environ.get("LOG_LEVEL", "DEBUG")
+    coloredlogs.install(level=os.environ.get("LOG_LEVEL", "DEBUG"))
     port = AppConfig.from_environ().http_api_port
-    uvicorn.run(app, host="0.0.0.0", port=port, log_level="debug")
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level=log_level.lower())

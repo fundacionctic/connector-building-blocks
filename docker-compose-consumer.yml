@@ -38,7 +38,8 @@ services:
       - /var/run/dbus:/var/run/dbus
       - /var/run/avahi-daemon/socket:/var/run/avahi-daemon/socket
     environment:
-      EDC_CERT_PATH: /opt/src/example/certs-consumer/cert.pem
+      # The public key of the provider is needed to verify the signature of the JWT
+      EDC_CERT_PATH: /opt/src/example/certs-provider/cert.pem
       EDC_RABBIT_URL: "amqp://guest:guest@broker:5672"
       EDC_HTTP_API_PORT: 8000
     ports:
@@ -55,7 +56,7 @@ services:
       - /var/run/dbus:/var/run/dbus
       - /var/run/avahi-daemon/socket:/var/run/avahi-daemon/socket
     environment:
-      EDC_CERT_PATH: /opt/src/example/certs-consumer/cert.pem
+      EDC_CERT_PATH: /opt/src/example/certs-provider/cert.pem
       EDC_RABBIT_URL: "amqp://guest:guest@broker:5672"
     env_file: ./example/.env.example
   broker:
