@@ -28,6 +28,8 @@ dependencies {
     implementation(libs.edc.data.plane.selector.api)
     implementation(libs.edc.data.plane.selector.core)
     implementation(libs.edc.data.plane.selector.client)
+    implementation(libs.edc.oauth2.client)
+    implementation(libs.edc.oauth2.core)
 
     implementation(libs.swaggerParser)
     implementation(libs.slugify)

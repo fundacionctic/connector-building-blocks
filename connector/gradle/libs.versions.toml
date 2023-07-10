@@ -55,6 +55,8 @@ edc-transfer-spi = { module = "org.eclipse.edc:transfer-spi", version.ref = "edc
 edc-util = { module = "org.eclipse.edc:util", version.ref = "edc" }
 edc-vault-azure = { module = "org.eclipse.edc:vault-azure", version.ref = "edc" }
 edc-vault-filesystem = { module = "org.eclipse.edc:vault-filesystem", version.ref = "edc" }
+edc-oauth2-client = { module = "org.eclipse.edc:oauth2-client", version.ref = "edc" }
+edc-oauth2-core = { module = "org.eclipse.edc:oauth2-core", version.ref = "edc" }
 jakarta-rsApi = { module = "jakarta.ws.rs:jakarta.ws.rs-api", version.ref = "rsApi" }
 jakartaJson = { module = "org.glassfish:jakarta.json", version.ref = "jakarta-json" }
 junit-jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "jupiter" }
