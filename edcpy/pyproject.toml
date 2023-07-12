@@ -10,10 +10,10 @@ python = "^3.8"
 coloredlogs = "^15.0.1"
 deepmerge = "^1.1.0"
 fastapi = { extras = ["all"], version = "^0.96.0" }
-pyjwt = {extras = ["crypto"], version = "^2.7.0"}
+pyjwt = { extras = ["crypto"], version = "^2.7.0" }
 cryptography = "^41.0.1"
 python-slugify = "^8.0.1"
-propan = {extras = ["async-rabbit"], version = "^0.1.3.5"}
+propan = { extras = ["async-rabbit"], version = "^0.1.3.5" }
 environ-config = "^23.2.0"
 httpx = "^0.24.1"
 requests = "^2.31.0"
@@ -28,3 +28,4 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
 run-http-backend = "edcpy.backend:run_server"
+configure-keycloak-connector = "edcpy.keycloak:cli_create_connector_client"

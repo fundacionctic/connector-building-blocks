@@ -29,4 +29,11 @@ Vagrant.configure("2") do |config|
     c.vm.provision "shell", path: "scripts/provision-consumer.sh"
     c.vm.network "private_network", type: "dhcp"
   end
+
+  config.vm.define "keycloak" do |c|
+    c.vm.hostname = "keycloak"
+    c.vm.provision "shell", path: "scripts/provision-keycloak.sh"
+    c.vm.network "private_network", type: "dhcp"
+    c.vm.network "forwarded_port", guest: 8080, host: 28080
+  end
 end

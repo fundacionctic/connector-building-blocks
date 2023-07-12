@@ -14,6 +14,11 @@ env:
   SERVICES_SLEEP: 10
   EXAMPLE_CONSUMER_CERTS_DIR: "{{.ROOT_DIR}}/example/certs-consumer"
   EXAMPLE_PROVIDER_CERTS_DIR: "{{.ROOT_DIR}}/example/certs-provider"
+  KEY_ALIAS: "datacellar"
+  KEY_PASSW: "datacellar"
+  EXAMPLE_CONNECTOR_PROVIDER_ID: "example-provider"
+  EXAMPLE_CONNECTOR_CONSUMER_ID: "example-consumer"
+  EXAMPLE_KEYCLOAK_REALM: "edc-example-realm"
 
 tasks:
   clean:
@@ -145,9 +150,6 @@ tasks:
     desc: Creates the certificates used by the example consumer
     deps:
       - build-scripts-image
-    vars:
-      KEY_ALIAS: "datacellar"
-      KEY_PASSW: "datacellar"
     cmds:
       - mkdir -p {{.EXAMPLE_CONSUMER_CERTS_DIR}}
       - >
@@ -162,9 +164,6 @@ tasks:
     desc: Creates the certificates used by the example provider
     deps:
       - build-scripts-image
-    vars:
-      KEY_ALIAS: "datacellar"
-      KEY_PASSW: "datacellar"
     cmds:
       - mkdir -p {{.EXAMPLE_PROVIDER_CERTS_DIR}}
       - >
@@ -184,3 +183,37 @@ tasks:
         cp -f 
         {{.ROOT_DIR}}/{{.CONNECTOR_DIR}}/core-connector/build/libs/core-connector.jar 
         {{.ROOT_DIR}}/example/
+
+  create-keycloak-client-example-consumer:
+    desc: Creates the OAuth2 client for the example consumer in Keycloak
+    deps:
+      - build-edcpy-image
+      - create-example-certs-consumer
+    cmds:
+      - >
+        docker run --rm 
+        -v {{.EXAMPLE_CONSUMER_CERTS_DIR}}:/certs 
+        -v /var/run/dbus:/var/run/dbus 
+        -v /var/run/avahi-daemon/socket:/var/run/avahi-daemon/socket 
+        {{.EDCPY_IMAGE}}
+        configure-keycloak-connector 
+        --connector-id {{.EXAMPLE_CONNECTOR_CONSUMER_ID}} 
+        --connector-cert-path /certs/cert.pem 
+        --keycloak-realm {{.EXAMPLE_KEYCLOAK_REALM}}
+
+  create-keycloak-client-example-provider:
+    desc: Creates the OAuth2 client for the example provider in Keycloak
+    deps:
+      - build-edcpy-image
+      - create-example-certs-provider
+    cmds:
+      - >
+        docker run --rm 
+        -v {{.EXAMPLE_PROVIDER_CERTS_DIR}}:/certs 
+        -v /var/run/dbus:/var/run/dbus 
+        -v /var/run/avahi-daemon/socket:/var/run/avahi-daemon/socket 
+        {{.EDCPY_IMAGE}}
+        configure-keycloak-connector 
+        --connector-id {{.EXAMPLE_CONNECTOR_PROVIDER_ID}} 
+        --connector-cert-path /certs/cert.pem 
+        --keycloak-realm {{.EXAMPLE_KEYCLOAK_REALM}}
