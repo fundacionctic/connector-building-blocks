@@ -12,12 +12,13 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.x509 import load_pem_x509_certificate
 from fastapi import Depends, FastAPI
 from pydantic import BaseModel
+from slugify import slugify
 from typing_extensions import Annotated
 
 from edcpy.config import AppConfig
 from edcpy.messaging import (
-    HTTP_PULL_QUEUE_ROUTING_KEY,
-    HTTP_PUSH_QUEUE_ROUTING_KEY,
+    BASE_HTTP_PULL_QUEUE_ROUTING_KEY,
+    BASE_HTTP_PUSH_QUEUE_ROUTING_KEY,
     HttpPullMessage,
     HttpPushMessage,
     MessagingApp,
@@ -38,6 +39,7 @@ class EndpointDataReference(BaseModel):
 
 
 async def get_messaging_app() -> Union[MessagingApp, None]:
+    # The Consumer Backend does not declare any queues, it just publishes messages
     async with messaging_app() as msg_app:
         yield msg_app
 
@@ -124,9 +126,41 @@ async def http_pull_endpoint(
         properties=item.properties,
     )
 
+    # The provider hostname is included in the routing key to facilitate
+    # the scenario of the consumer communicating with multiple providers in parallel.
+    # The provider hostname is included in its slugified form since dots are
+    # interpreted as routing key separators by RabbitMQ.
+    routing_key = f"{BASE_HTTP_PULL_QUEUE_ROUTING_KEY}.{slugify(message.provider_host)}"
+
+    _logger.info(
+        "Publishing %s to routing key '%s'", message.__class__.__name__, routing_key
+    )
+
     await messaging_app.broker.publish(
         message=message,
-        routing_key=HTTP_PULL_QUEUE_ROUTING_KEY,
+        routing_key=routing_key,
+        exchange=messaging_app.exchange,
+    )
+
+    return {
+        "broker": str(messaging_app.broker),
+        "exchange": str(messaging_app.exchange),
+    }
+
+
+async def _http_push_endpoint(
+    body: dict, routing_key: str, messaging_app: MessagingApp
+) -> dict:
+    _logger.debug("Received HTTP Push request:\n%s", pprint.pformat(body))
+    message = HttpPushMessage(body=body)
+
+    _logger.info(
+        "Publishing %s to routing key '%s'", message.__class__.__name__, routing_key
+    )
+
+    await messaging_app.broker.publish(
+        message=message,
+        routing_key=routing_key,
         exchange=messaging_app.exchange,
     )
 
@@ -138,19 +172,24 @@ async def http_pull_endpoint(
 
 @app.post("/push")
 async def http_push_endpoint(body: dict, messaging_app: MessagingAppDep):
-    _logger.debug("Received HTTP Push request:\n%s", pprint.pformat(body))
-    message = HttpPushMessage(body=body)
-
-    await messaging_app.broker.publish(
-        message=message,
-        routing_key=HTTP_PUSH_QUEUE_ROUTING_KEY,
-        exchange=messaging_app.exchange,
+    return await _http_push_endpoint(
+        body=body,
+        routing_key=BASE_HTTP_PUSH_QUEUE_ROUTING_KEY,
+        messaging_app=messaging_app,
     )
 
-    return {
-        "broker": str(messaging_app.broker),
-        "exchange": str(messaging_app.exchange),
-    }
+
+@app.post("/push/{routing_key_parts:path}")
+async def http_push_endpoint(
+    body: dict, messaging_app: MessagingAppDep, routing_key_parts: str = ""
+):
+    parts = [item for item in routing_key_parts.split("/") if item]
+    routing_key_suffix = "." + ".".join(parts) if len(parts) > 0 else ""
+    routing_key = BASE_HTTP_PUSH_QUEUE_ROUTING_KEY + routing_key_suffix
+
+    return await _http_push_endpoint(
+        body=body, routing_key=routing_key, messaging_app=messaging_app
+    )
 
 
 def run_server():

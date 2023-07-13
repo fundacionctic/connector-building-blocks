@@ -15,6 +15,11 @@ class AppConfig:
 
     @environ.config
     class ConsumerProviderPair:
+        """A Consumer-Provider 'pair' is a construct of this package that exists for
+        convenience and represents the connection details of a consumer and a provider.
+        Of course, a single consumer may communicate with multiple different providers.
+        This construct would not fit this use case of multiple providers."""
+
         provider_host = environ.var("provider")
         consumer_host = environ.var("consumer")
         provider_connector_id = environ.var("urn:connector:provider")

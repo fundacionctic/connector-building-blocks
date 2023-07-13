@@ -52,12 +52,15 @@ async def main():
             asset_query=_ASSET_CONSUMPTION
         )
 
-        # sink_base_url, sink_path and sink_method are the details of our local Consumer Backend
+        # sink_base_url, sink_path and sink_method are the details of our local Consumer Backend.
+        # Multiple path parameters can be added after the base path to be added to the routing key.
+        sink_path = f"{_SINK_PATH}/specific/routing/key"
+
         transfer_process = await orchestrator.create_provider_push_transfer_process(
             contract_agreement_id=transfer_details.contract_agreement_id,
             asset_id=transfer_details.asset_id,
             sink_base_url=_SINK_BASE_URL,
-            sink_path=_SINK_PATH,
+            sink_path=sink_path,
             sink_method=_SINK_METHOD,
         )
 

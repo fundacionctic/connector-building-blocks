@@ -2,6 +2,7 @@ import logging
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import Union
+from urllib.parse import urlparse
 
 from propan import PropanApp, RabbitBroker
 from propan.brokers.rabbit import ExchangeType, RabbitExchange, RabbitQueue
@@ -9,8 +10,8 @@ from pydantic import BaseModel
 
 from edcpy.config import AppConfig
 
-HTTP_PULL_QUEUE_ROUTING_KEY = "http.pull"
-HTTP_PUSH_QUEUE_ROUTING_KEY = "http.push"
+BASE_HTTP_PULL_QUEUE_ROUTING_KEY = "http.pull"
+BASE_HTTP_PUSH_QUEUE_ROUTING_KEY = "http.push"
 DEFAULT_EXCHANGE_NAME = "edcpy-topic-exchange"
 DEFAULT_HTTP_PULL_QUEUE_NAME = "http-pull-queue"
 DEFAULT_HTTP_PUSH_QUEUE_NAME = "http-push-queue"
@@ -50,6 +51,11 @@ class HttpPullMessage(BaseModel):
     def transfer_process_id(self) -> str:
         return self.id
 
+    @property
+    def provider_host(self):
+        parsed = urlparse(self.endpoint)
+        return parsed.netloc.split(":")[0]
+
 
 class HttpPushMessage(BaseModel):
     body: dict
@@ -66,6 +72,8 @@ async def start_messaging_app(
     exchange_name: str = DEFAULT_EXCHANGE_NAME,
     http_pull_queue_name: str = DEFAULT_HTTP_PULL_QUEUE_NAME,
     http_push_queue_name: str = DEFAULT_HTTP_PUSH_QUEUE_NAME,
+    http_pull_queue_routing_key: str = f"{BASE_HTTP_PULL_QUEUE_ROUTING_KEY}.#",
+    http_push_queue_routing_key: str = f"{BASE_HTTP_PUSH_QUEUE_ROUTING_KEY}.#",
     http_pull_handler: Union[callable, None] = None,
     http_push_handler: Union[callable, None] = None,
 ) -> MessagingApp:
@@ -87,32 +95,32 @@ async def start_messaging_app(
         type=ExchangeType.TOPIC,
     )
 
-    _logger.info(f"Declaring queue {http_pull_queue_name}")
-
-    http_pull_queue = RabbitQueue(
-        http_pull_queue_name,
-        auto_delete=False,
-        exclusive=False,
-        passive=False,
-        robust=True,
-        routing_key=HTTP_PULL_QUEUE_ROUTING_KEY,
-    )
-
     if http_pull_handler is not None:
+        _logger.info(f"Declaring queue {http_pull_queue_name}")
+
+        http_pull_queue = RabbitQueue(
+            http_pull_queue_name,
+            auto_delete=False,
+            exclusive=False,
+            passive=False,
+            robust=True,
+            routing_key=http_pull_queue_routing_key,
+        )
+
         broker.handle(http_pull_queue, topic_exchange)(http_pull_handler)
 
-    _logger.info(f"Declaring queue {http_push_queue_name}")
-
-    http_push_queue = RabbitQueue(
-        http_push_queue_name,
-        auto_delete=False,
-        exclusive=False,
-        passive=False,
-        robust=True,
-        routing_key=HTTP_PUSH_QUEUE_ROUTING_KEY,
-    )
-
     if http_push_handler is not None:
+        _logger.info(f"Declaring queue {http_push_queue_name}")
+
+        http_push_queue = RabbitQueue(
+            http_push_queue_name,
+            auto_delete=False,
+            exclusive=False,
+            passive=False,
+            robust=True,
+            routing_key=http_push_queue_routing_key,
+        )
+
         broker.handle(http_push_queue, topic_exchange)(http_push_handler)
 
     _logger.info("Starting broker")

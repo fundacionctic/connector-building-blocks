@@ -131,7 +131,7 @@ async def main():
     # Start the Rabbit broker and set the handler for the HTTP pull messages
     # (EndpointDataReference) received on the Consumer Backend from the Provider.
     async with messaging_app(http_pull_handler=pull_handler):
-        # The orchestrator contains the logic to interact with the EDC HTTP APIs.
+        # The orchestrator contains the logic to interact with the EDC HTTP APIs:
         # https://app.swaggerhub.com/apis/eclipse-edc-bot/management-api/0.1.0-SNAPSHOT
         config = ConsumerProviderPairConfig.from_env()
         orchestrator = RequestOrchestrator(config=config)
