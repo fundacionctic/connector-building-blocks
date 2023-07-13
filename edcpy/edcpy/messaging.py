@@ -1,6 +1,5 @@
-import json
 import logging
-import pprint
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import Union
 
@@ -116,3 +115,16 @@ async def start_messaging_app(
     await broker.start()
 
     return MessagingApp(broker=broker, app=app, exchange=topic_exchange)
+
+
+@asynccontextmanager
+async def messaging_app(*args, **kwargs) -> MessagingApp:
+    try:
+        msg_app = await start_messaging_app(*args, **kwargs)
+        yield msg_app
+    finally:
+        try:
+            await msg_app.broker.close()
+            _logger.debug("Closed messaging app broker")
+        except:
+            _logger.warning("Could not close messaging app broker", exc_info=True)

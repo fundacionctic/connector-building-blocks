@@ -14,7 +14,7 @@ import pprint
 import coloredlogs
 
 from edcpy.config import ConsumerProviderPairConfig
-from edcpy.messaging import HttpPushMessage, start_messaging_app
+from edcpy.messaging import HttpPushMessage, messaging_app
 from edcpy.orchestrator import RequestOrchestrator
 
 _ASSET_CONSUMPTION = "GET-consumption"
@@ -38,11 +38,9 @@ async def push_handler(message: HttpPushMessage):
 
 
 async def main():
-    try:
-        # Start the Rabbit broker and set the handler for the HTTP push messages
-        # received on the Consumer Backend from the Provider.
-        messaging_app = await start_messaging_app(http_push_handler=push_handler)
-
+    # Start the Rabbit broker and set the handler for the HTTP push messages
+    # received on the Consumer Backend from the Provider.
+    async with messaging_app(http_push_handler=push_handler):
         # The orchestrator contains the logic to interact with the EDC HTTP APIs.
         # https://app.swaggerhub.com/apis/eclipse-edc-bot/management-api/0.1.0-SNAPSHOT
         config = ConsumerProviderPairConfig.from_env()
@@ -79,9 +77,6 @@ async def main():
             "Received response from Mock HTTP API:\n%s",
             pprint.pformat(http_push_msg.body),
         )
-    finally:
-        await messaging_app.broker.close()
-        _logger.info("Closed messaging app broker")
 
 
 if __name__ == "__main__":

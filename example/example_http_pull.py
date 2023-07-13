@@ -18,7 +18,7 @@ import coloredlogs
 import httpx
 
 from edcpy.config import ConsumerProviderPairConfig
-from edcpy.messaging import HttpPullMessage, start_messaging_app
+from edcpy.messaging import HttpPullMessage, messaging_app
 from edcpy.orchestrator import RequestOrchestrator
 
 # These asset names are known in advance and are used to query the provider.
@@ -116,11 +116,9 @@ async def request_post(orchestrator: RequestOrchestrator):
 
 
 async def main():
-    try:
-        # Start the Rabbit broker and set the handler for the HTTP pull messages
-        # (EndpointDataReference) received on the Consumer Backend from the Provider.
-        messaging_app = await start_messaging_app(http_pull_handler=pull_handler)
-
+    # Start the Rabbit broker and set the handler for the HTTP pull messages
+    # (EndpointDataReference) received on the Consumer Backend from the Provider.
+    async with messaging_app(http_pull_handler=pull_handler):
         # The orchestrator contains the logic to interact with the EDC HTTP APIs.
         # https://app.swaggerhub.com/apis/eclipse-edc-bot/management-api/0.1.0-SNAPSHOT
         config = ConsumerProviderPairConfig.from_env()
@@ -131,9 +129,6 @@ async def main():
         # that is not aware of the particularities of a Data Space.
         await request_get(orchestrator=orchestrator)
         await request_post(orchestrator=orchestrator)
-    finally:
-        await messaging_app.broker.close()
-        _logger.info("Closed messaging app broker")
 
 
 if __name__ == "__main__":

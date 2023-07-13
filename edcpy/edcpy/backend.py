@@ -21,7 +21,7 @@ from edcpy.messaging import (
     HttpPullMessage,
     HttpPushMessage,
     MessagingApp,
-    start_messaging_app,
+    messaging_app,
 )
 
 _logger = logging.getLogger(__name__)
@@ -38,17 +38,8 @@ class EndpointDataReference(BaseModel):
 
 
 async def get_messaging_app() -> Union[MessagingApp, None]:
-    try:
-        msg_app = await start_messaging_app()
+    async with messaging_app() as msg_app:
         yield msg_app
-    except:
-        _logger.error("Could not start messaging app", exc_info=True)
-    finally:
-        try:
-            await msg_app.broker.close()
-            _logger.debug("Closed messaging app broker")
-        except:
-            _logger.warning("Could not close messaging app broker", exc_info=True)
 
 
 MessagingAppDep = Annotated[Union[MessagingApp, None], Depends(get_messaging_app)]
