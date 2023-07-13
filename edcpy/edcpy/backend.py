@@ -37,22 +37,18 @@ class EndpointDataReference(BaseModel):
     properties: dict
 
 
-_state = {
-    "messaging_app": None,
-}
-
-
 async def get_messaging_app() -> Union[MessagingApp, None]:
-    if _state.get("messaging_app", None) is not None:
-        return _state["messaging_app"]
-
     try:
         msg_app = await start_messaging_app()
-        _state["messaging_app"] = msg_app
-        return _state["messaging_app"]
+        yield msg_app
     except:
-        _logger.warning("Could not start messaging app", exc_info=True)
-        return None
+        _logger.error("Could not start messaging app", exc_info=True)
+    finally:
+        try:
+            await msg_app.broker.close()
+            _logger.debug("Closed messaging app broker")
+        except:
+            _logger.warning("Could not close messaging app broker", exc_info=True)
 
 
 MessagingAppDep = Annotated[Union[MessagingApp, None], Depends(get_messaging_app)]

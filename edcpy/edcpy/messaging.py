@@ -76,14 +76,22 @@ async def start_messaging_app(
     _logger.info(f"Declaring exchange {exchange_name}")
 
     topic_exchange = RabbitExchange(
-        exchange_name, auto_delete=True, type=ExchangeType.TOPIC
+        exchange_name,
+        auto_delete=False,
+        passive=False,
+        internal=False,
+        robust=True,
+        type=ExchangeType.TOPIC,
     )
 
     _logger.info(f"Declaring queue {http_pull_queue_name}")
 
     http_pull_queue = RabbitQueue(
         http_pull_queue_name,
-        auto_delete=True,
+        auto_delete=False,
+        exclusive=False,
+        passive=False,
+        robust=True,
         routing_key=HTTP_PULL_QUEUE_ROUTING_KEY,
     )
 
@@ -94,7 +102,10 @@ async def start_messaging_app(
 
     http_push_queue = RabbitQueue(
         http_push_queue_name,
-        auto_delete=True,
+        auto_delete=False,
+        exclusive=False,
+        passive=False,
+        robust=True,
         routing_key=HTTP_PUSH_QUEUE_ROUTING_KEY,
     )
 

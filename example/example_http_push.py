@@ -23,6 +23,8 @@ _SINK_BASE_URL = "http://consumer.local:8000"
 _SINK_PATH = "/push"
 _SINK_METHOD = "POST"
 
+_QUEUE_GET_TIMEOUT_SECS = 10
+
 _logger = logging.getLogger(__name__)
 _queue: asyncio.Queue[HttpPushMessage] = asyncio.Queue()
 
@@ -36,43 +38,50 @@ async def push_handler(message: HttpPushMessage):
 
 
 async def main():
-    # Start the Rabbit broker and set the handler for the HTTP push messages
-    # received on the Consumer Backend from the Provider.
-    await start_messaging_app(http_push_handler=push_handler)
+    try:
+        # Start the Rabbit broker and set the handler for the HTTP push messages
+        # received on the Consumer Backend from the Provider.
+        messaging_app = await start_messaging_app(http_push_handler=push_handler)
 
-    # The orchestrator contains the logic to interact with the EDC HTTP APIs.
-    # https://app.swaggerhub.com/apis/eclipse-edc-bot/management-api/0.1.0-SNAPSHOT
-    config = ConsumerProviderPairConfig.from_env()
-    orchestrator = RequestOrchestrator(config=config)
-    _logger.debug("Configuration:\n%s", pprint.pformat(config.__dict__))
+        # The orchestrator contains the logic to interact with the EDC HTTP APIs.
+        # https://app.swaggerhub.com/apis/eclipse-edc-bot/management-api/0.1.0-SNAPSHOT
+        config = ConsumerProviderPairConfig.from_env()
+        orchestrator = RequestOrchestrator(config=config)
+        _logger.debug("Configuration:\n%s", pprint.pformat(config.__dict__))
 
-    # Initiate the transfer processfor the asset.
-    transfer_details = await orchestrator.prepare_to_transfer_asset(
-        asset_query=_ASSET_CONSUMPTION
-    )
+        # Initiate the transfer processfor the asset.
+        transfer_details = await orchestrator.prepare_to_transfer_asset(
+            asset_query=_ASSET_CONSUMPTION
+        )
 
-    transfer_process = await orchestrator.create_provider_push_transfer_process(
-        contract_agreement_id=transfer_details.contract_agreement_id,
-        asset_id=transfer_details.asset_id,
-        sink_base_url=_SINK_BASE_URL,
-        sink_path=_SINK_PATH,
-        sink_method=_SINK_METHOD,
-    )
+        transfer_process = await orchestrator.create_provider_push_transfer_process(
+            contract_agreement_id=transfer_details.contract_agreement_id,
+            asset_id=transfer_details.asset_id,
+            sink_base_url=_SINK_BASE_URL,
+            sink_path=_SINK_PATH,
+            sink_method=_SINK_METHOD,
+        )
 
-    transfer_process_id = transfer_process["@id"]
+        transfer_process_id = transfer_process["@id"]
 
-    await orchestrator.wait_for_transfer_process(
-        transfer_process_id=transfer_process_id
-    )
+        await orchestrator.wait_for_transfer_process(
+            transfer_process_id=transfer_process_id
+        )
 
-    # Wait for the message published by the Consumer Backend to the Rabbit broker.
-    # The message contains the response from the Mock HTTP API without any modification.
-    # That is, the message has been 'pushed' from the Provider to the Consumer Backend.
-    http_push_msg = await _queue.get()
+        # Wait for the message published by the Consumer Backend to the Rabbit broker.
+        # The message contains the response from the Mock HTTP API without any modification.
+        # That is, the message has been 'pushed' from the Provider to the Consumer Backend.
+        http_push_msg = await asyncio.wait_for(
+            _queue.get(), timeout=_QUEUE_GET_TIMEOUT_SECS
+        )
 
-    _logger.info(
-        "Received response from Mock HTTP API:\n%s", pprint.pformat(http_push_msg.body)
-    )
+        _logger.info(
+            "Received response from Mock HTTP API:\n%s",
+            pprint.pformat(http_push_msg.body),
+        )
+    finally:
+        await messaging_app.broker.close()
+        _logger.info("Closed messaging app broker")
 
 
 if __name__ == "__main__":

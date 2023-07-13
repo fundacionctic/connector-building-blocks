@@ -26,6 +26,8 @@ from edcpy.orchestrator import RequestOrchestrator
 _ASSET_CONSUMPTION = "GET-consumption"
 _ASSET_CONSUMPTION_PREDICTION = "POST-consumption-prediction"
 
+_QUEUE_GET_TIMEOUT_SECS = 10
+
 _logger = logging.getLogger(__name__)
 _queue: asyncio.Queue[HttpPullMessage] = asyncio.Queue()
 
@@ -69,7 +71,9 @@ async def request_get(orchestrator: RequestOrchestrator):
 
     await transfer_asset(asset_query=_ASSET_CONSUMPTION, orchestrator=orchestrator)
 
-    http_pull_msg = await _queue.get()
+    http_pull_msg = await asyncio.wait_for(
+        _queue.get(), timeout=_QUEUE_GET_TIMEOUT_SECS
+    )
 
     async with httpx.AsyncClient() as client:
         _logger.info(
@@ -88,7 +92,9 @@ async def request_post(orchestrator: RequestOrchestrator):
         asset_query=_ASSET_CONSUMPTION_PREDICTION, orchestrator=orchestrator
     )
 
-    http_pull_msg = await _queue.get()
+    http_pull_msg = await asyncio.wait_for(
+        _queue.get(), timeout=_QUEUE_GET_TIMEOUT_SECS
+    )
 
     async with httpx.AsyncClient() as client:
         _logger.info(
@@ -110,20 +116,24 @@ async def request_post(orchestrator: RequestOrchestrator):
 
 
 async def main():
-    # Start the Rabbit broker and set the handler for the HTTP pull messages
-    # (EndpointDataReference) received on the Consumer Backend from the Provider.
-    await start_messaging_app(http_pull_handler=pull_handler)
+    try:
+        # Start the Rabbit broker and set the handler for the HTTP pull messages
+        # (EndpointDataReference) received on the Consumer Backend from the Provider.
+        messaging_app = await start_messaging_app(http_pull_handler=pull_handler)
 
-    # The orchestrator contains the logic to interact with the EDC HTTP APIs.
-    # https://app.swaggerhub.com/apis/eclipse-edc-bot/management-api/0.1.0-SNAPSHOT
-    config = ConsumerProviderPairConfig.from_env()
-    orchestrator = RequestOrchestrator(config=config)
-    _logger.debug("Configuration:\n%s", pprint.pformat(config.__dict__))
+        # The orchestrator contains the logic to interact with the EDC HTTP APIs.
+        # https://app.swaggerhub.com/apis/eclipse-edc-bot/management-api/0.1.0-SNAPSHOT
+        config = ConsumerProviderPairConfig.from_env()
+        orchestrator = RequestOrchestrator(config=config)
+        _logger.debug("Configuration:\n%s", pprint.pformat(config.__dict__))
 
-    # Please note that the Mock HTTP API is a regular HTTP API
-    # that is not aware of the particularities of a Data Space.
-    await request_get(orchestrator=orchestrator)
-    await request_post(orchestrator=orchestrator)
+        # Please note that the Mock HTTP API is a regular HTTP API
+        # that is not aware of the particularities of a Data Space.
+        await request_get(orchestrator=orchestrator)
+        await request_post(orchestrator=orchestrator)
+    finally:
+        await messaging_app.broker.close()
+        _logger.info("Closed messaging app broker")
 
 
 if __name__ == "__main__":

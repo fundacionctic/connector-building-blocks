@@ -60,8 +60,13 @@ services:
       EDC_RABBIT_URL: "amqp://guest:guest@broker:5672"
     env_file: ./example/.env.example
   broker:
-    image: rabbitmq:3.11
+    image: rabbitmq:3.11-management
     container_name: consumer_broker
     restart: on-failure
     ports:
       - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+
