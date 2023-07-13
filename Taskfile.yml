@@ -14,11 +14,11 @@ env:
   SERVICES_SLEEP: 10
   EXAMPLE_CONSUMER_CERTS_DIR: "{{.ROOT_DIR}}/example/certs-consumer"
   EXAMPLE_PROVIDER_CERTS_DIR: "{{.ROOT_DIR}}/example/certs-provider"
-  KEY_ALIAS: "datacellar"
-  KEY_PASSW: "datacellar"
-  EXAMPLE_CONNECTOR_PROVIDER_ID: "example-provider"
-  EXAMPLE_CONNECTOR_CONSUMER_ID: "example-consumer"
-  EXAMPLE_KEYCLOAK_REALM: "edc-example-realm"
+  KEY_ALIAS: datacellar
+  KEY_PASSW: datacellar
+  EXAMPLE_CONNECTOR_PROVIDER_ID: example-provider
+  EXAMPLE_CONNECTOR_CONSUMER_ID: example-consumer
+  EXAMPLE_KEYCLOAK_REALM: edc-example-realm
 
 tasks:
   clean:
@@ -138,6 +138,10 @@ tasks:
   build-connector:
     desc: Builds the connector
     dir: "{{.CONNECTOR_DIR}}"
+    env:
+      # Set the property that signals the connector to use OAuth 2 identity
+      # https://docs.gradle.org/current/userguide/build_environment.html#sec:project_properties
+      ORG_GRADLE_PROJECT_useOauthIdentity: "true"
     cmds:
       - gradle clean build
 
