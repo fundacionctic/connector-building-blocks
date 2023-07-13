@@ -46,7 +46,7 @@ async def pull_handler(message: HttpPullMessage):
     await _queue.put(message)
 
 
-async def transfer_asset(orchestrator: RequestOrchestrator, asset_query: str):
+async def transfer_asset(orchestrator: RequestOrchestrator, asset_query: str) -> str:
     """A helper function to handle the series of Management API
     calls that are required to transfer an asset."""
 
@@ -65,15 +65,23 @@ async def transfer_asset(orchestrator: RequestOrchestrator, asset_query: str):
         transfer_process_id=transfer_process_id
     )
 
+    return transfer_process_id
+
 
 async def request_get(orchestrator: RequestOrchestrator):
-    """In this case we request a GET endpoint from the Mock HTTP API."""
+    """Demonstration of a GET request to the Mock HTTP API."""
 
-    await transfer_asset(asset_query=_ASSET_CONSUMPTION, orchestrator=orchestrator)
+    transfer_process_id = await transfer_asset(
+        asset_query=_ASSET_CONSUMPTION, orchestrator=orchestrator
+    )
 
     http_pull_msg = await asyncio.wait_for(
         _queue.get(), timeout=_QUEUE_GET_TIMEOUT_SECS
     )
+
+    assert (
+        http_pull_msg.id == transfer_process_id
+    ), "The ID of the Transfer Process does not match the ID of the HTTP Pull message"
 
     async with httpx.AsyncClient() as client:
         _logger.info(
@@ -86,15 +94,19 @@ async def request_get(orchestrator: RequestOrchestrator):
 
 
 async def request_post(orchestrator: RequestOrchestrator):
-    """In this case we demonstrate how to call a POST endpoint passing a JSON body."""
+    """Demonstration of how to call a POST endpoint of the Mock HTTP API passing a JSON body."""
 
-    await transfer_asset(
+    transfer_process_id = await transfer_asset(
         asset_query=_ASSET_CONSUMPTION_PREDICTION, orchestrator=orchestrator
     )
 
     http_pull_msg = await asyncio.wait_for(
         _queue.get(), timeout=_QUEUE_GET_TIMEOUT_SECS
     )
+
+    assert (
+        http_pull_msg.id == transfer_process_id
+    ), "The ID of the Transfer Process does not match the ID of the HTTP Pull message"
 
     async with httpx.AsyncClient() as client:
         _logger.info(

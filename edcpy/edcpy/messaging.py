@@ -46,6 +46,10 @@ class HttpPullMessage(BaseModel):
             "headers": {self.auth_key: self.auth_code},
         }
 
+    @property
+    def transfer_process_id(self) -> str:
+        return self.id
+
 
 class HttpPushMessage(BaseModel):
     body: dict

@@ -52,6 +52,7 @@ async def main():
             asset_query=_ASSET_CONSUMPTION
         )
 
+        # sink_base_url, sink_path and sink_method are the details of our local Consumer Backend
         transfer_process = await orchestrator.create_provider_push_transfer_process(
             contract_agreement_id=transfer_details.contract_agreement_id,
             asset_id=transfer_details.asset_id,
