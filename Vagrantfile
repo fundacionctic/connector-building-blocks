@@ -28,12 +28,22 @@ Vagrant.configure("2") do |config|
     c.vm.hostname = "consumer"
     c.vm.provision "shell", path: "scripts/provision-consumer.sh"
     c.vm.network "private_network", type: "dhcp"
+    c.vm.network "forwarded_port", guest: 15672, host: 30200
   end
-
+  
   config.vm.define "keycloak" do |c|
     c.vm.hostname = "keycloak"
+
+    # This is a quick and dirty fix to avoid issues with 
+    # the "iat" claim validation in the EDC connector.
+    c.vm.provision "shell", inline: <<-SHELL
+      set -ex
+      tm=$(python3 -c "import datetime; now = datetime.datetime.now(); ago = now - datetime.timedelta(seconds=2); print(ago);") \
+      && timedatectl set-time "$tm"
+    SHELL
+
     c.vm.provision "shell", path: "scripts/provision-keycloak.sh"
     c.vm.network "private_network", type: "dhcp"
-    c.vm.network "forwarded_port", guest: 8080, host: 28080
+    c.vm.network "forwarded_port", guest: 8080, host: 30100
   end
 end
