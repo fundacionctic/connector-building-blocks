@@ -21,17 +21,6 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Build and push (OAuth2 enabled)
-        uses: docker/build-push-action@v4.1.1
-        with:
-          context: .
-          push: true
-          build-args: |
-            ENABLE_OAUTH2=true
-          tags: |
-            agmangas/edc-connector:latest
-            agmangas/edc-connector:${{ github.ref_name }}
-            agmangas/edc-connector:${{ github.sha }}
       - name: Build and push (OAuth2 disabled)
         uses: docker/build-push-action@v4.1.1
         with:
@@ -39,6 +28,17 @@ jobs:
           push: true
           build-args: |
             ENABLE_OAUTH2=false
+          tags: |
+            agmangas/edc-connector:latest
+            agmangas/edc-connector:${{ github.ref_name }}
+            agmangas/edc-connector:${{ github.sha }}
+      - name: Build and push (OAuth2 enabled)
+        uses: docker/build-push-action@v4.1.1
+        with:
+          context: .
+          push: true
+          build-args: |
+            ENABLE_OAUTH2=true
           tags: |
             agmangas/edc-connector:latest-oauth2
             agmangas/edc-connector:${{ github.ref_name }}-oauth2
