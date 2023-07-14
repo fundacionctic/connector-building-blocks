@@ -40,5 +40,5 @@ jobs:
         uses: pypa/gh-action-pypi-publish@v1.8.8
         with:
           skip-existing: true
-          packages-dir: dist/
+          packages-dir: edcpy/dist/
           verbose: true
