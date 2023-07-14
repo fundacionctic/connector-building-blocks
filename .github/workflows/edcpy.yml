@@ -1,0 +1,44 @@
+on:
+  push:
+    branches:
+      - main
+
+defaults:
+  run:
+    working-directory: edcpy
+
+env:
+  PYPI_PROJECT_NAME: edcpy
+  PYTHON_VERSION: "3.8"
+  POETRY_VERSION: "1.5.1"
+
+jobs:
+  build-publish:
+    name: Build and publish edcpy to PyPI
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/${{ env.PYPI_PROJECT_NAME }}
+    permissions:
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3.5.3
+      - name: Setup Python
+        uses: actions/setup-python@v4.7.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Setup Poetry
+        uses: abatilo/actions-poetry@v2.1.6
+        with:
+          poetry-version: ${{ env.POETRY_VERSION }}
+      - name: Poetry install & build
+        run: |
+          poetry install
+          poetry build
+      - name: Publish package distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@v1.8.8
+        with:
+          skip-existing: true
+          packages-dir: dist/
+          verbose: true
