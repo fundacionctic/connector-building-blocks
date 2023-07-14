@@ -1,5 +1,7 @@
 # Eclipse Dataspace Components Proof of Concept
 
+## Introduction
+
 This project contains a proof of concept that aims to automate the deployment of a Minimum Viable Dataspace and demonstrate how arbitrary data sources can be integrated into the data space using the Eclipse Dataspace Components software stack.
 
 The approach taken here is that any data space participant component can expose an HTTP API described by a standard OpenAPI schema. Then, there is a Core Connector that is able to understand this schema and create a series of assets in the data space to represent the HTTP endpoints. These endpoints, in turn, provide access to the datasets and services offered by the participant component in question.
@@ -22,6 +24,23 @@ The repository is organized as follows:
 You just need to download and install the releases for your operating system. Vagrant should be able to find and use the [VirtualBox provider](https://developer.hashicorp.com/vagrant/docs/providers/virtualbox) automatically.
 
 There are no other prerequisites, as Vagrant will take care of installing all the necessary dependencies inside the virtual machines.
+
+## Public Artifacts
+
+This repository publishes two software artifacts for convenience:
+
+* The `edcpy` Python package, which is [published to PyPI](https://pypi.org/project/edcpy/).
+* The `agmangas/edc-connector` Docker image for the _Core Connector_, which is [published to Docker Hub](https://hub.docker.com/r/agmangas/edc-connector).
+
+## About Keycloak and OAuth 2
+
+The Gradle project of the _Core Connector_ defines a property named `useOauthIdentity` that can be used to enable or disable support for identity based on OAuth 2. Specifically, this property is checked to determine whether the [OAuth 2 Identity Service](https://github.com/eclipse-edc/Connector/tree/main/extensions/common/iam/oauth2/oauth2-core) needs to be included in the project dependencies.
+
+When `useOauthIdentity=true`, the connector instances will communicate with a Keycloak server to retrieve access tokens and validate them. These tokens are then used to authenticate the requests sent to the data space.
+
+> We use Keycloak instead of **DAPS** due to the maturity of Keycloak and to reduce the complexity of the setup. Using DAPS would provide a more interoperable scenario; however, we are currently not focusing on that aspect.
+
+A connector instance is represented in Keycloak as a _Client_. These _Clients_ need to be configured in a particular way to ensure that the connector can successfully authenticate with Keycloak. The `edcpy` package [provides a command line utility](edcpy/edcpy/keycloak.py) to automate this configuration process.
 
 ## Examples
 
