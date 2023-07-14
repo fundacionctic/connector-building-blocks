@@ -3,3 +3,5 @@
 **/*/.gradle
 **/*/.vagrant
 **/*/.vscode
+**/*/*.whl
+**/*/edcpy/dist
