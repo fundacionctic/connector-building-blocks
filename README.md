@@ -1,5 +1,15 @@
 # Eclipse Dataspace Components Proof of Concept
 
+- [Eclipse Dataspace Components Proof of Concept](#eclipse-dataspace-components-proof-of-concept)
+  - [Introduction](#introduction)
+  - [Prerequisites](#prerequisites)
+  - [Public Artifacts](#public-artifacts)
+  - [About Keycloak and OAuth 2](#about-keycloak-and-oauth-2)
+  - [Examples](#examples)
+    - [Consumer Pull](#consumer-pull)
+    - [Provider Push](#provider-push)
+  - [Frequently Asked Questions](#frequently-asked-questions)
+
 ## Introduction
 
 This project contains a proof of concept that aims to automate the deployment of a Minimum Viable Dataspace and demonstrate how arbitrary data sources can be integrated into the data space using the Eclipse Dataspace Components software stack.
