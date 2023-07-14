@@ -7,7 +7,8 @@ RUN apt-get update -y && DEBIAN_FRONTEND=noninteractive apt-get install -y \
     git \
     unzip \
     zip \
-    wget
+    wget \
+    avahi-utils
 
 RUN sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
 
