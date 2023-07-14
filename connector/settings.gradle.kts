@@ -19,9 +19,4 @@ dependencyResolutionManagement {
     }
 }
 
-include("transfer-json")
-include("transfer-status-checker")
-include("transfer-provider")
-include("transfer-consumer")
-
 include("core-connector")
