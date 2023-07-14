@@ -1,3 +1,5 @@
+name: Publish edcpy
+
 on:
   push:
     branches:
