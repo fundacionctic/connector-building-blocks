@@ -1,0 +1,7 @@
+**/*/.gradle
+**/*/build
+**/*/*.jar
+**/*/gradle-app.setting
+**/*/.gradletasknamecache
+**/*/.project
+**/*/.classpath
