@@ -2,10 +2,11 @@
 
 - [Eclipse Dataspace Components Proof of Concept](#eclipse-dataspace-components-proof-of-concept)
   - [Introduction](#introduction)
-  - [Prerequisites](#prerequisites)
   - [Public Artifacts](#public-artifacts)
+    - [About the Docker Image of the Connector](#about-the-docker-image-of-the-connector)
   - [About Keycloak and OAuth 2](#about-keycloak-and-oauth-2)
   - [Examples](#examples)
+    - [Prerequisites](#prerequisites)
     - [Consumer Pull](#consumer-pull)
     - [Provider Push](#provider-push)
   - [Frequently Asked Questions](#frequently-asked-questions)
@@ -26,21 +27,20 @@ The repository is organized as follows:
 * The `edcpy` folder contains a Python package built on top of [Poetry](https://python-poetry.org/), providing a series of utilities to interact with an EDC-based dataspace. For example, it contains the logic to execute all the necessary HTTP requests to successfully complete a [Transfer Process](https://eclipse-edc.github.io/docs/#/submodule/Connector/docs/developer/architecture/domain-model?id=transfer-process). Additionally, it offers an example implementation of a [Consumer Backend](https://github.com/eclipse-edc/Connector/tree/main/extensions/control-plane/transfer/transfer-data-plane).
 * The `example` folder contains the configuration files required for the end-to-end example of an interaction between a provider and consumer. This example is one of the main contributions of this repository and aims to clarify any doubts regarding how to integrate a regular service or API into a data space.
 
-## Prerequisites
-
-* [VirtualBox](https://www.virtualbox.org/wiki/Downloads): a popular virtualization product.
-* [Vagrant](https://developer.hashicorp.com/vagrant/downloads): a command line tool for managing virtual machines.
-
-You just need to download and install the releases for your operating system. Vagrant should be able to find and use the [VirtualBox provider](https://developer.hashicorp.com/vagrant/docs/providers/virtualbox) automatically.
-
-There are no other prerequisites, as Vagrant will take care of installing all the necessary dependencies inside the virtual machines.
-
 ## Public Artifacts
 
 This repository publishes two software artifacts for convenience:
 
 * The `edcpy` Python package, which is [published to PyPI](https://pypi.org/project/edcpy/).
 * The `agmangas/edc-connector` Docker image for the _Core Connector_, which is [published to Docker Hub](https://hub.docker.com/r/agmangas/edc-connector).
+
+### About the Docker Image of the Connector 
+
+Although the later examples go into more detail about how to configure the connector, it is relevant to note that the `agmangas/edc-connector` image expects the following environment variables:
+
+* `PROPERTIES_FILE_PATH`: Path to a properties file containing the configuration for the connector.
+* `KEYSTORE_PATH`: Path to a keystore file containing the private key and certificate for the connector. The keystore should be in PKCS12 format.
+* `KEYSTORE_PASSWORD`: The password for the keystore.
 
 ## About Keycloak and OAuth 2
 
@@ -68,6 +68,15 @@ The following examples demonstrate two distinct approaches, which are summarized
 | **Consumer Pull** | The consumer pulls data from the provider by sending HTTP requests to the provider’s data plane public API. The provider proxies these requests to the mock API. |
 
 > Please note that the examples below are run in the Consumer VM, which can be accessed by running `vagrant ssh consumer`.
+
+### Prerequisites
+
+* [VirtualBox](https://www.virtualbox.org/wiki/Downloads): a popular virtualization product.
+* [Vagrant](https://developer.hashicorp.com/vagrant/downloads): a command line tool for managing virtual machines.
+
+You just need to download and install the releases for your operating system. Vagrant should be able to find and use the [VirtualBox provider](https://developer.hashicorp.com/vagrant/docs/providers/virtualbox) automatically.
+
+There are no other prerequisites, as Vagrant will take care of installing all the necessary dependencies inside the virtual machines.
 
 ### Consumer Pull
 
