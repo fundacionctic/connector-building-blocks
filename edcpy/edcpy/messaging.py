@@ -35,7 +35,8 @@ class HttpPullMessage(BaseModel):
             .get("method", None)
         )
 
-        assert ret is not None, "Could not find HTTP method in auth code"
+        if ret is None:
+            raise Exception("Could not find HTTP method in auth code")
 
         return ret
 
@@ -78,7 +79,9 @@ async def start_messaging_app(
     http_push_handler: Union[callable, None] = None,
 ) -> MessagingApp:
     rabbit_url = AppConfig.from_environ().rabbit_url
-    assert rabbit_url, "RabbitMQ URL is not set"
+
+    if not rabbit_url:
+        raise Exception("RabbitMQ URL is not set")
 
     _logger.info(f"Connecting to RabbitMQ at {rabbit_url}")
     broker = RabbitBroker(rabbit_url, logger=_logger)
@@ -138,5 +141,5 @@ async def messaging_app(*args, **kwargs) -> MessagingApp:
         try:
             await msg_app.broker.close()
             _logger.debug("Closed messaging app broker")
-        except:
+        except Exception:
             _logger.warning("Could not close messaging app broker", exc_info=True)

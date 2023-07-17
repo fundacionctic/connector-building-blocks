@@ -95,7 +95,7 @@ The _Consumer Backend_ and the _Connectors_ are off-the-shelf components that ca
 > The `consumer_sandbox` container is created solely for convenience and does not perform any specific tasks. Its purpose is to facilitate the execution of example scripts. Additionally, please note that the `/opt/src` directory contains the sources in this repository.
 
 ```console
-vagrant@consumer:~$ docker exec -it consumer_sandbox python /opt/src/example/example_http_pull.py
+vagrant@consumer:~$ docker exec -it consumer_sandbox python3 /opt/src/example/example_http_pull.py
 2023-06-26 06:32:05 e86fae31cbca edcpy.messaging[13] INFO Connecting to RabbitMQ at amqp://guest:guest@broker:5672
 2023-06-26 06:32:05 e86fae31cbca edcpy.messaging[13] INFO Declaring exchange edcpy-topic-exchange
 2023-06-26 06:32:05 e86fae31cbca edcpy.messaging[13] INFO Declaring queue http-pull-queue
@@ -154,7 +154,7 @@ This example demonstrates the _Provider Push_ use case as defined in the [docume
 ![HTTP Push example](./diagrams/http-push-example.png "HTTP Push example")
 
 ```console
-vagrant@consumer:~$ docker exec -it consumer_sandbox python /opt/src/example/example_http_push.py
+vagrant@consumer:~$ docker exec -it consumer_sandbox python3 /opt/src/example/example_http_push.py
 2023-06-22 17:11:35 16ea40c695f8 edcpy.messaging[13] INFO Connecting to RabbitMQ at amqp://guest:guest@broker:5672
 2023-06-22 17:11:35 16ea40c695f8 edcpy.messaging[13] INFO Declaring exchange edcpy-topic-exchange
 2023-06-22 17:11:35 16ea40c695f8 edcpy.messaging[13] INFO Declaring queue http-pull-queue
