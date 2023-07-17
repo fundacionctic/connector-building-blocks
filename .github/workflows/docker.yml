@@ -5,6 +5,9 @@ on:
     branches:
       - main
 
+env:
+  IMAGE_NAME: agmangas/edc-connector
+
 jobs:
   build-push:
     name: Build and push the connector image to Docker Hub
@@ -29,9 +32,9 @@ jobs:
           build-args: |
             ENABLE_OAUTH2=false
           tags: |
-            agmangas/edc-connector:latest
-            agmangas/edc-connector:${{ github.ref_name }}
-            agmangas/edc-connector:${{ github.sha }}
+            ${{ env.IMAGE_NAME }}:latest
+            ${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+            ${{ env.IMAGE_NAME }}:${{ github.sha }}
       - name: Build and push (OAuth2 enabled)
         uses: docker/build-push-action@v4.1.1
         with:
@@ -40,6 +43,6 @@ jobs:
           build-args: |
             ENABLE_OAUTH2=true
           tags: |
-            agmangas/edc-connector:latest-oauth2
-            agmangas/edc-connector:${{ github.ref_name }}-oauth2
-            agmangas/edc-connector:${{ github.sha }}-oauth2
+            ${{ env.IMAGE_NAME }}:latest-oauth2
+            ${{ env.IMAGE_NAME }}:${{ github.ref_name }}-oauth2
+            ${{ env.IMAGE_NAME }}:${{ github.sha }}-oauth2
