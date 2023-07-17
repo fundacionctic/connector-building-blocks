@@ -3,7 +3,7 @@
 - [Eclipse Dataspace Components Proof of Concept](#eclipse-dataspace-components-proof-of-concept)
   - [Introduction](#introduction)
   - [Public Artifacts](#public-artifacts)
-    - [About the Docker Image of the Connector](#about-the-docker-image-of-the-connector)
+    - [Configuration of the Connector Image](#configuration-of-the-connector-image)
   - [About Keycloak and OAuth 2](#about-keycloak-and-oauth-2)
   - [Examples](#examples)
     - [Prerequisites](#prerequisites)
@@ -15,11 +15,11 @@
 
 This project contains a proof of concept that aims to automate the deployment of a Minimum Viable Dataspace and demonstrate how arbitrary data sources can be integrated into the data space using the Eclipse Dataspace Components software stack.
 
-The approach taken here is that any data space participant component can expose an HTTP API described by a standard OpenAPI schema. Then, there is a Core Connector that is able to understand this schema and create a series of assets in the data space to represent the HTTP endpoints. These endpoints, in turn, provide access to the datasets and services offered by the participant component in question.
+The approach taken here is that **any data space participant component can expose an HTTP API described by a standard OpenAPI schema**. Then, there is a Core Connector that is able to understand this schema and create a series of assets in the data space to represent the HTTP endpoints. These endpoints, in turn, provide access to the datasets and services offered by the participant component in question.
 
 The repository is organized as follows:
 
-* The `connector` folder contains a Java project with several separate proofs-of-concept. Most of these are derived from and adapted from the [EDC samples repository](https://github.com/eclipse-edc/Samples). The most relevant code is located in the `core-connector` folder, which contains a very early draft version of the _Core Connector_ extension
+* The `connector` folder contains a Java project with a very early draft version of the _Core Connector_ extension. This extension is responsible for creating the assets in the data space based on the OpenAPI schema of the participant component.
 * The `mock-component` folder contains an example data space participant that exposes both an HTTP API and an event-driven API based on RabbitMQ. These APIs are described by [OpenAPI](https://learn.openapis.org/) and [AsyncAPI](https://www.asyncapi.com/docs) documents, respectively. The logic of the component itself does not hold any value; its purpose is to demonstrate where each partner should contribute.
 
 > Support for AsyncAPI and event-driven APIs is a nice-to-have that is not currently being prioritized. It will be addressed at a later stage if time permits and there are no technological roadblocks.
@@ -34,13 +34,15 @@ This repository publishes two software artifacts for convenience:
 * The `edcpy` Python package, which is [published to PyPI](https://pypi.org/project/edcpy/).
 * The `agmangas/edc-connector` Docker image for the _Core Connector_, which is [published to Docker Hub](https://hub.docker.com/r/agmangas/edc-connector).
 
-### About the Docker Image of the Connector 
+### Configuration of the Connector Image 
 
 Although the later examples go into more detail about how to configure the connector, it is relevant to note that the `agmangas/edc-connector` image expects the following environment variables:
 
-* `PROPERTIES_FILE_PATH`: Path to a properties file containing the configuration for the connector.
-* `KEYSTORE_PATH`: Path to a keystore file containing the private key and certificate for the connector. The keystore should be in PKCS12 format.
-* `KEYSTORE_PASSWORD`: The password for the keystore.
+| Variable Name          | Description                                                                                                                    |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `PROPERTIES_FILE_PATH` | Path to a properties file containing the configuration for the connector.                                                      |
+| `KEYSTORE_PATH`        | Path to a keystore file containing the private key and certificate for the connector. The keystore should be in PKCS12 format. |
+| `KEYSTORE_PASSWORD`    | The password for the keystore.                                                                                                 |
 
 ## About Keycloak and OAuth 2
 
@@ -57,6 +59,8 @@ A connector instance is represented in Keycloak as a _Client_. These _Clients_ n
 There is a `Vagrantfile` in the root of the repository, which serves as the configuration file for Vagrant. [Vagrant](https://www.vagrantup.com/) is a tool utilized here to generate reproducible versions of two separate Ubuntu Virtual Machines: one for the provider and another for the consumer. This approach guarantees that the examples portray a more realistic scenario where the consumer and provider are deployed on different instances. Consequently, this distinction is reflected in the configuration files, providing a more illustrative demonstration rather than relying only on localhost access for all configuration properties.
 
 After installing Vagrant on your system, simply run `vagrant up` to create both the provider and the consumer. The `Vagrantfile` is configured to handle all the necessary provisioning steps, such as installing dependencies and building the connector. Once the build process is complete, you can log into the consumer and provider by using `vagrant ssh consumer` or `vagrant ssh provider`.
+
+The provisioning scripts build the Docker images locally. However, there are also two alternative Compose files ending in `-hub-image.yml` that show how to use the public images instead.
 
 We use Multicast DNS to ensure that `provider.local` resolves to the provider’s IP and that `consumer.local` resolves to the consumers’ IP. This forces us to install `avahi-daemon` and `libnss-mdns` in both the consumer and provider, and also to bind the volumes `/var/run/dbus` and `/var/run/avahi-daemon/socket` on all Docker containers.
 
@@ -222,3 +226,15 @@ However, it's important to note that the use of Python is not mandatory. The `ed
 We will strive to ensure that the core connector is compatible with any arbitrary HTTP API, as long as it is properly described using the OpenAPI specification.
 
 This means that you should have the liberty of using whatever technology stack you feel more comfortable with to develop the API.
+
+**Are OpenAPI-based APIs the only supported data sources?**
+
+Yes, for the time being. The _Core Connector_ is still in its early stages of development, and we are focusing on the most common use cases. However, we are open to expanding the scope of the project in the future.
+
+In any case, the OpenAPI specification is flexible enough to describe a wide variety of APIs. It should be fairly simple to expose your existing data source as an OpenAPI-based API.
+
+**Why was Keycloak used as the identity service instead of DAPS?**
+
+The [Dynamic Attribute Provisioning Service (DAPS)](https://docs.internationaldataspaces.org/ids-knowledgebase/v/ids-ram-4/layers-of-the-reference-architecture-model/3-layers-of-the-reference-architecture-model/3_5_0_system_layer/3_5_1_identity_provider#dynamic-attribute-provisioning-service-daps) is one of the key building blocks regarding identity in an IDS data space. It would be the most suitable choice for ensuring full compliance within a data space.
+
+However, this is a proof of concept aimed at demonstrating the capabilities of the _Core Connector_. As such, we decided to use [Keycloak](https://www.keycloak.org/) as an alternative to DAPS because it is more mature, and we are significantly more familiar with it.
