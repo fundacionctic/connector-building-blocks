@@ -14,7 +14,7 @@
 ## Future Work
 
 - [ ] Update README to show a comparative between a non-IDS data exchange and an IDS-based data exchange.
-- [ ] Integrate Gaia-X Self-Descriptions, the Gaia-X Federated Catalogue and the Gaia-X Compliance Service.
+- [ ] Integrate Gaia-X Self-Descriptions, the [Gaia-X Federated Catalogue](https://gitlab.eclipse.org/eclipse/xfsc/cat/fc-service) and the [Gaia-X Compliance Service](https://gitlab.com/gaia-x/lab/compliance/gx-compliance).
 - [ ] Replace Keycloak by DAPS as the identity service.
 
 ## Introduction
