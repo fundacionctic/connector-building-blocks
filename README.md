@@ -11,6 +11,12 @@
     - [Provider Push](#provider-push)
   - [Frequently Asked Questions](#frequently-asked-questions)
 
+## Future Work
+
+- [ ] Update README to show a comparative between a non-IDS data exchange and an IDS-based data exchange.
+- [ ] Integrate Gaia-X Self-Descriptions, the Gaia-X Federated Catalogue and the Gaia-X Compliance Service.
+- [ ] Replace Keycloak by DAPS as the identity service.
+
 ## Introduction
 
 This project contains a proof of concept that aims to automate the deployment of a Minimum Viable Dataspace and demonstrate how arbitrary data sources can be integrated into the data space using the Eclipse Dataspace Components software stack.
