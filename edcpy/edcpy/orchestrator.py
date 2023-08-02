@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import pprint
-import time
 from dataclasses import dataclass
 from typing import Iterator, Union
 
@@ -15,6 +14,8 @@ from edcpy.models.data_plane_instance import DataPlaneInstance
 from edcpy.models.policy_definition import PolicyDefinition
 from edcpy.models.transfer_process import TransferProcess
 from edcpy.utils import join_url
+
+_DEFAULT_TIMEOUT_SECS = 60
 
 _logger = logging.getLogger(__name__)
 
@@ -93,7 +94,7 @@ class RequestOrchestrator:
             "protocol": "dataspace-protocol-http",
         }
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=_DEFAULT_TIMEOUT_SECS) as client:
             url = join_url(self.config.consumer_management_url, "v2/catalog/request")
             _log_req("POST", url, data)
             response = await client.post(url, headers=self.DEFAULT_HEADERS, json=data)
@@ -109,7 +110,7 @@ class RequestOrchestrator:
             control_url=control_url, public_api_url=public_api_url
         )
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=_DEFAULT_TIMEOUT_SECS) as client:
             url = join_url(management_url, "instances")
             _log_req("POST", url, data)
             response = await client.post(url, headers=self.DEFAULT_HEADERS, json=data)
@@ -145,7 +146,7 @@ class RequestOrchestrator:
             source_content_type=content_type,
         )
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=_DEFAULT_TIMEOUT_SECS) as client:
             url = join_url(self.config.provider_management_url, "v2/assets")
             _log_req("POST", url, data)
             response = await client.post(url, headers=self.DEFAULT_HEADERS, json=data)
@@ -157,7 +158,7 @@ class RequestOrchestrator:
     async def create_provider_policy_definition(self) -> dict:
         data = PolicyDefinition.build()
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=_DEFAULT_TIMEOUT_SECS) as client:
             url = join_url(self.config.provider_management_url, "v2/policydefinitions")
             _log_req("POST", url, data)
             response = await client.post(url, headers=self.DEFAULT_HEADERS, json=data)
@@ -171,7 +172,7 @@ class RequestOrchestrator:
     ) -> dict:
         data = ContractDefinition.build(policy_definition_id=policy_definition_id)
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=_DEFAULT_TIMEOUT_SECS) as client:
             url = join_url(
                 self.config.provider_management_url, "v2/contractdefinitions"
             )
@@ -195,7 +196,7 @@ class RequestOrchestrator:
             asset_id=asset_id,
         )
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=_DEFAULT_TIMEOUT_SECS) as client:
             url = join_url(
                 self.config.consumer_management_url, "v2/contractnegotiations"
             )
@@ -215,7 +216,7 @@ class RequestOrchestrator:
             f"v2/contractnegotiations/{contract_negotiation_id}",
         )
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=_DEFAULT_TIMEOUT_SECS) as client:
             while True:
                 _log_req("GET", url)
                 response = await client.get(url, headers=self.DEFAULT_HEADERS)
@@ -251,7 +252,7 @@ class RequestOrchestrator:
             sink_content_type=sink_content_type,
         )
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=_DEFAULT_TIMEOUT_SECS) as client:
             url = join_url(self.config.consumer_management_url, "v2/transferprocesses")
             _log_req("POST", url, data)
             response = await client.post(url, headers=self.DEFAULT_HEADERS, json=data)
@@ -270,7 +271,7 @@ class RequestOrchestrator:
             asset_id=asset_id,
         )
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=_DEFAULT_TIMEOUT_SECS) as client:
             url = join_url(self.config.consumer_management_url, "v2/transferprocesses")
             _log_req("POST", url, data)
             response = await client.post(url, headers=self.DEFAULT_HEADERS, json=data)
@@ -287,7 +288,7 @@ class RequestOrchestrator:
             f"v2/transferprocesses/{transfer_process_id}",
         )
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=_DEFAULT_TIMEOUT_SECS) as client:
             while True:
                 _log_req("GET", url)
                 response = await client.get(url, headers=self.DEFAULT_HEADERS)
@@ -308,7 +309,10 @@ class RequestOrchestrator:
         catalog = await self.fetch_provider_catalog_from_consumer()
         catalog_content = CatalogContent(data=catalog)
         dataset_dict = catalog_content.find_one_dataset(asset_query)
-        assert dataset_dict, f"Dataset not found for query: {asset_query}"
+
+        if not dataset_dict:
+            raise ValueError(f"Dataset not found for query: {asset_query}")
+
         _logger.debug("Selected dataset:\n%s", pprint.pformat(dataset_dict))
         dataset = CatalogDataset(data=dataset_dict)
         contract_offer_id = dataset.default_contract_offer_id
