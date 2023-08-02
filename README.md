@@ -1,6 +1,7 @@
 # Eclipse Dataspace Components Proof of Concept
 
 - [Eclipse Dataspace Components Proof of Concept](#eclipse-dataspace-components-proof-of-concept)
+  - [Future Work](#future-work)
   - [Introduction](#introduction)
   - [Public Artifacts](#public-artifacts)
     - [Configuration of the Connector Image](#configuration-of-the-connector-image)
