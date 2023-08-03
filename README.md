@@ -16,7 +16,7 @@
 
 - [ ] Update README to show a comparative between a non-dataspace data exchange and an dataspace data exchange.
 - [ ] Integrate Gaia-X Self-Descriptions, the [Gaia-X Federated Catalogue](https://gitlab.eclipse.org/eclipse/xfsc/cat/fc-service) and the [Gaia-X Compliance Service](https://gitlab.com/gaia-x/lab/compliance/gx-compliance).
-- [ ] Replace Keycloak by DAPS as the identity service?
+- [ ] Replace Keycloak by another identity service that is more appropriate for a Gaia-X data space.
 
 ## Introduction
 
