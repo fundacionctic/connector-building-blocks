@@ -221,10 +221,11 @@ public class OpenAPICoreExtension implements ServiceExtension {
         openapiUrl = context.getSetting(OPENAPI_URL, null);
 
         if (openapiUrl != null) {
-            monitor.warning(String.format("OpenAPI URL (property '%s') is not set", OPENAPI_URL));
             PolicyDefinition policy = buildPolicyDefinition();
             policyStore.create(policy);
             createAssets(context, policy.getUid());
+        } else {
+            monitor.warning(String.format("OpenAPI URL (property '%s') is not set", OPENAPI_URL));
         }
 
         Package pkg = OpenAPICoreExtension.class.getPackage();
