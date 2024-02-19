@@ -1,17 +1,8 @@
 plugins {
     `java-library`
     id("application")
-    id("com.github.johnrengelman.shadow") version "7.1.2"
+    alias(libs.plugins.shadow)
 }
-
-repositories {
-    mavenCentral()
-    maven {
-        url = uri("https://maven.iais.fraunhofer.de/artifactory/eis-ids-public/")
-    }
-}
-
-val edcGroupId: String by project
 
 dependencies {
     implementation(libs.edc.control.plane.core)
@@ -39,7 +30,7 @@ dependencies {
 }
 
 application {
-    mainClass.set("$edcGroupId.boot.system.runtime.BaseRuntime")
+    mainClass.set("org.eclipse.edc.boot.system.runtime.BaseRuntime")
 }
 
 var distTar = tasks.getByName("distTar")

@@ -12,7 +12,7 @@ RUN apt-get update -y && DEBIAN_FRONTEND=noninteractive apt-get install -y \
     python3 \
     python3-pip
 
-ENV GRADLE_VERSION=8.1.1
+ENV GRADLE_VERSION=8.6
 
 RUN wget --quiet -O gradle-${GRADLE_VERSION}-bin.zip https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip && \
     unzip -d /opt/gradle gradle-${GRADLE_VERSION}-bin.zip && \
@@ -22,7 +22,7 @@ RUN wget --quiet -O gradle-${GRADLE_VERSION}-bin.zip https://services.gradle.org
     chmod +x /etc/profile.d/gradle.sh
 
 ENV PATH_EDCPY=/opt/edcpy
-ENV POETRY_VERSION=1.5.1
+ENV POETRY_VERSION=1.7.1
 
 RUN mkdir -p ${PATH_EDCPY}
 WORKDIR ${PATH_EDCPY}
@@ -38,7 +38,7 @@ ENV PATH_CONNECTOR=/opt/connector
 RUN mkdir -p ${PATH_CONNECTOR}
 WORKDIR ${PATH_CONNECTOR}
 
-ARG ENABLE_OAUTH2=true
+ARG ENABLE_OAUTH2=false
 
 COPY ./connector .
 ENV ORG_GRADLE_PROJECT_useOauthIdentity=${ENABLE_OAUTH2}

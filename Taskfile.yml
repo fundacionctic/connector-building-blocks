@@ -3,15 +3,9 @@
 version: "3"
 
 env:
-  DATA_DASHBOARD_COMMIT: c3ec34f
-  DATA_DASHBOARD_DIR: data-dashboard
-  MVD_COMMIT: 8141afc
-  MVD_DIR: mvd
-  MVD_UI_PATH: "{{.ROOT_DIR}}/{{.DATA_DASHBOARD_DIR}}"
   CONNECTOR_DIR: connector
   SCRIPTS_IMAGE: edc-poc-scripts
   EDCPY_IMAGE: edcpy
-  SERVICES_SLEEP: 10
   EXAMPLE_CONSUMER_CERTS_DIR: "{{.ROOT_DIR}}/example/certs-consumer"
   EXAMPLE_PROVIDER_CERTS_DIR: "{{.ROOT_DIR}}/example/certs-provider"
   KEY_ALIAS: datacellar
@@ -24,35 +18,15 @@ tasks:
   clean:
     desc: Performs cleanup by removing generated artifacts, including files, directories, and containers resulting from task execution
     cmds:
-      - cmd: docker compose --profile ui -f {{.MVD_DIR}}/system-tests/docker-compose.yml down -v
-        ignore_error: true
       - docker compose -f {{.ROOT_DIR}}/docker-compose-consumer.yml down -v
       - docker compose -f {{.ROOT_DIR}}/docker-compose-provider.yml down -v
       - rm -fr {{.ROOT_DIR}}/example/certs-*
       - rm -fr {{.ROOT_DIR}}/example/*.jar
-      - rm -fr {{.DATA_DASHBOARD_DIR}}
-      - rm -fr {{.MVD_DIR}}
       - cd {{.CONNECTOR_DIR}} && gradle clean
       - cmd: docker rmi -f {{.SCRIPTS_IMAGE}}
         ignore_error: true
       - cmd: docker rmi -f {{.EDCPY_IMAGE}}
         ignore_error: true
-
-  clone-data-dashboard:
-    desc: Clones the eclipse-edc/DataDashboard repository
-    cmds:
-      - git clone git@github.com:eclipse-edc/DataDashboard.git {{.DATA_DASHBOARD_DIR}}
-      - cd {{.DATA_DASHBOARD_DIR}} && git reset --hard {{.DATA_DASHBOARD_COMMIT}}
-    status:
-      - test -d {{.DATA_DASHBOARD_DIR}}
-
-  clone-mvd:
-    desc: Clones the eclipse-edc/MinimumViableDataspace repository
-    cmds:
-      - git clone git@github.com:eclipse-edc/MinimumViableDataspace.git {{.MVD_DIR}}
-      - cd {{.MVD_DIR}} && git reset --hard {{.MVD_COMMIT}}
-    status:
-      - test -d {{.MVD_DIR}}
 
   build-scripts-image:
     desc: Builds the Docker image used to run helper scripts
@@ -60,88 +34,13 @@ tasks:
     cmds:
       - docker build -t {{.SCRIPTS_IMAGE}} .
 
-  build-mvd:
-    desc: Builds the MinimumViableDataspace project
-    deps:
-      - clone-mvd
-    dir: "{{.MVD_DIR}}"
-    cmds:
-      - gradle build -x test
-    status:
-      - ls {{.ROOT_DIR}}/{{.MVD_DIR}}/build/libs/*.jar
-
-  build-mvd-connector:
-    desc: Builds the MinimumViableDataspace connector
-    deps:
-      - clone-mvd
-    vars:
-      BUILD_MARK: "{{.ROOT_DIR}}/{{.MVD_DIR}}/.build-connector.log"
-    dir: "{{.MVD_DIR}}"
-    cmds:
-      - gradle -DuseFsVault="true" :launchers:connector:shadowJar
-      - touch {{.BUILD_MARK}}
-    status:
-      - test -f {{.BUILD_MARK}}
-
-  build-mvd-reg-svc:
-    desc: Builds the MinimumViableDataspace registration service
-    deps:
-      - clone-mvd
-    vars:
-      BUILD_MARK: "{{.ROOT_DIR}}/{{.MVD_DIR}}/.build-reg-svc.log"
-    dir: "{{.MVD_DIR}}"
-    cmds:
-      - gradle -DuseFsVault="true" :launchers:registrationservice:shadowJar
-      - touch {{.BUILD_MARK}}
-    status:
-      - test -f {{.BUILD_MARK}}
-
-  build-mvd-all:
-    desc: Builds all the artifacts of the MinimumViableDataspace
-    cmds:
-      - task: build-mvd
-      - task: build-mvd-connector
-      - task: build-mvd-reg-svc
-
-  mvd-system-tests-up:
-    desc: Starts the Compose stack of the MinimumViableDataspace
-    deps:
-      - build-mvd-all
-      - clone-data-dashboard
-    cmds:
-      - docker compose --profile ui -f {{.MVD_DIR}}/system-tests/docker-compose.yml up -d --build
-    status:
-      - >
-        test $(docker compose --profile ui -f {{.MVD_DIR}}/system-tests/docker-compose.yml ps --all --format json | 
-        jq '.[] | select(.State == "exited")' | 
-        jq '.Name' | 
-        wc -l) -eq 1
-      - >
-        test $(docker compose --profile ui -f {{.MVD_DIR}}/system-tests/docker-compose.yml ps --all --format json | 
-        jq '.[] | select(.State == "running")' | 
-        jq '.Name' | 
-        wc -l) -gt 0
-
-  upload-test-doc:
-    desc: Uploads a test document to the MinimumViableDataspace
-    deps:
-      - mvd-system-tests-up
-    cmds:
-      - >
-        docker run --rm -it 
-        --network host
-        -v {{.ROOT_DIR}}/{{.MVD_DIR}}:/mvd 
-        -v {{.ROOT_DIR}}/scripts:/scripts
-        mcr.microsoft.com/azure-cli:2.48.1 
-        /bin/bash /scripts/upload-test-doc.sh
-
   build-connector:
     desc: Builds the connector
     dir: "{{.CONNECTOR_DIR}}"
     env:
       # Set the property that signals the connector to use OAuth 2 identity
       # https://docs.gradle.org/current/userguide/build_environment.html#sec:project_properties
-      ORG_GRADLE_PROJECT_useOauthIdentity: "true"
+      ORG_GRADLE_PROJECT_useOauthIdentity: "false"
     cmds:
       - gradle clean build
 

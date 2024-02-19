@@ -1,5 +1,6 @@
 package eu.datacellar.connector;
 
+import static org.eclipse.edc.dataaddress.httpdata.spi.HttpDataAddressSchema.HTTP_DATA_TYPE;
 import static org.eclipse.edc.spi.query.Criterion.criterion;
 
 import java.net.MalformedURLException;
@@ -8,6 +9,7 @@ import java.net.URL;
 import org.eclipse.edc.connector.contract.spi.offer.store.ContractDefinitionStore;
 import org.eclipse.edc.connector.contract.spi.types.offer.ContractDefinition;
 import org.eclipse.edc.connector.core.CoreServicesExtension;
+import org.eclipse.edc.connector.dataplane.http.spi.HttpDataAddress;
 import org.eclipse.edc.connector.dataplane.http.spi.HttpRequestParamsProvider;
 import org.eclipse.edc.connector.dataplane.selector.spi.instance.DataPlaneInstance;
 import org.eclipse.edc.connector.dataplane.selector.spi.store.DataPlaneInstanceStore;
@@ -22,7 +24,6 @@ import org.eclipse.edc.spi.asset.AssetIndex;
 import org.eclipse.edc.spi.monitor.Monitor;
 import org.eclipse.edc.spi.system.ServiceExtension;
 import org.eclipse.edc.spi.system.ServiceExtensionContext;
-import org.eclipse.edc.spi.types.domain.HttpDataAddress;
 import org.eclipse.edc.spi.types.domain.asset.Asset;
 
 import com.github.slugify.Slugify;
@@ -106,8 +107,8 @@ public class OpenAPICoreExtension implements ServiceExtension {
         DataPlaneInstance dataPlaneInstance = DataPlaneInstance.Builder.newInstance()
                 .id(DATA_PLANE_ID)
                 .url(String.format("%s://%s:%s/control/transfer", scheme, hostname, controlPort))
-                .allowedSourceType(HttpDataAddress.HTTP_DATA)
-                .allowedDestType(HttpDataAddress.HTTP_DATA)
+                .allowedSourceType(HTTP_DATA_TYPE)
+                .allowedDestType(HTTP_DATA_TYPE)
                 .allowedDestType(TransferDataPlaneConstants.HTTP_PROXY)
                 .property(PUBLIC_API_URL_KEY, String.format("%s://%s:%s/public/", scheme, hostname, publicPort))
                 .build();
@@ -176,9 +177,10 @@ public class OpenAPICoreExtension implements ServiceExtension {
 
                 Asset asset = Asset.Builder.newInstance().id(assetId)
                         .name(String.format("%s %s (%s)", method, path, operationId))
+                        .dataAddress(dataAddress)
                         .build();
 
-                assetIndex.create(asset, dataAddress);
+                assetIndex.create(asset);
 
                 monitor.debug(String.format("Created asset '%s' with data address: %s", assetId,
                         dataAddress.getProperties()));
