@@ -1,11 +1,11 @@
 import logging
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from typing import Union
+from typing import AsyncGenerator, Union
 from urllib.parse import urlparse
 
-from propan import PropanApp, RabbitBroker
-from propan.brokers.rabbit import ExchangeType, RabbitExchange, RabbitQueue
+from faststream import FastStream
+from faststream.rabbit import ExchangeType, RabbitBroker, RabbitExchange, RabbitQueue
 from pydantic import BaseModel
 
 from edcpy.config import AppConfig
@@ -36,7 +36,7 @@ class HttpPullMessage(BaseModel):
         )
 
         if ret is None:
-            raise Exception("Could not find HTTP method in auth code")
+            raise ValueError("Could not find HTTP method in auth code")
 
         return ret
 
@@ -65,7 +65,7 @@ class HttpPushMessage(BaseModel):
 @dataclass
 class MessagingApp:
     broker: RabbitBroker
-    app: PropanApp
+    app: FastStream
     exchange: RabbitExchange
 
 
@@ -78,16 +78,16 @@ async def start_messaging_app(
     http_pull_handler: Union[callable, None] = None,
     http_push_handler: Union[callable, None] = None,
 ) -> MessagingApp:
-    rabbit_url = AppConfig.from_environ().rabbit_url
+    rabbit_url = AppConfig.from_environ().rabbit_url  # pylint: disable=no-member
 
     if not rabbit_url:
-        raise Exception("RabbitMQ URL is not set")
+        raise ValueError("RabbitMQ URL is not set")
 
-    _logger.info(f"Connecting to RabbitMQ at {rabbit_url}")
+    _logger.info("Connecting to RabbitMQ at %s", rabbit_url)
     broker = RabbitBroker(rabbit_url, logger=_logger)
-    app = PropanApp(broker, logger=_logger)
+    app = FastStream(broker, logger=_logger)
 
-    _logger.info(f"Declaring exchange {exchange_name}")
+    _logger.info("Declaring exchange: %s", exchange_name)
 
     topic_exchange = RabbitExchange(
         exchange_name,
@@ -99,7 +99,7 @@ async def start_messaging_app(
     )
 
     if http_pull_handler is not None:
-        _logger.info(f"Declaring queue {http_pull_queue_name}")
+        _logger.info("Declaring queue: %s", http_pull_queue_name)
 
         http_pull_queue = RabbitQueue(
             http_pull_queue_name,
@@ -110,10 +110,10 @@ async def start_messaging_app(
             routing_key=http_pull_queue_routing_key,
         )
 
-        broker.handle(http_pull_queue, topic_exchange)(http_pull_handler)
+        broker.subscriber(http_pull_queue, topic_exchange)(http_pull_handler)
 
     if http_push_handler is not None:
-        _logger.info(f"Declaring queue {http_push_queue_name}")
+        _logger.info("Declaring queue: %s", http_push_queue_name)
 
         http_push_queue = RabbitQueue(
             http_push_queue_name,
@@ -124,7 +124,7 @@ async def start_messaging_app(
             routing_key=http_push_queue_routing_key,
         )
 
-        broker.handle(http_push_queue, topic_exchange)(http_push_handler)
+        broker.subscriber(http_push_queue, topic_exchange)(http_push_handler)
 
     _logger.info("Starting broker")
     await broker.start()
@@ -133,7 +133,7 @@ async def start_messaging_app(
 
 
 @asynccontextmanager
-async def messaging_app(*args, **kwargs) -> MessagingApp:
+async def messaging_app(*args, **kwargs) -> AsyncGenerator[MessagingApp]:
     try:
         msg_app = await start_messaging_app(*args, **kwargs)
         yield msg_app
@@ -141,5 +141,5 @@ async def messaging_app(*args, **kwargs) -> MessagingApp:
         try:
             await msg_app.broker.close()
             _logger.debug("Closed messaging app broker")
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             _logger.warning("Could not close messaging app broker", exc_info=True)

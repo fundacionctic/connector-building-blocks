@@ -3,7 +3,7 @@ import uuid
 from edcpy.utils import list_override_merger
 
 _TEMPLATE = {
-    "@context": {"edc": "https://w3id.org/edc/v0.0.1/ns/"},
+    "@context": {"@vocab": "https://w3id.org/edc/v0.0.1/ns/"},
     "@id": None,
     "accessPolicyId": None,
     "contractPolicyId": None,
@@ -18,7 +18,7 @@ class ContractDefinition:
         policy_definition_id: str,
         uid: str = None,
     ) -> dict:
-        uid = uid if uid is not None else "contract-def-{}".format(uuid.uuid4())
+        uid = uid if uid is not None else f"contract-def-{uuid.uuid4()}"
 
         return list_override_merger.merge(
             _TEMPLATE,

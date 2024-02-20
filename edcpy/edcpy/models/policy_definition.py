@@ -2,15 +2,18 @@ import uuid
 
 from edcpy.utils import list_override_merger
 
+
 _TEMPLATE = {
-    "@context": {"edc": "https://w3id.org/edc/v0.0.1/ns/"},
+    "@context": {
+        "@vocab": "https://w3id.org/edc/v0.0.1/ns/",
+        "odrl": "http://www.w3.org/ns/odrl/2/",
+    },
     "@id": None,
     "policy": {
-        "@context": "http://www.w3.org/ns/odrl.jsonld",
         "@type": "set",
-        "permission": [],
-        "prohibition": [],
-        "obligation": [],
+        "odrl:permission": [],
+        "odrl:prohibition": [],
+        "odrl:obligation": [],
     },
 }
 
@@ -21,7 +24,7 @@ class PolicyDefinition:
         cls,
         uid: str = None,
     ) -> dict:
-        uid = uid if uid is not None else "policy-def-{}".format(uuid.uuid4())
+        uid = uid if uid is not None else f"policy-def-{uuid.uuid4()}"
 
         return list_override_merger.merge(
             _TEMPLATE,

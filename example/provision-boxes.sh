@@ -16,9 +16,9 @@ usermod -aG docker vagrant
 sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
 
 # Gradle
-wget --quiet -O gradle-8.1.1-bin.zip https://services.gradle.org/distributions/gradle-8.1.1-bin.zip
-unzip -d /opt/gradle gradle-8.1.1-bin.zip
-ln -s /opt/gradle/gradle-8.1.1 /opt/gradle/latest
+wget --quiet -O gradle-8.6-bin.zip https://services.gradle.org/distributions/gradle-8.6-bin.zip
+unzip -d /opt/gradle gradle-8.6-bin.zip
+ln -s /opt/gradle/gradle-8.6 /opt/gradle/latest
 echo 'export GRADLE_HOME=/opt/gradle/latest' | tee /etc/profile.d/gradle.sh
 echo 'export PATH=$PATH:$GRADLE_HOME/bin' | tee -a /etc/profile.d/gradle.sh
 chmod +x /etc/profile.d/gradle.sh

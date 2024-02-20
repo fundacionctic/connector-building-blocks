@@ -3,12 +3,12 @@ import uuid
 from edcpy.utils import join_url, list_override_merger
 
 _TEMPLATE = {
-    "edctype": "dataspaceconnector:dataplaneinstance",
-    "id": None,
+    "@context": {"@vocab": "https://w3id.org/edc/v0.0.1/ns/"},
+    "@id": None,
     "url": None,
     "allowedSourceTypes": ["HttpData"],
     "allowedDestTypes": ["HttpProxy", "HttpData"],
-    "properties": {"publicApiUrl": None},
+    "properties": {"https://w3id.org/edc/v0.0.1/ns/publicApiUrl": None},
 }
 
 
@@ -20,7 +20,7 @@ class DataPlaneInstance:
         public_api_url: str,
         uid: str = None,
     ) -> dict:
-        uid = uid if uid is not None else "dplane-{}".format(uuid.uuid4())
+        uid = uid if uid is not None else f"dplane-{uuid.uuid4()}"
 
         return list_override_merger.merge(
             _TEMPLATE,

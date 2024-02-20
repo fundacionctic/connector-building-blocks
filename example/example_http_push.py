@@ -2,8 +2,8 @@
 An example of the Provider Push use case from the Transfer Data Plane extension:
 https://github.com/eclipse-edc/Connector/tree/main/extensions/control-plane/transfer/transfer-data-plane.
 
-In this case the Provider calls the Mock HTTP API contained in the 
-'mock-component' folder and then 'pushes' the result to the Consumer Backend.
+In this case the Provider calls the Mock HTTP API contained in the
+'mock-backend' folder and then 'pushes' the result to the Consumer Backend.
 """
 
 from __future__ import annotations

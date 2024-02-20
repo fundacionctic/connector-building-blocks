@@ -27,7 +27,7 @@ The approach taken here is that **any data space participant component can expos
 The repository is organized as follows:
 
 * The `connector` folder contains a Java project with a very early draft version of the _Core Connector_ extension. This extension is responsible for creating the assets in the data space based on the OpenAPI schema of the participant component.
-* The `mock-component` folder contains an example data space participant that exposes both an HTTP API and an event-driven API based on RabbitMQ. These APIs are described by [OpenAPI](https://learn.openapis.org/) and [AsyncAPI](https://www.asyncapi.com/docs) documents, respectively. The logic of the component itself does not hold any value; its purpose is to demonstrate where each partner should contribute.
+* The `mock-backend` folder contains an example data space participant that exposes both an HTTP API and an event-driven API based on RabbitMQ. These APIs are described by [OpenAPI](https://learn.openapis.org/) and [AsyncAPI](https://www.asyncapi.com/docs) documents, respectively. The logic of the component itself does not hold any value; its purpose is to demonstrate where each partner should contribute.
 
 > Support for AsyncAPI and event-driven APIs is a nice-to-have that is not currently being prioritized. It will be addressed at a later stage if time permits and there are no technological roadblocks.
 
@@ -41,7 +41,7 @@ This repository publishes two software artifacts for convenience:
 * The `edcpy` Python package, which is [published to PyPI](https://pypi.org/project/edcpy/).
 * The `agmangas/edc-connector` Docker image for the _Core Connector_, which is [published to Docker Hub](https://hub.docker.com/r/agmangas/edc-connector).
 
-### Configuration of the Connector Image 
+### Configuration of the Connector Image
 
 Although the later examples go into more detail about how to configure the connector, it is relevant to note that the `agmangas/edc-connector` image expects the following environment variables:
 

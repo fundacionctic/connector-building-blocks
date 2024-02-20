@@ -10,9 +10,6 @@ env:
   EXAMPLE_PROVIDER_CERTS_DIR: "{{.ROOT_DIR}}/example/certs-provider"
   KEY_ALIAS: datacellar
   KEY_PASSW: datacellar
-  EXAMPLE_CONNECTOR_PROVIDER_ID: example-provider
-  EXAMPLE_CONNECTOR_CONSUMER_ID: example-consumer
-  EXAMPLE_KEYCLOAK_REALM: edc-example-realm
 
 tasks:
   clean:
@@ -20,6 +17,7 @@ tasks:
     cmds:
       - docker compose -f {{.ROOT_DIR}}/docker-compose-consumer.yml down -v
       - docker compose -f {{.ROOT_DIR}}/docker-compose-provider.yml down -v
+      - docker compose -f {{.ROOT_DIR}}/mock-backend/docker-compose.yml down -v
       - rm -fr {{.ROOT_DIR}}/example/certs-*
       - rm -fr {{.ROOT_DIR}}/example/*.jar
       - cd {{.CONNECTOR_DIR}} && gradle clean
@@ -49,74 +47,51 @@ tasks:
     cmds:
       - docker build -t {{.EDCPY_IMAGE}} -f Dockerfile.edcpy .
 
-  create-example-certs-consumer:
-    desc: Creates the certificates used by the example consumer
+  create-certs:
     deps:
       - build-scripts-image
+    requires:
+      vars: [CERTS_DIR]
     cmds:
-      - mkdir -p {{.EXAMPLE_CONSUMER_CERTS_DIR}}
+      - mkdir -p {{.CERTS_DIR}}
       - >
-        docker run --rm 
-        -v {{.EXAMPLE_CONSUMER_CERTS_DIR}}:/out 
+        docker run --rm
+        -v {{.CERTS_DIR}}:/out
         {{.SCRIPTS_IMAGE}}
         /bin/bash -c "OUT_DIR=/out KEY_ALIAS={{.KEY_ALIAS}} KEY_PASSW={{.KEY_PASSW}} ./create-certs.sh"
     status:
-      - test -f {{.EXAMPLE_CONSUMER_CERTS_DIR}}/*.pfx
+      - test -f {{.CERTS_DIR}}/*.pfx
+
+  create-example-certs-consumer:
+    desc: Creates the certificates used by the example consumer
+    cmds:
+      - task: create-certs
+        vars:
+          CERTS_DIR: "{{.EXAMPLE_CONSUMER_CERTS_DIR}}"
 
   create-example-certs-provider:
     desc: Creates the certificates used by the example provider
-    deps:
-      - build-scripts-image
     cmds:
-      - mkdir -p {{.EXAMPLE_PROVIDER_CERTS_DIR}}
-      - >
-        docker run --rm 
-        -v {{.EXAMPLE_PROVIDER_CERTS_DIR}}:/out 
-        {{.SCRIPTS_IMAGE}}
-        /bin/bash -c "OUT_DIR=/out KEY_ALIAS={{.KEY_ALIAS}} KEY_PASSW={{.KEY_PASSW}} ./create-certs.sh"
-    status:
-      - test -f {{.EXAMPLE_PROVIDER_CERTS_DIR}}/*.pfx
+      - task: create-certs
+        vars:
+          CERTS_DIR: "{{.EXAMPLE_PROVIDER_CERTS_DIR}}"
 
-  move-connector-jar:
-    desc: Moves the connector JAR to the example directory
-    deps:
-      - build-connector
+  provision-example-provider:
     cmds:
+      - task: create-example-certs-provider
       - >
-        cp -f 
-        {{.ROOT_DIR}}/{{.CONNECTOR_DIR}}/core-connector/build/libs/core-connector.jar 
-        {{.ROOT_DIR}}/example/
+        docker compose
+        -f {{.ROOT_DIR}}/mock-backend/docker-compose.yml
+        up -d --build --wait
+      - >
+        docker compose
+        -f {{.ROOT_DIR}}/docker-compose-provider.yml
+        up -d --build --wait
 
-  create-keycloak-client-example-consumer:
-    desc: Creates the OAuth2 client for the example consumer in Keycloak
-    deps:
-      - build-edcpy-image
-      - create-example-certs-consumer
+  provision-example-consumer:
     cmds:
+      - task: create-example-certs-consumer
       - >
-        docker run --rm 
-        -v {{.EXAMPLE_CONSUMER_CERTS_DIR}}:/certs 
-        -v /var/run/dbus:/var/run/dbus 
-        -v /var/run/avahi-daemon/socket:/var/run/avahi-daemon/socket 
-        {{.EDCPY_IMAGE}}
-        configure-keycloak-connector 
-        --connector-id {{.EXAMPLE_CONNECTOR_CONSUMER_ID}} 
-        --connector-cert-path /certs/cert.pem 
-        --keycloak-realm {{.EXAMPLE_KEYCLOAK_REALM}}
-
-  create-keycloak-client-example-provider:
-    desc: Creates the OAuth2 client for the example provider in Keycloak
-    deps:
-      - build-edcpy-image
-      - create-example-certs-provider
-    cmds:
-      - >
-        docker run --rm 
-        -v {{.EXAMPLE_PROVIDER_CERTS_DIR}}:/certs 
-        -v /var/run/dbus:/var/run/dbus 
-        -v /var/run/avahi-daemon/socket:/var/run/avahi-daemon/socket 
-        {{.EDCPY_IMAGE}}
-        configure-keycloak-connector 
-        --connector-id {{.EXAMPLE_CONNECTOR_PROVIDER_ID}} 
-        --connector-cert-path /certs/cert.pem 
-        --keycloak-realm {{.EXAMPLE_KEYCLOAK_REALM}}
+        docker compose
+        -f {{.ROOT_DIR}}/docker-compose-consumer.yml
+        up -d --build --wait

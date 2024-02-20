@@ -32,24 +32,25 @@ yarl = "*"
 
 [[package]]
 name = "anyio"
-version = "3.7.0"
+version = "4.3.0"
 description = "High level compatibility layer for multiple asynchronous event loop implementations"
 optional = false
-python-versions = ">=3.7"
+python-versions = ">=3.8"
 files = [
-    {file = "anyio-3.7.0-py3-none-any.whl", hash = "sha256:eddca883c4175f14df8aedce21054bfca3adb70ffe76a9f607aef9d7fa2ea7f0"},
-    {file = "anyio-3.7.0.tar.gz", hash = "sha256:275d9973793619a5374e1c89a4f4ad3f4b0a5510a2b5b939444bee8f4c4d37ce"},
+    {file = "anyio-4.3.0-py3-none-any.whl", hash = "sha256:048e05d0f6caeed70d731f3db756d35dcc1f35747c8c403364a8332c630441b8"},
+    {file = "anyio-4.3.0.tar.gz", hash = "sha256:f75253795a87df48568485fd18cdd2a3fa5c4f7c5be8e5e36637733fce06fed6"},
 ]
 
 [package.dependencies]
-exceptiongroup = {version = "*", markers = "python_version < \"3.11\""}
+exceptiongroup = {version = ">=1.0.2", markers = "python_version < \"3.11\""}
 idna = ">=2.8"
 sniffio = ">=1.1"
+typing-extensions = {version = ">=4.1", markers = "python_version < \"3.11\""}
 
 [package.extras]
-doc = ["Sphinx (>=6.1.0)", "packaging", "sphinx-autodoc-typehints (>=1.2.0)", "sphinx-rtd-theme", "sphinxcontrib-jquery"]
-test = ["anyio[trio]", "coverage[toml] (>=4.5)", "hypothesis (>=4.0)", "mock (>=4)", "psutil (>=5.9)", "pytest (>=7.0)", "pytest-mock (>=3.6.1)", "trustme", "uvloop (>=0.17)"]
-trio = ["trio (<0.22)"]
+doc = ["Sphinx (>=7)", "packaging", "sphinx-autodoc-typehints (>=1.2.0)", "sphinx-rtd-theme"]
+test = ["anyio[trio]", "coverage[toml] (>=7)", "exceptiongroup (>=1.2.0)", "hypothesis (>=4.0)", "psutil (>=5.9)", "pytest (>=7.0)", "pytest-mock (>=3.6.1)", "trustme", "uvloop (>=0.17)"]
+trio = ["trio (>=0.23)"]
 
 [[package]]
 name = "attrs"
@@ -454,23 +455,23 @@ test = ["pytest (>=6)"]
 
 [[package]]
 name = "fast-depends"
-version = "1.1.6"
+version = "2.4.0"
 description = "FastDepends - extracted and cleared from HTTP domain logic FastAPI Dependency Injection System. Async and sync are both supported."
 optional = false
-python-versions = ">=3.7"
+python-versions = ">=3.8"
 files = [
-    {file = "fast_depends-1.1.6-py3-none-any.whl", hash = "sha256:8b05dc0c28a85a861442071c59a99e0abbdde1b7d194743fec0ff7ffa3bed7c4"},
-    {file = "fast_depends-1.1.6.tar.gz", hash = "sha256:bcad8f732f89689e46f1bc6e6c7ea89a777d33552a53ebce0ee7c84004179f58"},
+    {file = "fast_depends-2.4.0-py3-none-any.whl", hash = "sha256:9613a95c566dda86a60afbad401bb6ebd84e4ccd1afe876c8bcdb0c87ee83e8f"},
+    {file = "fast_depends-2.4.0.tar.gz", hash = "sha256:7cacada4b48d511048b01564bacb6b228347e793fd235bcb4de7e21f396aaf9e"},
 ]
 
 [package.dependencies]
-anyio = "*"
-pydantic = ">=1.8"
+anyio = ">=3.0.0,<5.0.0"
+pydantic = ">=1.7.4,<1.8 || >1.8,<1.8.1 || >1.8.1,<3.0.0"
 
 [package.extras]
-dev = ["black (>=23.3.0)", "fast-depends[doc]", "fast-depends[test]", "isort (>=5)", "mypy (>=1.1)", "ruff (>=0.0.260)"]
-doc = ["mdx-include (>=1.4.1,<2.0.0)", "mkdocs-markdownextradata-plugin (>=0.1.7,<0.3.0)", "mkdocs-material (>=8.1.4,<9.0.0)"]
-test = ["asyncmock", "coverage[toml] (>=7.2)", "pytest (>=7)", "pytest-asyncio (>=0.21)", "pytest-xdist[psutil]"]
+dev = ["fast-depends[doc]", "fast-depends[test]", "mypy (>=1.8.0)", "ruff (==0.2.2)"]
+doc = ["mdx-include (>=1.4.1,<2.0.0)", "mkdocs-markdownextradata-plugin (>=0.1.7,<0.3.0)", "mkdocs-material (>=9.4.0,<10.0.0)", "mkdocs-minify-plugin (>=0.7.0,<1.0.0)"]
+test = ["coverage[toml] (>=7.2.0,<8.0.0)", "dirty-equals (>=0.7.0,<0.8)", "pytest (>=8.0.0,<9)"]
 
 [[package]]
 name = "fastapi"
@@ -501,6 +502,37 @@ all = ["email-validator (>=1.1.1)", "httpx (>=0.23.0)", "itsdangerous (>=1.1.0)"
 dev = ["pre-commit (>=2.17.0,<3.0.0)", "ruff (==0.0.138)", "uvicorn[standard] (>=0.12.0,<0.21.0)"]
 doc = ["mdx-include (>=1.4.1,<2.0.0)", "mkdocs (>=1.1.2,<2.0.0)", "mkdocs-markdownextradata-plugin (>=0.1.7,<0.3.0)", "mkdocs-material (>=8.1.4,<9.0.0)", "pyyaml (>=5.3.1,<7.0.0)", "typer-cli (>=0.0.13,<0.0.14)", "typer[all] (>=0.6.1,<0.8.0)"]
 test = ["anyio[trio] (>=3.2.1,<4.0.0)", "black (==23.1.0)", "coverage[toml] (>=6.5.0,<8.0)", "databases[sqlite] (>=0.3.2,<0.7.0)", "email-validator (>=1.1.1,<2.0.0)", "flask (>=1.1.2,<3.0.0)", "httpx (>=0.23.0,<0.24.0)", "isort (>=5.0.6,<6.0.0)", "mypy (==0.982)", "orjson (>=3.2.1,<4.0.0)", "passlib[bcrypt] (>=1.7.2,<2.0.0)", "peewee (>=3.13.3,<4.0.0)", "pytest (>=7.1.3,<8.0.0)", "python-jose[cryptography] (>=3.3.0,<4.0.0)", "python-multipart (>=0.0.5,<0.0.7)", "pyyaml (>=5.3.1,<7.0.0)", "ruff (==0.0.138)", "sqlalchemy (>=1.3.18,<1.4.43)", "types-orjson (==3.6.2)", "types-ujson (==5.7.0.1)", "ujson (>=4.0.1,!=4.0.2,!=4.1.0,!=4.2.0,!=4.3.0,!=5.0.0,!=5.1.0,<6.0.0)"]
+
+[[package]]
+name = "faststream"
+version = "0.4.3"
+description = "FastStream: the simplest way to work with a messaging queues"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "faststream-0.4.3-py3-none-any.whl", hash = "sha256:fd9e393f83c014118a29a24d45906ca1955eeed6023ed8f9fe158934cabe6d1c"},
+    {file = "faststream-0.4.3.tar.gz", hash = "sha256:744fc6195dd68cf84da7d2e77642ce8746e29563eb8cfe24dea3a2dd2e4e2f37"},
+]
+
+[package.dependencies]
+aio-pika = {version = ">=9,<10", optional = true, markers = "extra == \"rabbit\""}
+anyio = ">=3.7.1,<5"
+fast-depends = ">=2.4.0b0,<2.5.0"
+typer = ">=0.9,<1"
+typing-extensions = ">=4.8.0"
+
+[package.extras]
+confluent = ["confluent-kafka (>=2,<3)"]
+dev = ["detect-secrets (==1.4.0)", "faststream[confluent,devdocs,docs,kafka,lint,nats,rabbit,redis,testing]", "pre-commit (==3.5.0)", "pre-commit (==3.6.2)"]
+devdocs = ["black (==24.1.1)", "cairosvg (==2.7.1)", "mdx-include (==1.4.2)", "mike (==2.0.0)", "mkdocs-git-revision-date-localized-plugin (==1.2.2)", "mkdocs-glightbox (==0.3.7)", "mkdocs-literate-nav (==0.6.1)", "mkdocs-macros-plugin (==1.0.5)", "mkdocs-material (==9.5.10)", "mkdocs-minify-plugin (==0.7.2)", "mkdocs-static-i18n (==1.2.0)", "mkdocstrings[python] (==0.24.0)", "pillow (==10.2.0)", "requests"]
+docs = ["fastapi (>=0.100.0,<1.0.0)", "uvicorn (>=0.17.0,<1.0.0)"]
+kafka = ["aiokafka (>=0.9,<0.11)"]
+lint = ["bandit (==1.7.6)", "confluent-kafka-stubs", "mypy (==1.8.0)", "ruff (==0.2.1)", "semgrep (==1.61.1)", "types-docutils", "types-pygments", "types-pyyaml", "types-redis", "types-setuptools", "types-ujson"]
+nats = ["nats-py (>=2.3.1,<3.0.0)"]
+rabbit = ["aio-pika (>=9,<10)"]
+redis = ["redis (>=5.0.0,<6.0.0)"]
+test-core = ["coverage[toml] (==7.4.1)", "dirty-equals (==0.7.1.post0)", "pytest (==8.0.1)", "pytest-asyncio (==0.23.5)", "pytest-rerunfailures (==13.0)", "pytest-timeout (==2.2.0)"]
+testing = ["email-validator (==2.1.0.post1)", "fastapi (==0.109.2)", "faststream[test-core]", "httpx (==0.26.0)", "pydantic-settings (>=2.0.0,<3.0.0)", "pyyaml (==6.0.1)", "watchfiles (==0.21.0)"]
 
 [[package]]
 name = "h11"
@@ -951,32 +983,29 @@ testing = ["pytest", "pytest-benchmark"]
 
 [[package]]
 name = "propan"
-version = "0.1.3.5"
+version = "0.1.5.25"
 description = "Propan framework: the simplest way to work with a messaging queues"
 optional = false
-python-versions = ">=3.7"
+python-versions = ">=3.8"
 files = [
-    {file = "propan-0.1.3.5-py3-none-any.whl", hash = "sha256:7a89df765b459908997145b5c5029f1f1059adab296d54f71e33c8d38121619f"},
-    {file = "propan-0.1.3.5.tar.gz", hash = "sha256:920f00a4e41ae0b4f4c8e636decbf4f29749cf8cc1345104e4db0d056d33bf55"},
+    {file = "propan-0.1.5.25-py3-none-any.whl", hash = "sha256:6cd2434acd987347626caa52c1d5e7674fe7d0320e498bb166cce3173d30a5d5"},
+    {file = "propan-0.1.5.25.tar.gz", hash = "sha256:88bfbd37ab6b13b18b037cfb77b98a15a08dd184f5c7367eb8db2ac1b598e0b2"},
 ]
 
 [package.dependencies]
 aio-pika = {version = ">=9", optional = true, markers = "extra == \"async-rabbit\""}
-fast-depends = "1.1.6"
+fast-depends = ">=2.1.1"
 typer = "*"
 uvloop = {version = ">=0.14.0,<0.15.0 || >0.15.0,<0.15.1 || >0.15.1", markers = "(sys_platform != \"win32\" and sys_platform != \"cygwin\") and platform_python_implementation != \"PyPy\""}
 watchfiles = "*"
 
 [package.extras]
-async-kafka = ["aiokafka (>=0.8)"]
+async-kafka = ["aiokafka (>=0.9,<0.10)"]
 async-nats = ["nats-py (>=2,!=2.3.0)"]
 async-rabbit = ["aio-pika (>=9)"]
 async-redis = ["redis (>=4.2.0rc1)"]
 async-sqs = ["aiobotocore"]
-dev = ["black (==23.3.0)", "isort (>=5)", "mypy (==1.1.1)", "propan[dev-doc]", "propan[test]", "ruff (==0.0.261)", "typer[all]", "types-pyyaml", "types-redis"]
-dev-doc = ["mdx-include (>=1.4.1,<2.0.0)", "mkdocs-glightbox", "mkdocs-macros-plugin", "mkdocs-material (>=8.1.4,<9.0.0)", "mkdocs-static-i18n", "typer[all]"]
-doc = ["fastapi", "jsonref", "polyfactory", "pydantic[email]", "pyyaml", "uvicorn"]
-test = ["asyncmock", "coverage[toml] (>=7.2)", "fastapi", "propan[async-kafka]", "propan[async-nats]", "propan[async-rabbit]", "propan[async-redis]", "propan[async-sqs]", "propan[doc]", "pytest (>=7)", "pytest-asyncio (>=0.21)", "python-dotenv"]
+doc = ["email-validator (>=2.0.0)", "fastapi", "jsonref", "polyfactory (>=2.5.0)", "pyyaml", "uvicorn"]
 
 [[package]]
 name = "pycparser"
@@ -1283,13 +1312,13 @@ test = ["black (>=22.3.0,<23.0.0)", "coverage (>=6.2,<7.0)", "isort (>=5.0.6,<6.
 
 [[package]]
 name = "typing-extensions"
-version = "4.6.3"
-description = "Backported and Experimental Type Hints for Python 3.7+"
+version = "4.9.0"
+description = "Backported and Experimental Type Hints for Python 3.8+"
 optional = false
-python-versions = ">=3.7"
+python-versions = ">=3.8"
 files = [
-    {file = "typing_extensions-4.6.3-py3-none-any.whl", hash = "sha256:88a4153d8505aabbb4e13aacb7c486c2b4a33ca3b3f807914a9b4c844c471c26"},
-    {file = "typing_extensions-4.6.3.tar.gz", hash = "sha256:d91d5919357fe7f681a9f2b5b4cb2a5f1ef0a1e9f59c4d8ff0d3491e05c0ffd5"},
+    {file = "typing_extensions-4.9.0-py3-none-any.whl", hash = "sha256:af72aea155e91adfc61c3ae9e0e342dbc0cba726d6cba4b6c72c1f34e47291cd"},
+    {file = "typing_extensions-4.9.0.tar.gz", hash = "sha256:23478f88c37f27d76ac8aee6c905017a143b0b1b886c3c9f66bc2fd94f9f5783"},
 ]
 
 [[package]]
@@ -1655,4 +1684,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "569601047a258f6bcc77fa209b02dd36aa2759de962dd3f87d92d0bc159a47ea"
+content-hash = "b7cb60e93bcd40a452288b594da389c5a2ab4f736e4b0a298113ccf8a123fcab"

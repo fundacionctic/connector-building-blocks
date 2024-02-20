@@ -1,3 +1,5 @@
+# pylint: disable=no-member,too-few-public-methods
+
 from dataclasses import dataclass
 
 import environ
@@ -9,136 +11,65 @@ PREFIX = "EDC"
 
 @environ.config(prefix=PREFIX)
 class AppConfig:
-    cert_path = environ.var(default=None)
-    rabbit_url = environ.var(default=None)
-    http_api_port = environ.var(converter=int, default=8000)
+    """Configuration class for the application."""
+
+    cert_path: str = environ.var(default=None)
+    rabbit_url: str = environ.var(default=None)
+    http_api_port: int = environ.var(converter=int, default=8000)
 
     @environ.config
-    class ConsumerProviderPair:
-        """A Consumer-Provider 'pair' is a construct of this package that exists for
-        convenience and represents the connection details of a consumer and a provider.
-        Of course, a single consumer may communicate with multiple different providers.
-        This construct would not fit this use case of multiple providers."""
+    class Connector:
+        """The connection details for the Management and Control APIs of the instance
+        of the EDC Connector that the current program is interacting with."""
 
-        provider_host = environ.var("provider")
-        consumer_host = environ.var("consumer")
-        provider_connector_id = environ.var("urn:connector:provider")
-        consumer_connector_id = environ.var("urn:connector:consumer")
-        provider_participant_id = environ.var(provider_connector_id)
-        consumer_participant_id = environ.var(consumer_connector_id)
-        provider_management_port = environ.var(converter=int)
-        consumer_management_port = environ.var(converter=int)
-        provider_control_port = environ.var(converter=int)
-        consumer_control_port = environ.var(converter=int)
-        provider_public_port = environ.var(converter=int)
-        consumer_public_port = environ.var(converter=int)
-        provider_protocol_port = environ.var(converter=int)
-        consumer_protocol_port = environ.var(converter=int)
+        scheme: str = environ.var(default="http")
+        host: str = environ.var()
+        connector_id: str = environ.var()
+        participant_id: str = environ.var()
+        management_port: int = environ.var(default=9193, converter=int)
+        management_path: str = environ.var(default="/management")
+        control_port: int = environ.var(default=9192, converter=int)
+        control_path: str = environ.var(default="/control")
+        public_port: int = environ.var(default=9291, converter=int)
+        public_path: str = environ.var(default="/public")
+        protocol_port: int = environ.var(default=9194, converter=int)
+        protocol_path: str = environ.var(default="/protocol")
 
-    orchestrator = environ.group(ConsumerProviderPair, optional=True)
+    connector: Connector = environ.group(Connector, optional=True)
 
 
 @dataclass
-class ConsumerProviderPairConfig:
-    provider_host: str
-    consumer_host: str
-    provider_connector_id: str
-    consumer_connector_id: str
-    provider_participant_id: str
-    consumer_participant_id: str
-    provider_management_port: int
-    consumer_management_port: int
-    provider_control_port: int
-    consumer_control_port: int
-    provider_public_port: int
-    consumer_public_port: int
-    provider_protocol_port: int
-    consumer_protocol_port: int
-    scheme: str = "http"
-    provider_management_path: str = "/management"
-    consumer_management_path: str = "/management"
-    provider_control_path: str = "/control"
-    consumer_control_path: str = "/control"
-    provider_public_path: str = "/public"
-    consumer_public_path: str = "/public"
-    provider_protocol_path: str = "/protocol"
-    consumer_protocol_path: str = "/protocol"
+class ConnectorUrls:
+    conf: AppConfig
 
-    @classmethod
-    def from_env(cls):
-        app_config = AppConfig.from_environ()
-        assert app_config.orchestrator, "ConsumerProviderPair not configured"
-        cnf = app_config.orchestrator
+    @property
+    def scheme_host(self) -> str:
+        return f"{self.conf.connector.scheme}://{self.conf.connector.host}"
 
-        return cls(
-            provider_host=cnf.provider_host,
-            consumer_host=cnf.consumer_host,
-            provider_connector_id=cnf.provider_connector_id,
-            consumer_connector_id=cnf.consumer_connector_id,
-            provider_participant_id=cnf.provider_participant_id,
-            consumer_participant_id=cnf.consumer_participant_id,
-            provider_management_port=cnf.provider_management_port,
-            consumer_management_port=cnf.consumer_management_port,
-            provider_control_port=cnf.provider_control_port,
-            consumer_control_port=cnf.consumer_control_port,
-            provider_public_port=cnf.provider_public_port,
-            consumer_public_port=cnf.consumer_public_port,
-            provider_protocol_port=cnf.provider_protocol_port,
-            consumer_protocol_port=cnf.consumer_protocol_port,
+    @property
+    def management_url(self) -> str:
+        return join_url(
+            f"{self.scheme_host}:{self.conf.connector.management_port}",
+            self.conf.connector.management_path,
         )
 
     @property
-    def provider_management_url(self):
+    def control_url(self) -> str:
         return join_url(
-            f"{self.scheme}://{self.provider_host}:{self.provider_management_port}",
-            self.provider_management_path,
+            f"{self.scheme_host}:{self.conf.connector.control_port}",
+            self.conf.connector.control_path,
         )
 
     @property
-    def consumer_management_url(self):
+    def public_url(self) -> str:
         return join_url(
-            f"{self.scheme}://{self.consumer_host}:{self.consumer_management_port}",
-            self.consumer_management_path,
+            f"{self.scheme_host}:{self.conf.connector.public_port}",
+            self.conf.connector.public_path,
         )
 
     @property
-    def provider_control_url(self):
+    def protocol_url(self) -> str:
         return join_url(
-            f"{self.scheme}://{self.provider_host}:{self.provider_control_port}",
-            self.provider_control_path,
-        )
-
-    @property
-    def consumer_control_url(self):
-        return join_url(
-            f"{self.scheme}://{self.consumer_host}:{self.consumer_control_port}",
-            self.consumer_control_path,
-        )
-
-    @property
-    def provider_public_url(self):
-        return join_url(
-            f"{self.scheme}://{self.provider_host}:{self.provider_public_port}",
-            self.provider_public_path,
-        )
-
-    @property
-    def consumer_public_url(self):
-        return join_url(
-            f"{self.scheme}://{self.consumer_host}:{self.consumer_public_port}",
-            self.consumer_public_path,
-        )
-
-    @property
-    def provider_protocol_url(self):
-        return join_url(
-            f"{self.scheme}://{self.provider_host}:{self.provider_protocol_port}",
-            self.provider_protocol_path,
-        )
-
-    @property
-    def consumer_protocol_url(self):
-        return join_url(
-            f"{self.scheme}://{self.consumer_host}:{self.consumer_protocol_port}",
-            self.consumer_protocol_path,
+            f"{self.scheme_host}:{self.conf.connector.protocol_port}",
+            self.conf.connector.protocol_path,
         )
