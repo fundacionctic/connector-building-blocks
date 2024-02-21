@@ -2,7 +2,7 @@ import json
 import logging
 import os
 import pprint
-from typing import Union
+from typing import AsyncGenerator
 
 import coloredlogs
 import jwt
@@ -11,18 +11,18 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.x509 import load_pem_x509_certificate
 from fastapi import Depends, FastAPI
-from pydantic import BaseModel
+from pydantic import BaseModel  # pylint: disable=no-name-in-module
 from slugify import slugify
 from typing_extensions import Annotated
 
-from edcpy.config import AppConfig
+from edcpy.config import AppConfig, get_config
 from edcpy.messaging import (
     BASE_HTTP_PULL_QUEUE_ROUTING_KEY,
     BASE_HTTP_PUSH_QUEUE_ROUTING_KEY,
     HttpPullMessage,
     HttpPushMessage,
     MessagingApp,
-    messaging_app,
+    with_messaging_app,
 )
 
 _logger = logging.getLogger(__name__)
@@ -38,21 +38,24 @@ class EndpointDataReference(BaseModel):
     properties: dict
 
 
-async def get_messaging_app() -> Union[MessagingApp, None]:
+async def get_messaging_app() -> AsyncGenerator[MessagingApp, None]:
     # The Consumer Backend does not declare any queues, it just publishes messages
-    async with messaging_app() as msg_app:
+    async with with_messaging_app() as msg_app:
         yield msg_app
 
 
-MessagingAppDep = Annotated[Union[MessagingApp, None], Depends(get_messaging_app)]
+MessagingAppDep = Annotated[MessagingApp, Depends(get_messaging_app)]
 
 
 def _read_public_key() -> str:
     """Read the public key from the certificate file specified by the
     EDC_CERT_PATH environment variable."""
 
-    cert_path = AppConfig.from_environ().cert_path
-    assert cert_path, "EDC_CERT_PATH environment variable not set"
+    app_config: AppConfig = get_config()
+    cert_path = app_config.cert_path
+
+    if not cert_path:
+        raise ValueError("EDC_CERT_PATH environment variable not set")
 
     with open(cert_path, "rb") as fh:
         cert_str = fh.read()
@@ -75,7 +78,7 @@ def _decode_auth_code(item: EndpointDataReference) -> dict:
 
     try:
         public_key = _read_public_key()
-    except:
+    except:  # pylint: disable=bare-except
         _logger.warning("Could not read public key for JWT validation", exc_info=True)
         public_key = None
 
@@ -182,7 +185,7 @@ async def http_push_endpoint(body: dict, messaging_app: MessagingAppDep):
 @app.post("/push/{routing_key_parts:path}")
 async def http_push_endpoint(
     body: dict, messaging_app: MessagingAppDep, routing_key_parts: str = ""
-):
+):  # pylint: disable=function-redefined
     parts = [item for item in routing_key_parts.split("/") if item]
     routing_key_suffix = "." + ".".join(parts) if len(parts) > 0 else ""
     routing_key = BASE_HTTP_PUSH_QUEUE_ROUTING_KEY + routing_key_suffix
@@ -196,6 +199,7 @@ def run_server():
     """Run the HTTP server that exposes the HTTP API backend."""
 
     log_level = os.environ.get("LOG_LEVEL", "DEBUG")
-    coloredlogs.install(level=os.environ.get("LOG_LEVEL", "DEBUG"))
-    port = AppConfig.from_environ().http_api_port
+    coloredlogs.install(level=log_level)
+    app_config = get_config()
+    port = app_config.http_api_port
     uvicorn.run(app, host="0.0.0.0", port=port, log_level=log_level.lower())

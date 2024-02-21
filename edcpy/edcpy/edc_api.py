@@ -6,12 +6,13 @@ from typing import Any, Dict, Iterator, Union
 
 import httpx
 
-from edcpy.config import AppConfig, ConnectorUrls
+from edcpy.config import AppConfig, ConnectorUrls, get_config
 from edcpy.models.asset import Asset
 from edcpy.models.contract_definition import ContractDefinition
 from edcpy.models.contract_negotiation import ContractNegotiation
 from edcpy.models.data_plane_instance import DataPlaneInstance
 from edcpy.models.policy_definition import PolicyDefinition
+from edcpy.models.transfer_process import TransferProcess
 from edcpy.utils import join_url
 
 _DEFAULT_TIMEOUT_SECS = 60
@@ -163,7 +164,60 @@ async def wait_for_contract_negotiation(
             if state in ["FINALIZED", "VERIFIED"] and agreement_id is not None:
                 return agreement_id
 
-            _logger.debug("Waiting for contract agreement id")
+            _logger.debug(
+                "Waiting for contract agreement id (contract_negotiation_id=%s)",
+                contract_negotiation_id,
+            )
+
+            await asyncio.sleep(iter_sleep)
+
+
+async def create_transfer_process(
+    management_url: str,
+    timeout_secs: int = _DEFAULT_TIMEOUT_SECS,
+    is_provider_push: bool = False,
+    **transfer_process_kwargs: Dict[str, Any],
+) -> dict:
+    data = (
+        TransferProcess.build_for_provider_http_push(**transfer_process_kwargs)
+        if is_provider_push
+        else TransferProcess.build_for_consumer_http_pull(**transfer_process_kwargs)
+    )
+
+    async with httpx.AsyncClient(timeout=timeout_secs) as client:
+        url = join_url(management_url, "v2", "transferprocesses")
+        _log_req("POST", url, data)
+        response = await client.post(url, json=data)
+        response.raise_for_status()
+        resp_json = response.json()
+        _log_res("POST", url, resp_json)
+
+    return resp_json
+
+
+async def wait_for_transfer_process(
+    management_url: str,
+    transfer_process_id: str,
+    timeout_secs: int = _DEFAULT_TIMEOUT_SECS,
+    iter_sleep: float = 1.0,
+):
+    url = join_url(
+        management_url,
+        f"v2/transferprocesses/{transfer_process_id}",
+    )
+
+    async with httpx.AsyncClient(timeout=timeout_secs) as client:
+        while True:
+            _log_req("GET", url)
+            response = await client.get(url)
+            response.raise_for_status()
+            resp_json = response.json()
+            _log_res("GET", url, resp_json)
+
+            if resp_json.get("state") == "COMPLETED":
+                return resp_json
+
+            _logger.debug("Waiting for transfer process (id=%s)", transfer_process_id)
             await asyncio.sleep(iter_sleep)
 
 
@@ -219,12 +273,16 @@ class CatalogDataset:
 class TransferProcessDetails:
     asset_id: str
     contract_agreement_id: str
+    counter_party_protocol_url: str
+    counter_party_connector_id: str
 
 
 class ConnectorController:
-    def __init__(self, timeout_secs: int = _DEFAULT_TIMEOUT_SECS) -> None:
-        self.config: AppConfig = AppConfig.from_environ()  # pylint: disable=no-member
+    def __init__(
+        self, timeout_secs: int = _DEFAULT_TIMEOUT_SECS, config: AppConfig = None
+    ) -> None:
         self.timeout_secs = timeout_secs
+        self.config: AppConfig = config or get_config()
 
     @property
     def connector_urls(self) -> ConnectorUrls:
@@ -239,10 +297,10 @@ class ConnectorController:
 
         return CatalogContent(catalog_res)
 
-    async def prepare_to_transfer_asset(
+    async def run_negotiation_flow(
         self,
         counter_party_protocol_url: str,
-        counter_party_participant_id: str,
+        counter_party_connector_id: str,
         asset_query: Union[str, None],
     ) -> TransferProcessDetails:
         _logger.info("Preparing to transfer asset (query: %s)", asset_query)
@@ -265,10 +323,10 @@ class ConnectorController:
 
         contract_negotiation = await create_contract_negotiation(
             management_url=self.connector_urls.management_url,
-            connector_id=self.config.connector.connector_id,
+            counter_party_connector_id=counter_party_connector_id,
             counter_party_protocol_url=counter_party_protocol_url,
             consumer_id=self.config.connector.participant_id,
-            provider_id=counter_party_participant_id,
+            provider_id=counter_party_connector_id,
             offer_id=contract_offer_id,
             asset_id=asset_id,
         )
@@ -282,5 +340,37 @@ class ConnectorController:
         )
 
         return TransferProcessDetails(
-            asset_id=asset_id, contract_agreement_id=contract_agreement_id
+            asset_id=asset_id,
+            contract_agreement_id=contract_agreement_id,
+            counter_party_protocol_url=counter_party_protocol_url,
+            counter_party_connector_id=counter_party_connector_id,
+        )
+
+    async def run_transfer_flow(
+        self,
+        transfer_details: TransferProcessDetails,
+        is_provider_push: bool = False,
+        **transfer_process_kwargs: Dict[str, Any],
+    ) -> str:
+        transfer_process = await create_transfer_process(
+            management_url=self.connector_urls.management_url,
+            is_provider_push=is_provider_push,
+            counter_party_connector_id=transfer_details.counter_party_connector_id,
+            counter_party_protocol_url=transfer_details.counter_party_protocol_url,
+            contract_agreement_id=transfer_details.contract_agreement_id,
+            asset_id=transfer_details.asset_id,
+            **transfer_process_kwargs,
+        )
+
+        transfer_process_id = transfer_process["@id"]
+
+        return transfer_process_id
+
+    async def wait_for_transfer_process(
+        self, transfer_process_id: str, **kwargs: Dict[str, Any]
+    ):
+        await wait_for_transfer_process(
+            management_url=self.connector_urls.management_url,
+            transfer_process_id=transfer_process_id,
+            **kwargs,
         )

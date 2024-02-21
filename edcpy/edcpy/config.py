@@ -38,6 +38,10 @@ class AppConfig:
     connector: Connector = environ.group(Connector, optional=True)
 
 
+def get_config() -> AppConfig:
+    return AppConfig.from_environ()
+
+
 @dataclass
 class ConnectorUrls:
     conf: AppConfig

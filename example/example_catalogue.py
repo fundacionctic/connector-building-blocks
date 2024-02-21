@@ -18,6 +18,8 @@ _logger = logging.getLogger(__name__)
 
 
 async def main():
+    """List the assets available in the Provider's catalogue."""
+
     counter_party_protocol_url: str = os.getenv(
         _ENV_COUNTER_PARTY_PROTOCOL_URL, "http://provider.local:9194/protocol"
     )

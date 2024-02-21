@@ -6,9 +6,9 @@ from urllib.parse import urlparse
 
 from faststream import FastStream
 from faststream.rabbit import ExchangeType, RabbitBroker, RabbitExchange, RabbitQueue
-from pydantic import BaseModel
+from pydantic import BaseModel  # pylint: disable=no-name-in-module
 
-from edcpy.config import AppConfig
+from edcpy.config import AppConfig, get_config
 
 BASE_HTTP_PULL_QUEUE_ROUTING_KEY = "http.pull"
 BASE_HTTP_PUSH_QUEUE_ROUTING_KEY = "http.push"
@@ -78,7 +78,8 @@ async def start_messaging_app(
     http_pull_handler: Union[callable, None] = None,
     http_push_handler: Union[callable, None] = None,
 ) -> MessagingApp:
-    rabbit_url = AppConfig.from_environ().rabbit_url  # pylint: disable=no-member
+    app_config: AppConfig = get_config()
+    rabbit_url = app_config.rabbit_url
 
     if not rabbit_url:
         raise ValueError("RabbitMQ URL is not set")
@@ -133,7 +134,7 @@ async def start_messaging_app(
 
 
 @asynccontextmanager
-async def messaging_app(*args, **kwargs) -> AsyncGenerator[MessagingApp]:
+async def with_messaging_app(*args, **kwargs) -> AsyncGenerator[MessagingApp, None]:
     try:
         msg_app = await start_messaging_app(*args, **kwargs)
         yield msg_app

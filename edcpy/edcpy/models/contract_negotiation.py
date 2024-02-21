@@ -24,7 +24,7 @@ class ContractNegotiation:
     @classmethod
     def build(
         cls,
-        connector_id: str,
+        counter_party_connector_id: str,
         counter_party_protocol_url: str,
         consumer_id: str,
         provider_id: str,
@@ -34,7 +34,7 @@ class ContractNegotiation:
         return list_override_merger.merge(
             _TEMPLATE,
             {
-                "connectorId": connector_id,
+                "connectorId": counter_party_connector_id,
                 "counterPartyAddress": counter_party_protocol_url,
                 "consumerId": consumer_id,
                 "providerId": provider_id,
