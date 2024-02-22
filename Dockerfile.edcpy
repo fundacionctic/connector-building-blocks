@@ -1,12 +1,15 @@
 FROM python:3.8-bullseye
+
 ENV VENV_PATH /root/venv
 ENV APP_PATH /app
-ENV POETRY_VERSION=1.5.1
-RUN apt-get update -y && apt-get install -y avahi-utils
-RUN python3 -m venv ${VENV_PATH}
-RUN ${VENV_PATH}/bin/pip install --no-cache-dir -U pip setuptools
-RUN ${VENV_PATH}/bin/pip install --no-cache-dir poetry==${POETRY_VERSION}
+ENV POETRY_VERSION=1.7.1
+
+RUN apt-get update -y && \
+    apt-get install -y --no-install-recommends avahi-utils
+
+RUN pip install --no-cache-dir -U pip setuptools poetry==${POETRY_VERSION}
+
 WORKDIR ${APP_PATH}
 COPY . .
 WORKDIR ${APP_PATH}/edcpy
-RUN ${VENV_PATH}/bin/poetry build && pip install --no-cache-dir -U dist/*.whl
+RUN poetry build && pip install --no-cache-dir -U dist/*.whl
