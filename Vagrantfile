@@ -6,7 +6,7 @@ Vagrant.configure("2") do |config|
     v.cpus = 1
   end
 
-  config.vm.provision "shell", path: "example/provision-boxes.sh"
+  config.vm.provision "shell", path: "scripts/provision-boxes.sh"
 
   # Install Avahi to enable mDNS resolution between boxes
   # https://stackoverflow.com/a/30780347

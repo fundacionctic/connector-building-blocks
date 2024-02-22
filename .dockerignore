@@ -5,3 +5,4 @@
 **/*/.vscode
 **/*/*.whl
 **/*/edcpy/dist
+**/*/docker-compose*.yml

@@ -8,8 +8,8 @@ env:
   CONNECTOR_DIR: connector
   SCRIPTS_IMAGE: edc-poc-scripts
   EDCPY_IMAGE: edcpy
-  EXAMPLE_CONSUMER_CERTS_DIR: "{{.ROOT_DIR}}/example/certs-consumer"
-  EXAMPLE_PROVIDER_CERTS_DIR: "{{.ROOT_DIR}}/example/certs-provider"
+  EXAMPLE_CONSUMER_CERTS_DIR: "{{.ROOT_DIR}}/dev-config/certs-consumer"
+  EXAMPLE_PROVIDER_CERTS_DIR: "{{.ROOT_DIR}}/dev-config/certs-provider"
   KEY_ALIAS: datacellar
   KEY_PASSW: datacellar
   BOX_EDC_VENV: $HOME/edc-venv
@@ -115,7 +115,7 @@ tasks:
     desc: Runs the Consumer Pull example script from the consumer box
     deps:
       - provision-example-virtualenv
-    dotenv: ["{{.ROOT_DIR}}/example/.env.consumer"]
+    dotenv: ["{{.ROOT_DIR}}/dev-config/.env.box.consumer"]
     cmds:
       - "{{.BOX_EDC_VENV}}/bin/python {{.ROOT_DIR}}/example/example_pull.py"
 
@@ -123,6 +123,22 @@ tasks:
     desc: Runs the Provider Push example script from the consumer box
     deps:
       - provision-example-virtualenv
-    dotenv: ["{{.ROOT_DIR}}/example/.env.consumer"]
+    dotenv: ["{{.ROOT_DIR}}/dev-config/.env.box.consumer"]
     cmds:
       - "{{.BOX_EDC_VENV}}/bin/python {{.ROOT_DIR}}/example/example_push.py"
+
+  dev-up:
+    desc: Starts the development environment stack
+    deps:
+      - create-example-certs-consumer
+      - create-example-certs-provider
+    cmds:
+      - docker compose -f {{.ROOT_DIR}}/mock-backend/docker-compose.yml up -d --build --wait
+      - task: build-connector
+      - docker compose -f {{.ROOT_DIR}}/docker-compose-dev.yml up -d --build --wait
+
+  dev-down:
+    desc: Stops the development environment stack
+    cmds:
+      - docker compose -f {{.ROOT_DIR}}/docker-compose-dev.yml down -v
+      - docker compose -f {{.ROOT_DIR}}/mock-backend/docker-compose.yml down -v

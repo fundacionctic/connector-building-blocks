@@ -1,0 +1,92 @@
+services:
+  consumer:
+    build:
+      context: .
+      dockerfile: Dockerfile.openjdk
+    image: edc-dev-jdk
+    pull_policy: never
+    container_name: consumer
+    restart: on-failure
+    command:
+      [
+        java,
+        -Dedc.fs.config=/opt/src/dev-config/dev-consumer.properties,
+        -Dedc.keystore=/opt/src/dev-config/certs-consumer/cert.pfx,
+        -Dedc.keystore.password=datacellar,
+        -Dedc.vault=/opt/src/dev-config/certs-consumer/vault.properties,
+        -jar,
+        /opt/src/connector/core-connector/build/libs/core-connector.jar,
+      ]
+    ports:
+      - 29191:29191
+      - 29193:29193
+      - 29194:29194
+      - 29291:29291
+      - 29192:29192
+    volumes:
+      - .:/opt/src
+    extra_hosts:
+      - host.docker.internal:host-gateway
+  consumer_backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.edcpy
+    image: edc-dev-edcpy
+    pull_policy: never
+    container_name: consumer_backend
+    restart: on-failure
+    command: [run-http-backend]
+    volumes:
+      - .:/opt/src
+      - /var/run/dbus:/var/run/dbus
+      - /var/run/avahi-daemon/socket:/var/run/avahi-daemon/socket
+    environment:
+      # The public key of the provider is needed to verify the signature of the JWT
+      EDC_CERT_PATH: /opt/src/dev-config/certs-provider/cert.pem
+      # trunk-ignore(checkov/CKV_SECRET_4)
+      EDC_RABBIT_URL: amqp://guest:guest@consumer_broker:5672
+      EDC_HTTP_API_PORT: 28000
+    ports:
+      - 28000:28000
+    extra_hosts:
+      - host.docker.internal:host-gateway
+  consumer_broker:
+    image: rabbitmq:3.11-management
+    container_name: consumer_broker
+    restart: on-failure
+    ports:
+      - 5672:5672
+      - 35672:15672
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    extra_hosts:
+      - host.docker.internal:host-gateway
+  provider:
+    build:
+      context: .
+      dockerfile: Dockerfile.openjdk
+    image: edc-dev-jdk
+    pull_policy: never
+    container_name: provider
+    restart: on-failure
+    command:
+      [
+        java,
+        -Dedc.fs.config=/opt/src/dev-config/dev-provider.properties,
+        -Dedc.vault=/opt/src/dev-config/certs-provider/vault.properties,
+        -Dedc.keystore=/opt/src/dev-config/certs-provider/cert.pfx,
+        -Dedc.keystore.password=datacellar,
+        -jar,
+        /opt/src/connector/core-connector/build/libs/core-connector.jar,
+      ]
+    ports:
+      - 19191:19191
+      - 19193:19193
+      - 19194:19194
+      - 19291:19291
+      - 19192:19192
+    volumes:
+      - .:/opt/src
+    extra_hosts:
+      - host.docker.internal:host-gateway
