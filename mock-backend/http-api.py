@@ -8,7 +8,6 @@ from typing import List
 import arrow
 import coloredlogs
 from fastapi import FastAPI
-from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 coloredlogs.install(level=logging.DEBUG)
@@ -86,13 +85,6 @@ async def get_consumption_data(
     ]
 
     return ElectrictyConsumptionData(location=location, results=results)
-
-
-@app.get("/asyncapi.json", tags=["Event-driven API"])
-def get_asyncapi_schema():
-    """Returns the AsyncAPI schema that describes the mock event-driven API."""
-
-    return FileResponse("asyncapi.json")
 
 
 @app.post("/dummy")

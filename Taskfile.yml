@@ -3,6 +3,8 @@
 version: "3"
 
 env:
+  MAIN_IP_ADDRESS:
+    sh: ip route get 1.2.3.4 | awk '{print $7}'
   CONNECTOR_DIR: connector
   SCRIPTS_IMAGE: edc-poc-scripts
   EDCPY_IMAGE: edcpy
@@ -10,6 +12,7 @@ env:
   EXAMPLE_PROVIDER_CERTS_DIR: "{{.ROOT_DIR}}/example/certs-provider"
   KEY_ALIAS: datacellar
   KEY_PASSW: datacellar
+  BOX_EDC_VENV: $HOME/edc-venv
 
 tasks:
   clean:
@@ -77,6 +80,7 @@ tasks:
           CERTS_DIR: "{{.EXAMPLE_PROVIDER_CERTS_DIR}}"
 
   provision-example-provider:
+    desc: Provisions the example Provider
     cmds:
       - task: create-example-certs-provider
       - >
@@ -89,9 +93,36 @@ tasks:
         up -d --build --wait
 
   provision-example-consumer:
+    desc: Provisions the example Consumer
     cmds:
       - task: create-example-certs-consumer
       - >
         docker compose
         -f {{.ROOT_DIR}}/docker-compose-consumer.yml
         up -d --build --wait
+
+  provision-example-virtualenv:
+    desc: Provisions the virtual environment for the EDC Python SDK
+    cmds:
+      - rm -fr {{.BOX_EDC_VENV}}
+      - virtualenv {{.BOX_EDC_VENV}}
+      - "{{.BOX_EDC_VENV}}/bin/pip install --upgrade pip"
+      - "{{.BOX_EDC_VENV}}/bin/pip install --upgrade {{.ROOT_DIR}}/edcpy"
+    status:
+      - test -f {{.BOX_EDC_VENV}}/bin/python
+
+  run-pull-example-from-consumer:
+    desc: Runs the Consumer Pull example script from the consumer box
+    deps:
+      - provision-example-virtualenv
+    dotenv: ["{{.ROOT_DIR}}/example/.env.consumer"]
+    cmds:
+      - "{{.BOX_EDC_VENV}}/bin/python {{.ROOT_DIR}}/example/example_pull.py"
+
+  run-push-example-from-consumer:
+    desc: Runs the Provider Push example script from the consumer box
+    deps:
+      - provision-example-virtualenv
+    dotenv: ["{{.ROOT_DIR}}/example/.env.consumer"]
+    cmds:
+      - "{{.BOX_EDC_VENV}}/bin/python {{.ROOT_DIR}}/example/example_push.py"

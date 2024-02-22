@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "edcpy"
-version = "0.1.1a2"
+version = "0.2.0a0"
 description = "Package that provides a series of utilities to facilitate interaction with the Management and Control APIs of an EDC connector"
 authors = ["Andres Garcia Mangas <andres.garcia@fundacionctic.org>"]
 license = "EUPL-1.2"
@@ -10,15 +10,14 @@ readme = "README.md"
 python = "^3.8"
 coloredlogs = "^15.0.1"
 deepmerge = "^1.1.0"
-fastapi = { extras = ["all"], version = "^0.96.0" }
+fastapi = { extras = ["all"], version = "^0.109.0" }
 pyjwt = { extras = ["crypto"], version = "^2.7.0" }
 cryptography = "^41.0.1"
 python-slugify = "^8.0.1"
-propan = { extras = ["async-rabbit"], version = "^0.1.3.5" }
 environ-config = "^23.2.0"
-httpx = "^0.24.1"
+httpx = "^0.27.0"
 requests = "^2.31.0"
-faststream = {extras = ["rabbit"], version = "^0.4.3"}
+faststream = { extras = ["rabbit"], version = "^0.4.3" }
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.3.1"

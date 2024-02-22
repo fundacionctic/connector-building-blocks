@@ -5,7 +5,7 @@ set -x
 
 # Prerequisites
 apt-get update -y
-apt-get install -y curl iputils-ping openjdk-17-jdk git unzip zip
+apt-get install -y curl iputils-ping openjdk-17-jdk git unzip zip python3-pip python3-virtualenv
 
 # Docker
 curl -fsSL https://get.docker.com -o install-docker.sh
