@@ -22,7 +22,8 @@ tasks:
       - docker compose -f {{.ROOT_DIR}}/docker-compose-provider.yml down -v
       - docker compose -f {{.ROOT_DIR}}/docker-compose-dev.yml down -v
       - docker compose -f {{.ROOT_DIR}}/mock-backend/docker-compose.yml down -v
-      - rm -fr {{.ROOT_DIR}}/dev-config/certs-*
+      - rm -fr {{.EXAMPLE_CONSUMER_CERTS_DIR}}
+      - rm -fr {{.EXAMPLE_PROVIDER_CERTS_DIR}}
       - cd {{.CONNECTOR_DIR}} && gradle clean
       - cmd: docker rmi -f {{.SCRIPTS_IMAGE}}
         ignore_error: true
