@@ -56,7 +56,7 @@ services:
     restart: on-failure
     ports:
       - 5672:5672
-      - 35672:15672
+      - 15672:15672
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
