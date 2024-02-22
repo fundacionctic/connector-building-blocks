@@ -20,6 +20,7 @@ tasks:
     cmds:
       - docker compose -f {{.ROOT_DIR}}/docker-compose-consumer.yml down -v
       - docker compose -f {{.ROOT_DIR}}/docker-compose-provider.yml down -v
+      - docker compose -f {{.ROOT_DIR}}/docker-compose-dev.yml down -v
       - docker compose -f {{.ROOT_DIR}}/mock-backend/docker-compose.yml down -v
       - rm -fr {{.ROOT_DIR}}/dev-config/certs-*
       - cd {{.CONNECTOR_DIR}} && gradle clean
