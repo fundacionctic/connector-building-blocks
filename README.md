@@ -1,22 +1,17 @@
 # Eclipse Dataspace Components Proof of Concept
 
 - [Eclipse Dataspace Components Proof of Concept](#eclipse-dataspace-components-proof-of-concept)
-  - [Future Work](#future-work)
   - [Introduction](#introduction)
   - [Public Artifacts](#public-artifacts)
     - [Configuration of the Connector Image](#configuration-of-the-connector-image)
-  - [About Keycloak and OAuth 2](#about-keycloak-and-oauth-2)
   - [Examples](#examples)
     - [Prerequisites](#prerequisites)
     - [Consumer Pull](#consumer-pull)
     - [Provider Push](#provider-push)
   - [Frequently Asked Questions](#frequently-asked-questions)
 
-## Future Work
-
-- [ ] Update README to show a comparative between a non-dataspace data exchange and an dataspace data exchange.
-- [ ] Integrate Gaia-X Self-Descriptions, the [Gaia-X Federated Catalogue](https://gitlab.eclipse.org/eclipse/xfsc/cat/fc-service) and the [Gaia-X Compliance Service](https://gitlab.com/gaia-x/lab/compliance/gx-compliance).
-- [ ] Replace Keycloak by another identity service that is more appropriate for a Gaia-X data space.
+> [!IMPORTANT]
+> The previous IAM solution, which relied on OAuth 2 and Keycloak, will be replaced by another extension that aligns more closely with SSI principles. In this new extension, participants will authenticate themselves using W3C Verifiable Credentials. This is still a work in progress.
 
 ## Introduction
 
@@ -27,12 +22,9 @@ The approach taken here is that **any data space participant component can expos
 The repository is organized as follows:
 
 * The `connector` folder contains a Java project with a very early draft version of the _Core Connector_ extension. This extension is responsible for creating the assets in the data space based on the OpenAPI schema of the participant component.
-* The `mock-backend` folder contains an example data space participant that exposes both an HTTP API and an event-driven API based on RabbitMQ. These APIs are described by [OpenAPI](https://learn.openapis.org/) and [AsyncAPI](https://www.asyncapi.com/docs) documents, respectively. The logic of the component itself does not hold any value; its purpose is to demonstrate where each partner should contribute.
-
-> Support for AsyncAPI and event-driven APIs is a nice-to-have that is not currently being prioritized. It will be addressed at a later stage if time permits and there are no technological roadblocks.
-
-* The `edcpy` folder contains a Python package built on top of [Poetry](https://python-poetry.org/), providing a series of utilities to interact with an EDC-based dataspace. For example, it contains the logic to execute all the necessary HTTP requests to successfully complete a [Transfer Process](https://eclipse-edc.github.io/docs/#/submodule/Connector/docs/developer/architecture/domain-model?id=transfer-process). Additionally, it offers an example implementation of a [Consumer Backend](https://github.com/eclipse-edc/Connector/tree/main/extensions/control-plane/transfer/transfer-data-plane).
-* The `example` folder contains the configuration files required for the end-to-end example of an interaction between a provider and consumer. This example is one of the main contributions of this repository and aims to clarify any doubts regarding how to integrate a regular service or API into a data space.
+* The `mock-backend` folder contains an example HTTP API as exposed by a data space participant. This API is described by an [OpenAPI](https://learn.openapis.org/) document. The logic of the component itself does not hold any value; its purpose is to demonstrate where each participant should contribute.
+* The `edcpy` folder contains a Python package built on top of Poetry, providing a series of utilities to interact with an EDC-based dataspace. For example, it contains the logic to execute all the necessary HTTP requests to successfully complete a transfer process. Additionally, it offers an example implementation of a [Consumer Backend](https://github.com/eclipse-edc/Connector/tree/main/extensions/control-plane/transfer/transfer-data-plane).
+* The `dev-config` and `example` folders, alongside the `Vagrantfile`, contain the configuration and scripts necessary to deploy a consumer and a provider, and to demonstrate end-to-end communications based on the Dataspace Protocol between them.
 
 ## Public Artifacts
 
@@ -51,23 +43,11 @@ Although the later examples go into more detail about how to configure the conne
 | `KEYSTORE_PATH`        | Path to a keystore file containing the private key and certificate for the connector. The keystore should be in PKCS12 format. |
 | `KEYSTORE_PASSWORD`    | The password for the keystore.                                                                                                 |
 
-## About Keycloak and OAuth 2
-
-The Gradle project of the _Core Connector_ defines a property named `useOauthIdentity` that can be used to enable or disable support for identity based on OAuth 2. Specifically, this property is checked to determine whether the [OAuth 2 Identity Service](https://github.com/eclipse-edc/Connector/tree/main/extensions/common/iam/oauth2/oauth2-core) needs to be included in the project dependencies.
-
-When `useOauthIdentity=true`, the connector instances will communicate with a Keycloak server to retrieve access tokens and validate them. These tokens are then used to authenticate the requests sent to the data space.
-
-> We use Keycloak instead of **DAPS** due to the maturity of Keycloak and to reduce the complexity of the setup. Using DAPS would provide a more interoperable scenario; however, we are currently not focusing on that aspect.
-
-A connector instance is represented in Keycloak as a _Client_. These _Clients_ need to be configured in a particular way to ensure that the connector can successfully authenticate with Keycloak. The `edcpy` package [provides a command line utility](edcpy/edcpy/keycloak.py) to automate this configuration process.
-
 ## Examples
 
 There is a `Vagrantfile` in the root of the repository, which serves as the configuration file for Vagrant. [Vagrant](https://www.vagrantup.com/) is a tool utilized here to generate reproducible versions of two separate Ubuntu Virtual Machines: one for the provider and another for the consumer. This approach guarantees that the examples portray a more realistic scenario where the consumer and provider are deployed on different instances. Consequently, this distinction is reflected in the configuration files, providing a more illustrative demonstration rather than relying only on localhost access for all configuration properties.
 
 After installing Vagrant on your system, simply run `vagrant up` to create both the provider and the consumer. The `Vagrantfile` is configured to handle all the necessary provisioning steps, such as installing dependencies and building the connector. Once the build process is complete, you can log into the consumer and provider by using `vagrant ssh consumer` or `vagrant ssh provider`.
-
-The provisioning scripts build the Docker images locally. However, there are also two alternative Compose files ending in `-hub-image.yml` that show how to use the public images instead.
 
 We use Multicast DNS to ensure that `provider.local` resolves to the provider’s IP and that `consumer.local` resolves to the consumers’ IP. This forces us to install `avahi-daemon` and `libnss-mdns` in both the consumer and provider, and also to bind the volumes `/var/run/dbus` and `/var/run/avahi-daemon/socket` on all Docker containers.
 
@@ -78,7 +58,8 @@ The following examples demonstrate two distinct approaches, which are summarized
 | **Provider Push** | The provider pushes data to the consumer by sending HTTP requests to the consumer's backend directly. These requests contain the responses from the mock API.    |
 | **Consumer Pull** | The consumer pulls data from the provider by sending HTTP requests to the provider’s data plane public API. The provider proxies these requests to the mock API. |
 
-> Please note that the examples below are run in the Consumer VM, which can be accessed by running `vagrant ssh consumer`.
+> [!TIP]
+> Please note that the example scripts should be run in the Consumer VM, which can be accessed by running `vagrant ssh consumer`.
 
 ### Prerequisites
 
@@ -93,65 +74,76 @@ There are no other prerequisites, as Vagrant will take care of installing all th
 
 This example demonstrates the _Consumer Pull_ use case as defined in the [documentation of the Transfer Data Plane extension](https://github.com/eclipse-edc/Connector/tree/main/extensions/control-plane/transfer/transfer-data-plane).
 
-This approach tends to be more efficient than the _Provider Push_ approach, as a single access token can be reused to send multiple requests to the same HTTP endpoint with different body contents and query arguments.
+In this pattern, a single access token can be reused to send multiple requests to the same HTTP endpoint with different body contents and query arguments.
 
 The _Consumer Backend_ and the _Connectors_ are off-the-shelf components that can be reused among different participants of the data space. This means that you don't actually need to implement any of these components yourself, just provide the appropriate configuration files.
 
 ![HTTP Pull example](./diagrams/http-pull-example.png "HTTP Pull example")
 
-> The `consumer_sandbox` container is created solely for convenience and does not perform any specific tasks. Its purpose is to facilitate the execution of example scripts. Additionally, please note that the `/opt/src` directory contains the sources in this repository.
-
 ```console
-vagrant@consumer:~$ docker exec -it consumer_sandbox python3 /opt/src/example/example_http_pull.py
-2023-06-26 06:32:05 e86fae31cbca edcpy.messaging[13] INFO Connecting to RabbitMQ at amqp://guest:guest@broker:5672
-2023-06-26 06:32:05 e86fae31cbca edcpy.messaging[13] INFO Declaring exchange edcpy-topic-exchange
-2023-06-26 06:32:05 e86fae31cbca edcpy.messaging[13] INFO Declaring queue http-pull-queue
-2023-06-26 06:32:05 e86fae31cbca edcpy.messaging[13] INFO Declaring queue http-push-queue
-2023-06-26 06:32:05 e86fae31cbca edcpy.messaging[13] INFO Starting broker
-2023-06-26 06:32:05 e86fae31cbca edcpy.messaging[13] INFO `pull_handler` waiting for messages
-2023-06-26 06:32:05 e86fae31cbca edcpy.orchestrator[13] INFO Preparing to transfer asset (query: GET-consumption)
-2023-06-26 06:32:05 e86fae31cbca httpx[13] INFO HTTP Request: POST http://consumer.local:9193/management/v2/catalog/request "HTTP/1.1 200 OK"
+vagrant@consumer:~$ cd /vagrant/
+vagrant@consumer:/vagrant$ task run-pull-example-from-consumer
 
 [...]
 
-2023-06-26 06:32:10 e86fae31cbca httpx[13] INFO HTTP Request: GET http://consumer.local:9291/public/ "HTTP/1.1 200 OK"
-2023-06-26 06:32:10 e86fae31cbca __main__[13] INFO Response:
-{'location': 'Asturias',
- 'results': [{'date': '2023-06-25T00:00:00+00:00', 'value': 90},
-             {'date': '2023-06-25T01:00:00+00:00', 'value': 98},
-             {'date': '2023-06-25T02:00:00+00:00', 'value': 68},
-             {'date': '2023-06-25T03:00:00+00:00', 'value': 13},
-             {'date': '2023-06-25T04:00:00+00:00', 'value': 94},
-             {'date': '2023-06-25T05:00:00+00:00', 'value': 16},
-             {'date': '2023-06-25T06:00:00+00:00', 'value': 1},
-             {'date': '2023-06-25T07:00:00+00:00', 'value': 6},
-             {'date': '2023-06-25T08:00:00+00:00', 'value': 67},
-             {'date': '2023-06-25T09:00:00+00:00', 'value': 33},
-             {'date': '2023-06-25T10:00:00+00:00', 'value': 87},
-             {'date': '2023-06-25T11:00:00+00:00', 'value': 56},
-             {'date': '2023-06-25T12:00:00+00:00', 'value': 65},
-             {'date': '2023-06-25T13:00:00+00:00', 'value': 65},
-             {'date': '2023-06-25T14:00:00+00:00', 'value': 69},
-             {'date': '2023-06-25T15:00:00+00:00', 'value': 96},
-             {'date': '2023-06-25T16:00:00+00:00', 'value': 8},
-             {'date': '2023-06-25T17:00:00+00:00', 'value': 14},
-             {'date': '2023-06-25T18:00:00+00:00', 'value': 44},
-             {'date': '2023-06-25T19:00:00+00:00', 'value': 21},
-             {'date': '2023-06-25T20:00:00+00:00', 'value': 51},
-             {'date': '2023-06-25T21:00:00+00:00', 'value': 8},
-             {'date': '2023-06-25T22:00:00+00:00', 'value': 4},
-             {'date': '2023-06-25T23:00:00+00:00', 'value': 39}]}
-2023-06-26 06:32:10 e86fae31cbca edcpy.orchestrator[13] INFO Preparing to transfer asset (query: POST-consumption-prediction)
+task: [run-pull-example-from-consumer] $HOME/edc-venv/bin/python /vagrant/example/example_pull.py
 
 [...]
 
-2023-06-26 06:32:15 e86fae31cbca httpx[13] INFO HTTP Request: POST http://consumer.local:9291/public/ "HTTP/1.1 200 OK"
-2023-06-26 06:32:15 e86fae31cbca __main__[13] INFO Response:
+2024-02-23 09:28:55 consumer __main__[41499] INFO Sending HTTP GET request with arguments:
+{'headers': {'Authorization': 'eyJhbGciOiJSUzI1NiJ9.eyJleHAiOjE3MDg2ODExMzUsImRhZCI6IntcInByb3BlcnRpZXNcIjp7XCJwYXRoXCI6XCIvY29uc3VtcHRpb25cIixcIm1ldGhvZFwiOlwiR0VUXCIsXCJodHRwczovL3czaWQub3JnL2VkYy92MC4wLjEvbnMvdHlwZVwiOlwiSHR0cERhdGFcIixcInByb3h5UXVlcnlQYXJhbXNcIjpcInRydWVcIixcIm5hbWVcIjpcImRhdGEtYWRkcmVzcy1HRVQtY29uc3VtcHRpb25cIixcInByb3h5Qm9keVwiOlwidHJ1ZVwiLFwiY29udGVudFR5cGVcIjpcImFwcGxpY2F0aW9uL2pzb25cIixcImh0dHBzOi8vdzNpZC5vcmcvZWRjL3YwLjAuMS9ucy9iYXNlVXJsXCI6XCJodHRwOi8vcHJvdmlkZXIubG9jYWw6OTA5MFwifX0ifQ.TqHNY3kwP7eB64tmTMkTv5jsvQElp3A2_i10bjDdKzrkFxuphcOJC__B040x2OVF_UlafFpb-0vM9bhUgp7zsTH0FG0pzTB-AmrZWVByKHm6vl1XzSvd8uRZdOyHREsIHEPzYtejnHJC-qcx4gIfH3n7n9x6sBlzY4ALdB_PAlSrDSjB7vXzSTkj2mujxjOnwdY-hX6XjFe_HLktH0BBJYFTh7W0rREEbaNl9PjQPrH2vf2mbfOFLAcKbdR7_zXPhhHhaiEAgQIClUbBQ5T2tGhZ0SSEtd1VG-lNpqunUoZRgtqDLni0dMsHvZuDZPqs1vXEmjUgwD300ucGaEDtTpbArHQZS2RazxFbzY9P947afw8qPlokzbEiOZ-7fZJbGkwViAzXuDxP9cWH5iAMOYgJJ8uSFc-m7oq8k7lRsjOGMcgHzNcNNgbe0Uk9iRuZdEuf1IxgWftACJUjdkHQLln3TNUuYHTftJViLWgL3ACKbbs4sHaNJK8cWUIf6AxG2E4omN-4lQGld94ziDn2Z_T58IyQJqRFHLC4g9bwbRH8Ntl1WzkucH6eIk5FgN4-8YgZHgOThAgRBUr4dn164HUJoJ9kilHV-d2QfunYu-1sgFGzCENtNv0oRT4iw6Ha5uAu9dk7Idm5Wk7xkwuU46ojVAqRCmRNT3DeHQ92oqQ'},
+ 'method': 'GET',
+ 'url': 'http://provider.local:9291/public/'}
+
+[...]
+
+2024-02-23 09:28:56 consumer __main__[41499] INFO Response:
 {'location': 'Asturias',
- 'results': [{'date': '2023-06-15T14:30:00+00:00', 'value': 67},
-             {'date': '2023-06-15T15:30:00+00:00', 'value': 88},
-             {'date': '2023-06-15T16:30:00+00:00', 'value': 29},
-             {'date': '2023-06-15T17:30:00+00:00', 'value': 52}]}
+ 'results': [{'date': '2024-02-22T00:00:00+00:00', 'value': 53},
+             {'date': '2024-02-22T01:00:00+00:00', 'value': 62},
+             {'date': '2024-02-22T02:00:00+00:00', 'value': 10},
+             {'date': '2024-02-22T03:00:00+00:00', 'value': 73},
+             {'date': '2024-02-22T04:00:00+00:00', 'value': 22},
+             {'date': '2024-02-22T05:00:00+00:00', 'value': 72},
+             {'date': '2024-02-22T06:00:00+00:00', 'value': 98},
+             {'date': '2024-02-22T07:00:00+00:00', 'value': 80},
+             {'date': '2024-02-22T08:00:00+00:00', 'value': 39},
+             {'date': '2024-02-22T09:00:00+00:00', 'value': 77},
+             {'date': '2024-02-22T10:00:00+00:00', 'value': 88},
+             {'date': '2024-02-22T11:00:00+00:00', 'value': 7},
+             {'date': '2024-02-22T12:00:00+00:00', 'value': 80},
+             {'date': '2024-02-22T13:00:00+00:00', 'value': 74},
+             {'date': '2024-02-22T14:00:00+00:00', 'value': 94},
+             {'date': '2024-02-22T15:00:00+00:00', 'value': 49},
+             {'date': '2024-02-22T16:00:00+00:00', 'value': 7},
+             {'date': '2024-02-22T17:00:00+00:00', 'value': 87},
+             {'date': '2024-02-22T18:00:00+00:00', 'value': 14},
+             {'date': '2024-02-22T19:00:00+00:00', 'value': 27},
+             {'date': '2024-02-22T20:00:00+00:00', 'value': 0},
+             {'date': '2024-02-22T21:00:00+00:00', 'value': 60},
+             {'date': '2024-02-22T22:00:00+00:00', 'value': 3},
+             {'date': '2024-02-22T23:00:00+00:00', 'value': 93}]}
+
+[...]
+
+2024-02-23 09:28:59 consumer __main__[41499] INFO Sending HTTP POST request with arguments:
+{'headers': {'Authorization': 'eyJhbGciOiJSUzI1NiJ9.eyJleHAiOjE3MDg2ODExMzksImRhZCI6IntcInByb3BlcnRpZXNcIjp7XCJwYXRoXCI6XCIvY29uc3VtcHRpb24vcHJlZGljdGlvblwiLFwibWV0aG9kXCI6XCJQT1NUXCIsXCJodHRwczovL3czaWQub3JnL2VkYy92MC4wLjEvbnMvdHlwZVwiOlwiSHR0cERhdGFcIixcInByb3h5UXVlcnlQYXJhbXNcIjpcInRydWVcIixcIm5hbWVcIjpcImRhdGEtYWRkcmVzcy1QT1NULWNvbnN1bXB0aW9uLXByZWRpY3Rpb25cIixcInByb3h5Qm9keVwiOlwidHJ1ZVwiLFwiY29udGVudFR5cGVcIjpcImFwcGxpY2F0aW9uL2pzb25cIixcImh0dHBzOi8vdzNpZC5vcmcvZWRjL3YwLjAuMS9ucy9iYXNlVXJsXCI6XCJodHRwOi8vcHJvdmlkZXIubG9jYWw6OTA5MFwifX0ifQ.agOUe_CM2T_bTGNsPgggkvgvusMInsIipnP66tgemHoy6WmoIEomhSY9FLzjjjOSwXEH1mZg2PPUPk7Bkbzh9Cnz75RFsGvruvaFiwLbREcXQFLfD_dtvHBSdAtf2ufAulS9e0CzsLqUrwpY934kn0RmKFnQyOfCdQJrIF_kD2loy3J56ygKXYKpQuw_U4QMoM2UW4QjIFJ8jhkIAfmU2hNZi7-UHM-AM-2TZXRQnBD76unMlbki_iA4HMdjmRb6iwAIPpgmOEnctYcGYdhH0v9MTBcMhKcdlQ8i9MTYa-1YkzOIFgAu3E4pt_GM1cDiQxbU2u2sCD9daCRk39UxRTcqgv2XLQ8T8XSgPzIbEaJ19cNb-3TIq1Tw29c9y7mD7delbtMQiGyGcT6dthcfIGOdPH6aUnvWUzikGRgWo9Npd-O5o1VEwLROTPaHUyl6nAlWscwm1_P6vDhppql39layUDk2qcc5bkNOLkxKK2Z6PSFSkAhdN3nE2y_Tz8kbgtu8-CQefaNs2rLkkObxN89M9bszg4AxToxKpBSOIMfZMNAtpr5OtHj3zZluLd_cQJl-U-hQVm7NqGy1-KGBY575PJlCKtr5iEIXJKf5oD2viLiqFTx7s080CGToGBOxdmj3slExU3HI4xIKyzN1nCpw_AjxhlR72z2Z-iBoMK8'},
+ 'json': {'date_from': '2023-06-15T14:30:00',
+          'date_to': '2023-06-15T18:00:00',
+          'location': 'Asturias'},
+ 'method': 'POST',
+ 'url': 'http://provider.local:9291/public/'}
+
+[...]
+
+2024-02-23 09:29:00 consumer __main__[41499] INFO Response:
+{'location': 'Asturias',
+ 'results': [{'date': '2023-06-15T14:30:00+00:00', 'value': 16},
+             {'date': '2023-06-15T15:30:00+00:00', 'value': 4},
+             {'date': '2023-06-15T16:30:00+00:00', 'value': 49},
+             {'date': '2023-06-15T17:30:00+00:00', 'value': 1}]}
+
+[...]
 ```
 
 ### Provider Push
@@ -161,56 +153,49 @@ This example demonstrates the _Provider Push_ use case as defined in the [docume
 ![HTTP Push example](./diagrams/http-push-example.png "HTTP Push example")
 
 ```console
-vagrant@consumer:~$ docker exec -it consumer_sandbox python3 /opt/src/example/example_http_push.py
-2023-06-22 17:11:35 16ea40c695f8 edcpy.messaging[13] INFO Connecting to RabbitMQ at amqp://guest:guest@broker:5672
-2023-06-22 17:11:35 16ea40c695f8 edcpy.messaging[13] INFO Declaring exchange edcpy-topic-exchange
-2023-06-22 17:11:35 16ea40c695f8 edcpy.messaging[13] INFO Declaring queue http-pull-queue
-2023-06-22 17:11:35 16ea40c695f8 edcpy.messaging[13] INFO Declaring queue http-push-queue
-2023-06-22 17:11:35 16ea40c695f8 edcpy.messaging[13] INFO Starting broker
-2023-06-22 17:11:35 16ea40c695f8 edcpy.messaging[13] INFO `push_handler` waiting for messages
-2023-06-22 17:11:35 16ea40c695f8 edcpy.orchestrator[13] INFO Preparing to transfer asset (query: GET-consumption)
-2023-06-22 17:11:35 16ea40c695f8 httpx[13] INFO HTTP Request: POST http://consumer.local:9193/management/v2/catalog/request "HTTP/1.1 200 OK"
-2023-06-22 17:11:35 16ea40c695f8 httpx[13] INFO HTTP Request: POST http://consumer.local:9193/management/v2/contractnegotiations "HTTP/1.1 200 OK"
-2023-06-22 17:11:35 16ea40c695f8 httpx[13] INFO HTTP Request: GET http://consumer.local:9193/management/v2/contractnegotiations/22343903-2f1e-4ba9-b8ad-ed3c2fe7736d "HTTP/1.1 200 OK"
-2023-06-22 17:11:36 16ea40c695f8 httpx[13] INFO HTTP Request: GET http://consumer.local:9193/management/v2/contractnegotiations/22343903-2f1e-4ba9-b8ad-ed3c2fe7736d "HTTP/1.1 200 OK"
-2023-06-22 17:11:36 16ea40c695f8 httpx[13] INFO HTTP Request: POST http://consumer.local:9193/management/v2/transferprocesses "HTTP/1.1 200 OK"
-2023-06-22 17:11:36 16ea40c695f8 httpx[13] INFO HTTP Request: GET http://consumer.local:9193/management/v2/transferprocesses/ef840aaf-720e-4f16-8014-4d9c9dd6c201 "HTTP/1.1 200 OK"
+vagrant@consumer:/vagrant$ task run-push-example-from-consumer
 
 [...]
 
-2023-06-22 17:11:39 16ea40c695f8 __main__[13] INFO Received response from Mock HTTP API:
+task: [run-push-example-from-consumer] $HOME/edc-venv/bin/python /vagrant/example/example_push.py
+
+[...]
+
+2024-02-23 09:33:03 consumer __main__[41771] INFO Received response from Mock Backend HTTP API:
 {'location': 'Asturias',
- 'results': [{'date': '2023-06-21T00:00:00+00:00', 'value': 68},
-             {'date': '2023-06-21T01:00:00+00:00', 'value': 42},
-             {'date': '2023-06-21T02:00:00+00:00', 'value': 5},
-             {'date': '2023-06-21T03:00:00+00:00', 'value': 6},
-             {'date': '2023-06-21T04:00:00+00:00', 'value': 79},
-             {'date': '2023-06-21T05:00:00+00:00', 'value': 71},
-             {'date': '2023-06-21T06:00:00+00:00', 'value': 4},
-             {'date': '2023-06-21T07:00:00+00:00', 'value': 83},
-             {'date': '2023-06-21T08:00:00+00:00', 'value': 76},
-             {'date': '2023-06-21T09:00:00+00:00', 'value': 69},
-             {'date': '2023-06-21T10:00:00+00:00', 'value': 4},
-             {'date': '2023-06-21T11:00:00+00:00', 'value': 14},
-             {'date': '2023-06-21T12:00:00+00:00', 'value': 80},
-             {'date': '2023-06-21T13:00:00+00:00', 'value': 64},
-             {'date': '2023-06-21T14:00:00+00:00', 'value': 74},
-             {'date': '2023-06-21T15:00:00+00:00', 'value': 22},
-             {'date': '2023-06-21T16:00:00+00:00', 'value': 72},
-             {'date': '2023-06-21T17:00:00+00:00', 'value': 100},
-             {'date': '2023-06-21T18:00:00+00:00', 'value': 40},
-             {'date': '2023-06-21T19:00:00+00:00', 'value': 84},
-             {'date': '2023-06-21T20:00:00+00:00', 'value': 71},
-             {'date': '2023-06-21T21:00:00+00:00', 'value': 16},
-             {'date': '2023-06-21T22:00:00+00:00', 'value': 74},
-             {'date': '2023-06-21T23:00:00+00:00', 'value': 52}]}
+ 'results': [{'date': '2024-02-22T00:00:00+00:00', 'value': 85},
+             {'date': '2024-02-22T01:00:00+00:00', 'value': 77},
+             {'date': '2024-02-22T02:00:00+00:00', 'value': 63},
+             {'date': '2024-02-22T03:00:00+00:00', 'value': 16},
+             {'date': '2024-02-22T04:00:00+00:00', 'value': 10},
+             {'date': '2024-02-22T05:00:00+00:00', 'value': 36},
+             {'date': '2024-02-22T06:00:00+00:00', 'value': 46},
+             {'date': '2024-02-22T07:00:00+00:00', 'value': 48},
+             {'date': '2024-02-22T08:00:00+00:00', 'value': 9},
+             {'date': '2024-02-22T09:00:00+00:00', 'value': 50},
+             {'date': '2024-02-22T10:00:00+00:00', 'value': 12},
+             {'date': '2024-02-22T11:00:00+00:00', 'value': 70},
+             {'date': '2024-02-22T12:00:00+00:00', 'value': 41},
+             {'date': '2024-02-22T13:00:00+00:00', 'value': 59},
+             {'date': '2024-02-22T14:00:00+00:00', 'value': 63},
+             {'date': '2024-02-22T15:00:00+00:00', 'value': 86},
+             {'date': '2024-02-22T16:00:00+00:00', 'value': 100},
+             {'date': '2024-02-22T17:00:00+00:00', 'value': 34},
+             {'date': '2024-02-22T18:00:00+00:00', 'value': 81},
+             {'date': '2024-02-22T19:00:00+00:00', 'value': 55},
+             {'date': '2024-02-22T20:00:00+00:00', 'value': 49},
+             {'date': '2024-02-22T21:00:00+00:00', 'value': 58},
+             {'date': '2024-02-22T22:00:00+00:00', 'value': 41},
+             {'date': '2024-02-22T23:00:00+00:00', 'value': 89}]}
+
+[...]
 ```
 
 ## Frequently Asked Questions
 
-**How does the provider know how to expose the Mock HTTP API and create the related assets in the data space?**
+**How does the provider know how to expose the Mock Backend HTTP API and create the related assets in the data space?**
 
-The Mock HTTP API must expose a schema file that adheres to the [OpenAPI specifications](https://spec.openapis.org/oas/latest.html). The URL to this file is provided as a configuration property (`eu.datacellar.openapi.url`) to the provider. Upon initialization, the provider retrieves the schema file and builds the necessary assets.
+The Mock Backend HTTP API must expose a schema file that adheres to the [OpenAPI specifications](https://spec.openapis.org/oas/latest.html). The URL to this file is provided as a configuration property (`eu.datacellar.openapi.url`) to the provider. Upon initialization, the provider retrieves the schema file and builds the necessary assets.
 
 The JSON file of the API schema serves as the authoritative source, determining how the HTTP API will be represented within the data space.
 
@@ -224,7 +209,7 @@ RabbitMQ was selected due to its popularity and ease of use as a message broker.
 
 **What is the `edcpy` package, and is Python required?**
 
-The [Management](https://app.swaggerhub.com/apis/eclipse-edc-bot/management-api/0.1.0-SNAPSHOT) and [Control](https://app.swaggerhub.com/apis/eclipse-edc-bot/control-api/0.1.0-SNAPSHOT) APIs of the Eclipse Connector involve complex interactions with multiple steps that need to be repeated. The `edcpy` package serves as a means to encapsulate this logic, making it reusable. Additionally, it provides a ready-to-use _Consumer Backend_ that integrates with RabbitMQ.
+The [Management](https://app.swaggerhub.com/apis/eclipse-edc-bot/management-api) and [Control](https://app.swaggerhub.com/apis/eclipse-edc-bot/control-api) APIs of the Eclipse Connector involve complex interactions with multiple requests. The `edcpy` package serves as a means to encapsulate this logic, making it reusable. Additionally, it provides a ready-to-use _Consumer Backend_ that integrates with RabbitMQ.
 
 However, it's important to note that the use of Python is not mandatory. The `edcpy` package is designed to (hopefully) facilitate the development process, but if you prefer to use another programming language, you have the flexibility to build your own _Consumer Backend_ and directly communicate with the Management API.
 
@@ -239,9 +224,3 @@ This means that you should have the liberty of using whatever technology stack y
 Yes, for the time being. The _Core Connector_ is still in its early stages of development, and we are focusing on the most common use cases. However, we are open to expanding the scope of the project in the future.
 
 In any case, the OpenAPI specification is flexible enough to describe a wide variety of APIs. It should be fairly simple to expose your existing data source as an OpenAPI-based API.
-
-**Why was Keycloak used as the identity service instead of DAPS?**
-
-The [Dynamic Attribute Provisioning Service (DAPS)](https://docs.internationaldataspaces.org/ids-knowledgebase/v/ids-ram-4/layers-of-the-reference-architecture-model/3-layers-of-the-reference-architecture-model/3_5_0_system_layer/3_5_1_identity_provider#dynamic-attribute-provisioning-service-daps) is one of the key building blocks regarding identity in an IDS data space. It would be the most suitable choice for ensuring full compliance within a data space.
-
-However, this is a proof of concept aimed at demonstrating the capabilities of the _Core Connector_. As such, we decided to use [Keycloak](https://www.keycloak.org/) as an alternative to DAPS because it is more mature, and we are significantly more familiar with it.
