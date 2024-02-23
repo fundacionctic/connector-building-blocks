@@ -152,6 +152,9 @@ This example demonstrates the _Provider Push_ use case as defined in the [docume
 
 ![HTTP Push example](./diagrams/http-push-example.png "HTTP Push example")
 
+> [!WARNING]
+> There is a known issue in the _Provider Push_ example where the Provider connector throws a `java.io.IOException: closed` exception when attempting to transfer the data. This happens arbitrarily, and we still haven't been able to identify the root cause.
+
 ```console
 vagrant@consumer:/vagrant$ task run-push-example-from-consumer
 
