@@ -15,3 +15,4 @@ dependencyResolutionManagement {
 }
 
 include("core-connector")
+include("iam")

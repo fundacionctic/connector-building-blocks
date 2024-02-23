@@ -38,8 +38,6 @@ services:
     command: [run-http-backend]
     volumes:
       - .:/opt/src
-      - /var/run/dbus:/var/run/dbus
-      - /var/run/avahi-daemon/socket:/var/run/avahi-daemon/socket
     environment:
       # The public key of the provider is needed to verify the signature of the JWT
       EDC_CERT_PATH: /opt/src/dev-config/certs-provider/cert.pem

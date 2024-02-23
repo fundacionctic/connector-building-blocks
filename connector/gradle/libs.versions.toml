@@ -21,6 +21,7 @@ slugify = "3.0.4"
 [libraries]
 assertj = { module = "org.assertj:assertj-core", version.ref = "assertj" }
 awaitility = { module = "org.awaitility:awaitility", version.ref = "awaitility" }
+edc-core-spi = { module = "org.eclipse.edc:core-spi", version.ref = "edc" }
 edc-api-core = { module = "org.eclipse.edc:api-core", version.ref = "edc" }
 edc-api-observability = { module = "org.eclipse.edc:api-observability", version.ref = "edc" }
 edc-auth-tokenbased = { module = "org.eclipse.edc:auth-tokenbased", version.ref = "edc" }

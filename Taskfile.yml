@@ -140,7 +140,7 @@ tasks:
       - task: build-connector
         vars:
           SKIP_CLEAN: "true"
-      - docker compose -f {{.ROOT_DIR}}/docker-compose-dev.yml up -d --build --wait
+      - docker compose -f {{.ROOT_DIR}}/docker-compose-dev.yml up --force-recreate -d --build --wait
 
   dev-down:
     desc: Stops the development environment stack

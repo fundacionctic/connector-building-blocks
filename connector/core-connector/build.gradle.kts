@@ -11,7 +11,6 @@ dependencies {
     implementation(libs.edc.dsp)
     implementation(libs.edc.configuration.filesystem)
     implementation(libs.edc.vault.filesystem)
-    implementation(libs.edc.iam.mock)
     implementation(libs.edc.management.api)
     implementation(libs.edc.transfer.data.plane)
     implementation(libs.edc.transfer.pull.http.receiver)
@@ -27,9 +26,19 @@ dependencies {
     implementation(libs.swaggerParser)
     implementation(libs.slugify)
 
-    if (project.hasProperty("useOauthIdentity") && project.property("useOauthIdentity").toString().toBoolean()) {
+    if (
+        project.hasProperty("useOauthIdentity") &&
+        project.property("useOauthIdentity").toString().toBoolean()
+    ) {
         implementation(libs.edc.oauth2.client)
         implementation(libs.edc.oauth2.core)
+    } else if (
+        project.hasProperty("useMockIdentity") &&
+        project.property("useMockIdentity").toString().toBoolean()
+    ) {
+        implementation(libs.edc.iam.mock)
+    } else {
+        api(project(":iam"))
     }
 }
 
