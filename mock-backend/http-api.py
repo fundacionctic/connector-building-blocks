@@ -7,7 +7,7 @@ from typing import List
 
 import arrow
 import coloredlogs
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from pydantic import BaseModel
 
 coloredlogs.install(level=logging.DEBUG)
@@ -93,3 +93,11 @@ async def process_data(request_body: dict):
 
     _logger.info("Received POST data:\n%s", pprint.pformat(request_body))
     return {"message": "OK"}
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    headers = request.headers
+    _logger.info("Request headers:\n%s", headers)
+    response = await call_next(request)
+    return response
