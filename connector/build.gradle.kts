@@ -2,8 +2,11 @@ plugins {
     `java-library`
 }
 
-repositories {
-    mavenCentral()
+allprojects {
+    repositories {
+        mavenCentral()
+        maven { url = uri("https://maven.walt.id/repository/waltid/") }
+    }
 }
 
 buildscript {

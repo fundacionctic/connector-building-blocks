@@ -3,6 +3,7 @@ package eu.datacellar.iam;
 import org.eclipse.edc.runtime.metamodel.annotation.Extension;
 import org.eclipse.edc.runtime.metamodel.annotation.Inject;
 import org.eclipse.edc.runtime.metamodel.annotation.Provides;
+import org.eclipse.edc.runtime.metamodel.annotation.Setting;
 import org.eclipse.edc.spi.iam.IdentityService;
 import org.eclipse.edc.spi.system.ServiceExtension;
 import org.eclipse.edc.spi.system.ServiceExtensionContext;
@@ -21,6 +22,18 @@ public class VCIdentityExtension implements ServiceExtension {
      * The name of the IAM extension.
      */
     public static final String NAME = "VC-based IAM";
+
+    @Setting
+    private static final String WALLET_URL = "eu.datacellar.wallet.url";
+
+    @Setting
+    private static final String WALLET_EMAIL = "eu.datacellar.wallet.email";
+
+    @Setting
+    private static final String WALLET_PASSWORD = "eu.datacellar.wallet.password";
+
+    @Setting
+    private static final String WALLET_ID = "eu.datacellar.wallet.id";
 
     @Inject
     private TypeManager typeManager;
