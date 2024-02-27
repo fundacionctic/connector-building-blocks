@@ -1,3 +1,5 @@
+from typing import Any, Dict
+
 from edcpy.utils import list_override_merger
 
 _TEMPLATE = {
@@ -10,12 +12,6 @@ _TEMPLATE = {
     "protocol": "dataspace-protocol-http",
     "policy": {
         "@context": "http://www.w3.org/ns/odrl.jsonld",
-        "@id": None,
-        "@type": "Set",
-        "permission": [],
-        "prohibition": [],
-        "obligation": [],
-        "target": None,
     },
 }
 
@@ -28,8 +24,7 @@ class ContractNegotiation:
         counter_party_protocol_url: str,
         consumer_id: str,
         provider_id: str,
-        offer_id: str,
-        asset_id: str,
+        policy: Dict[str, Any],
     ) -> dict:
         return list_override_merger.merge(
             _TEMPLATE,
@@ -38,6 +33,6 @@ class ContractNegotiation:
                 "counterPartyAddress": counter_party_protocol_url,
                 "consumerId": consumer_id,
                 "providerId": provider_id,
-                "policy": {"@id": offer_id, "target": asset_id},
+                "policy": policy,
             },
         )

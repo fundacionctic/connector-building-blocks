@@ -316,10 +316,10 @@ class ConnectorController:
 
         _logger.debug("Selected dataset:\n%s", pprint.pformat(dataset_dict))
         dataset = CatalogDataset(data=dataset_dict)
-        contract_offer_id = dataset.default_contract_offer_id
-        _logger.debug("Contract Offer ID: %s", contract_offer_id)
         asset_id = dataset.default_asset_id
-        _logger.debug("Asset ID: %s", asset_id)
+        _logger.info("Creating contract negotiation for Asset ID: %s", asset_id)
+
+        # The contract offer needs to be equal to the provider's offer as per the EDC docs
 
         contract_negotiation = await create_contract_negotiation(
             management_url=self.connector_urls.management_url,
@@ -327,8 +327,7 @@ class ConnectorController:
             counter_party_protocol_url=counter_party_protocol_url,
             consumer_id=self.config.connector.participant_id,
             provider_id=counter_party_connector_id,
-            offer_id=contract_offer_id,
-            asset_id=asset_id,
+            policy=dataset.default_policy,
         )
 
         contract_negotiation_id = contract_negotiation["@id"]
