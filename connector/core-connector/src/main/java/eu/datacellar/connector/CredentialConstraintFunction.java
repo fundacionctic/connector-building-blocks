@@ -1,4 +1,4 @@
-package eu.datacellar.iam;
+package eu.datacellar.connector;
 
 import org.eclipse.edc.policy.engine.spi.AtomicConstraintFunction;
 import org.eclipse.edc.policy.engine.spi.PolicyContext;

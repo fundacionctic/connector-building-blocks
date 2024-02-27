@@ -36,7 +36,6 @@ import org.eclipse.edc.spi.types.domain.asset.Asset;
 
 import com.github.slugify.Slugify;
 
-import eu.datacellar.iam.CredentialConstraintFunction;
 import io.swagger.parser.OpenAPIParser;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.parser.core.models.SwaggerParseResult;
