@@ -1,6 +1,7 @@
 package eu.datacellar.connector;
 
 import static org.eclipse.edc.dataaddress.httpdata.spi.HttpDataAddressSchema.HTTP_DATA_TYPE;
+import static org.eclipse.edc.policy.engine.spi.PolicyEngine.ALL_SCOPES;
 import static org.eclipse.edc.spi.query.Criterion.criterion;
 
 import java.net.MalformedURLException;
@@ -16,6 +17,13 @@ import org.eclipse.edc.connector.dataplane.selector.spi.store.DataPlaneInstanceS
 import org.eclipse.edc.connector.policy.spi.PolicyDefinition;
 import org.eclipse.edc.connector.policy.spi.store.PolicyDefinitionStore;
 import org.eclipse.edc.connector.transfer.dataplane.spi.TransferDataPlaneConstants;
+import org.eclipse.edc.policy.engine.spi.PolicyEngine;
+import org.eclipse.edc.policy.engine.spi.RuleBindingRegistry;
+import org.eclipse.edc.policy.model.Action;
+import org.eclipse.edc.policy.model.AtomicConstraint;
+import org.eclipse.edc.policy.model.LiteralExpression;
+import org.eclipse.edc.policy.model.Operator;
+import org.eclipse.edc.policy.model.Permission;
 import org.eclipse.edc.policy.model.Policy;
 import org.eclipse.edc.runtime.metamodel.annotation.Extension;
 import org.eclipse.edc.runtime.metamodel.annotation.Inject;
@@ -28,6 +36,7 @@ import org.eclipse.edc.spi.types.domain.asset.Asset;
 
 import com.github.slugify.Slugify;
 
+import eu.datacellar.iam.CredentialConstraintFunction;
 import io.swagger.parser.OpenAPIParser;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.parser.core.models.SwaggerParseResult;
@@ -91,6 +100,12 @@ public class OpenAPICoreExtension implements ServiceExtension {
     @Inject
     private DataPlaneInstanceStore dataPlaneStore;
 
+    @Inject
+    private RuleBindingRegistry ruleBindingRegistry;
+
+    @Inject
+    private PolicyEngine policyEngine;
+
     @Override
     public String name() {
         return NAME;
@@ -119,9 +134,29 @@ public class OpenAPICoreExtension implements ServiceExtension {
     }
 
     private PolicyDefinition buildPolicyDefinition() {
+        final Action USE_ACTION = Action.Builder.newInstance().type("USE").build();
+
+        ruleBindingRegistry.bind(USE_ACTION.getType(), ALL_SCOPES);
+        ruleBindingRegistry.bind(CredentialConstraintFunction.KEY, ALL_SCOPES);
+
+        // This policy constraint function always returns true, so it does not actually
+        // enforce any constraint.
+        // This is just a placeholder to demonstrate how to register a policy function.
+        policyEngine.registerFunction(ALL_SCOPES, Permission.class,
+                CredentialConstraintFunction.KEY,
+                new CredentialConstraintFunction());
+
+        var credentialConstraint = AtomicConstraint.Builder.newInstance()
+                .leftExpression(new LiteralExpression(CredentialConstraintFunction.KEY))
+                .operator(Operator.IN)
+                .rightExpression(new LiteralExpression("expectedCredential")).build();
+
+        var permission = Permission.Builder.newInstance().action(USE_ACTION).constraint(credentialConstraint)
+                .build();
+
         return PolicyDefinition.Builder.newInstance()
                 .id(POLICY_DEFINITION_ID)
-                .policy(Policy.Builder.newInstance().build())
+                .policy(Policy.Builder.newInstance().permission(permission).build())
                 .build();
     }
 
