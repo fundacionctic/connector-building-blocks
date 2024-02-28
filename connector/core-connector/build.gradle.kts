@@ -33,12 +33,12 @@ dependencies {
         implementation(libs.edc.oauth2.client)
         implementation(libs.edc.oauth2.core)
     } else if (
-        project.hasProperty("useMockIdentity") &&
-        project.property("useMockIdentity").toString().toBoolean()
+        project.hasProperty("useSSI") &&
+        project.property("useSSI").toString().toBoolean()
     ) {
-        implementation(libs.edc.iam.mock)
-    } else {
         api(project(":iam"))
+    } else {
+        implementation(libs.edc.iam.mock)
     }
 }
 

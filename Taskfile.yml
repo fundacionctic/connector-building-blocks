@@ -40,13 +40,13 @@ tasks:
     desc: Builds the connector
     dir: "{{.CONNECTOR_DIR}}"
     vars:
-      SKIP_CLEAN: '{{default "" .SKIP_CLEAN}}'
+      CLEAN: '{{default "true" .CLEAN}}'
+      SSI: '{{default "false" .SSI}}'
     env:
-      # Set the property that signals the connector to use OAuth 2 identity
       # https://docs.gradle.org/current/userguide/build_environment.html#sec:project_properties
-      ORG_GRADLE_PROJECT_useOauthIdentity: "false"
+      ORG_GRADLE_PROJECT_useSSI: "{{.SSI}}"
     cmds:
-      - gradle {{if eq .SKIP_CLEAN ""}}clean{{end}} build
+      - gradle {{if eq .CLEAN "true"}}clean{{end}} build
 
   build-edcpy-image:
     desc: Builds the Docker image that contains the EDC Python SDK
@@ -134,14 +134,19 @@ tasks:
     desc: Starts the development environment stack
     dotenv:
       - dev-config/.env.dev.wallets
+      - dev-config/.env.dev.wallets.local
     deps:
       - create-example-certs-consumer
       - create-example-certs-provider
+    vars:
+      CLEAN: '{{default "false" .CLEAN}}'
+      SSI: '{{default "false" .SSI}}'
     cmds:
       - docker compose -f {{.ROOT_DIR}}/mock-backend/docker-compose.yml up -d --build --wait
       - task: build-connector
         vars:
-          SKIP_CLEAN: "true"
+          CLEAN: "{{.CLEAN}}"
+          SSI: "{{.SSI}}"
       - docker compose -f {{.ROOT_DIR}}/docker-compose-dev.yml up --force-recreate -d --build --wait
 
   dev-down:
