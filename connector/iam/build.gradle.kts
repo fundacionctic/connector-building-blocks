@@ -3,6 +3,7 @@ plugins {
 }
 
 val waltIdVersion = "1.0.2402271122-SNAPSHOT"
+val okHttpVersion = "4.12.0"
 
 dependencies {
     implementation(libs.edc.connector.core)
@@ -10,7 +11,8 @@ dependencies {
     implementation(libs.edc.data.plane.core)
     implementation(libs.edc.core.spi)
 
-    implementation("javax.json:javax.json-api:1.1.4")
+    implementation(libs.json)
+    implementation("com.squareup.okhttp3:okhttp:$okHttpVersion")
     implementation("id.walt.did:waltid-did:$waltIdVersion")
     implementation("id.walt.credentials:waltid-verifiable-credentials:$waltIdVersion")
 }

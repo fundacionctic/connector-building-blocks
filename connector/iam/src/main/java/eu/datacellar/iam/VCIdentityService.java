@@ -20,24 +20,16 @@ import org.eclipse.edc.spi.types.TypeManager;
  */
 public class VCIdentityService implements IdentityService {
     private final Monitor monitor;
-    private final String region;
     private final TypeManager typeManager;
     private final String clientId;
+    private final WaltIDIdentityServices identityServices;
 
-    /**
-     * Constructs a new VCIdentityService with the specified monitor, type manager,
-     * region, and client ID.
-     *
-     * @param monitor     the monitor to use for tracking progress and logging
-     * @param typeManager the type manager to use for managing types
-     * @param region      the region to use for the service
-     * @param clientId    the client ID to use for authentication
-     */
-    public VCIdentityService(Monitor monitor, TypeManager typeManager, String region, String clientId) {
+    public VCIdentityService(Monitor monitor, TypeManager typeManager, String clientId,
+            WaltIDIdentityServices identityServices) {
         this.monitor = monitor;
         this.typeManager = typeManager;
-        this.region = region;
         this.clientId = clientId;
+        this.identityServices = identityServices;
     }
 
     @Override
@@ -49,7 +41,6 @@ public class VCIdentityService implements IdentityService {
 
         var token = new MockToken();
         token.setAudience(parameters.getAudience());
-        token.setRegion(region);
         token.setClientId(clientId);
 
         TokenRepresentation tokenRepresentation = TokenRepresentation.Builder.newInstance()
@@ -76,7 +67,7 @@ public class VCIdentityService implements IdentityService {
     }
 
     private static class MockToken {
-        private String region;
+        private String region = "eu";
         private String audience;
         private String clientId;
         private static final String AUTHOR = "CTIC";

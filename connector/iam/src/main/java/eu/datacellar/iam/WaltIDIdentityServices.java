@@ -1,32 +1,50 @@
 package eu.datacellar.iam;
 
 import java.io.IOException;
-import java.io.StringReader;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
-import javax.json.Json;
-import javax.json.JsonArray;
-import javax.json.JsonObject;
-import javax.json.JsonReader;
-import javax.json.JsonValue;
-
 import org.eclipse.edc.spi.monitor.Monitor;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+
+/**
+ * The WaltIDIdentityServices class represents a set of services for interacting
+ * with the WaltID identity system.
+ * It provides methods for finding wallet ID, retrieving wallet token, and
+ * matching credentials for a presentation definition.
+ */
 public class WaltIDIdentityServices {
     private Monitor monitor;
     private String walletUrl;
     private String walletEmail;
     private String walletPassword;
     private String walletId;
+    private OkHttpClient client;
 
+    /**
+     * Represents the WaltIDIdentityServices class which provides functionality for
+     * interacting with WaltID identity services.
+     * This class is responsible for initializing the client, monitoring, wallet
+     * URL, wallet email, wallet password, and wallet ID.
+     *
+     * @param monitor        The monitor object used for logging and monitoring.
+     * @param walletUrl      The URL of the wallet.
+     * @param walletEmail    The email associated with the wallet.
+     * @param walletPassword The password for the wallet.
+     * @throws IOException If an I/O error occurs while making the request.
+     */
     public WaltIDIdentityServices(Monitor monitor, String walletUrl, String walletEmail, String walletPassword)
-            throws IOException, InterruptedException {
+            throws IOException {
+        this.client = buildClient();
         this.monitor = monitor;
         this.walletUrl = walletUrl;
         this.walletEmail = walletEmail;
@@ -34,8 +52,19 @@ public class WaltIDIdentityServices {
         this.walletId = this.findWalletId();
     }
 
+    /**
+     * Represents the WaltIDIdentityServices class which provides functionality for
+     * interacting with WaltID identity services.
+     *
+     * @param monitor        The monitor object used for logging and monitoring.
+     * @param walletUrl      The URL of the wallet.
+     * @param walletEmail    The email associated with the wallet.
+     * @param walletPassword The password for the wallet.
+     * @param walletId       The ID of the wallet.
+     */
     public WaltIDIdentityServices(Monitor monitor, String walletUrl, String walletEmail, String walletPassword,
             String walletId) {
+        this.client = buildClient();
         this.monitor = monitor;
         this.walletUrl = walletUrl;
         this.walletEmail = walletEmail;
@@ -43,72 +72,85 @@ public class WaltIDIdentityServices {
         this.walletId = walletId;
     }
 
-    private String findWalletId() throws IOException, InterruptedException {
+    private OkHttpClient buildClient() {
+        return new OkHttpClient();
+    }
+
+    private String findWalletId() throws IOException {
         monitor.info("Finding wallet ID for wallet with email: " + this.walletEmail + " and URL: " + this.walletUrl);
 
-        HttpClient client = HttpClient.newHttpClient();
         String url = this.walletUrl + "/wallet-api/wallet/accounts/wallets";
         String token = getWalletToken();
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .GET()
-                .header("Authorization", "Bearer " + token)
+        monitor.debug(String.format("GET %s", url));
+
+        Request request = new Request.Builder()
+                .url(url)
+                .get()
+                .addHeader("Authorization", String.format("Bearer %s", token))
+                .addHeader("Cache-Control", "no-cache")
+                .addHeader("Accept", "*/*")
                 .build();
 
-        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        Response response = client.newCall(request).execute();
 
-        if (response.statusCode() >= 400) {
-            monitor.warning("Failed to find wallet ID. HTTP request failed with status code: " + response.statusCode());
+        if (!response.isSuccessful()) {
+            monitor.warning("Failed to find wallet ID. HTTP request failed with status code: " + response.code());
 
             throw new RuntimeException(
-                    String.format("HTTP request failed with status code: %s", response.statusCode()));
+                    String.format("HTTP request failed with status code: %s", response.code()));
         }
 
-        monitor.debug("Raw response: " + response.body());
+        String responseBody = response.body().string();
+        monitor.debug("Raw response: " + responseBody);
 
-        JsonReader jsonReader = Json.createReader(new StringReader(response.body()));
-        JsonObject obj = jsonReader.readObject();
-        jsonReader.close();
+        JSONObject obj = new JSONObject(responseBody);
 
-        String walletId = obj.getJsonArray("wallets").getJsonObject(0).getString("id");
-
+        String walletId = obj.getJSONArray("wallets").getJSONObject(0).getString("id");
         monitor.info("Found wallet ID: " + walletId);
 
         return walletId;
     }
 
-    public String getWalletToken() throws IOException, InterruptedException {
+    /**
+     * Retrieves the wallet token for the specified wallet.
+     *
+     * @return The wallet token as a String.
+     * @throws IOException If an I/O error occurs while making the request.
+     */
+    public String getWalletToken() throws IOException {
         monitor.debug(
                 "Getting wallet token for wallet with email: " + this.walletEmail + " and URL: " + this.walletUrl);
 
-        HttpClient client = HttpClient.newHttpClient();
         String url = this.walletUrl + "/wallet-api/auth/login";
 
-        String json = Json.createObjectBuilder()
-                .add("type", "email")
-                .add("email", this.walletEmail)
-                .add("password", this.walletPassword)
-                .build()
+        String json = new JSONObject()
+                .put("type", "email")
+                .put("email", this.walletEmail)
+                .put("password", this.walletPassword)
                 .toString();
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .POST(HttpRequest.BodyPublishers.ofString(json))
-                .header("Content-Type", "application/json")
+        RequestBody body = RequestBody.create(json, MediaType.parse("application/json; charset=utf-8"));
+
+        monitor.debug(String.format("POST %s", url));
+
+        Request request = new Request.Builder()
+                .url(url)
+                .post(body)
+                .addHeader("Content-Type", "application/json")
                 .build();
 
-        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        Response response = client.newCall(request).execute();
 
-        if (response.statusCode() >= 400) {
+        if (!response.isSuccessful()) {
             throw new RuntimeException(
-                    String.format("HTTP request failed with status code: %s", response.statusCode()));
+                    String.format("HTTP request failed with status code: %s", response.code()));
         }
 
-        JsonReader jsonReader = Json.createReader(new StringReader(response.body()));
-        JsonObject obj = jsonReader.readObject();
-        jsonReader.close();
+        String responseBody = response.body().string();
+        monitor.debug("Raw response: " + responseBody);
 
+        JSONObject obj = new JSONObject(responseBody);
         String token = obj.getString("token");
 
         monitor.debug("Got wallet token: " + token);
@@ -116,62 +158,104 @@ public class WaltIDIdentityServices {
         return token;
     }
 
+    /**
+     * Represents the response of the matchCredentials method in the
+     * WaltIDIdentityServices class.
+     * It contains the matched credentials in the form of a JSONArray.
+     *
+     * @param presentationDefinition The presentation definition to match
+     *                               credentials for.
+     * @return The response containing the matched credentials.
+     * @throws IOException If an I/O error occurs while making the request.
+     */
     public MatchCredentialsResponse matchCredentials(PresentationDefinition presentationDefinition)
-            throws IOException, InterruptedException {
+            throws IOException {
         String urlMatch = walletUrl + "/wallet-api/wallet/" + walletId
                 + "/exchange/matchCredentialsForPresentationDefinition";
 
-        HttpClient client = HttpClient.newHttpClient();
         String token = getWalletToken();
-
         String jsonBody = presentationDefinition.getJsonObject().toString();
+        RequestBody body = RequestBody.create(jsonBody, MediaType.parse("application/json; charset=utf-8"));
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(urlMatch))
-                .header("Authorization", "Bearer " + token)
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
+        monitor.debug(String.format("POST %s", urlMatch));
+
+        Request request = new Request.Builder()
+                .url(urlMatch)
+                .addHeader("Authorization", "Bearer " + token)
+                .addHeader("Content-Type", "application/json")
+                .post(body)
                 .build();
 
-        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        Response response = client.newCall(request).execute();
 
-        if (response.statusCode() >= 400) {
+        if (!response.isSuccessful()) {
             throw new RuntimeException(
-                    String.format("HTTP request failed with status code: %s", response.statusCode()));
+                    String.format("HTTP request failed with status code: %s", response.code()));
         }
 
-        JsonReader jsonReader = Json.createReader(new StringReader(response.body()));
-        JsonArray jsonArr = jsonReader.readArray();
-        jsonReader.close();
+        String responseBody = response.body().string();
+        monitor.debug("Raw response: " + responseBody);
 
-        if (jsonArr == JsonValue.NULL) {
+        try {
+            JSONArray jsonArr = new JSONArray(responseBody);
+            return new MatchCredentialsResponse(jsonArr);
+        } catch (JSONException e) {
+            monitor.warning("Error decoding JSON array", e);
             return null;
         }
-
-        return new MatchCredentialsResponse(jsonArr);
     }
 
+    /**
+     * Represents a response containing matching credentials.
+     */
     public class MatchCredentialsResponse {
-        JsonArray matchingCredentials;
+        JSONArray matchingCredentials;
 
-        public MatchCredentialsResponse(JsonArray matchingCredentials) {
+        /**
+         * Constructs a new MatchCredentialsResponse object.
+         *
+         * @param matchingCredentials The array of matching credentials.
+         */
+        public MatchCredentialsResponse(JSONArray matchingCredentials) {
             this.matchingCredentials = matchingCredentials;
         }
     }
 
+    /**
+     * Represents a presentation definition for a verifiable credential.
+     */
     public class PresentationDefinition {
+        /**
+         * The default VC (Verifiable Credential) type for WaltIDIdentityServices.
+         */
         public static final String DEFAULT_VC_TYPE = "gx:LegalParticipant";
 
         private String vcType = DEFAULT_VC_TYPE;
 
+        /**
+         * Represents a presentation definition for a verifiable credential.
+         * A presentation definition specifies the required attributes and constraints
+         * for a presentation request.
+         *
+         * @param vcType the type of verifiable credential associated with this
+         *               presentation definition
+         */
         public PresentationDefinition(String vcType) {
             this.vcType = vcType;
         }
 
+        /**
+         * Represents the definition of a presentation request.
+         */
         public PresentationDefinition() {
         }
 
-        public JsonObject getJsonObject() {
+        /**
+         * Returns a JSONObject representation of the data.
+         *
+         * @return The JSONObject representation of the data.
+         */
+        public JSONObject getJsonObject() {
             Map<String, Object> map = new HashMap<>();
 
             map.put("id", "first simple example");
@@ -209,7 +293,7 @@ public class WaltIDIdentityServices {
                         }
                     }));
 
-            JsonObject jsonObject = Json.createObjectBuilder(map).build();
+            JSONObject jsonObject = new JSONObject(map);
 
             return jsonObject;
         }
