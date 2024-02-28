@@ -1,0 +1,4 @@
+rich==13.7.0
+requests==2.31.0
+environ-config==23.2.0
+sh==2.0.6

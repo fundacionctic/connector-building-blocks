@@ -132,6 +132,8 @@ tasks:
 
   dev-up:
     desc: Starts the development environment stack
+    dotenv:
+      - dev-config/.env.dev.wallets
     deps:
       - create-example-certs-consumer
       - create-example-certs-provider
@@ -147,3 +149,10 @@ tasks:
     cmds:
       - docker compose -f {{.ROOT_DIR}}/docker-compose-dev.yml down -v
       - docker compose -f {{.ROOT_DIR}}/mock-backend/docker-compose.yml down -v
+
+  dev-provision-wallets:
+    dotenv:
+      - dev-config/.env.dev.wallets
+      - dev-config/.env.dev.wallets.local
+    cmds:
+      - python scripts/provision-wallets.py
