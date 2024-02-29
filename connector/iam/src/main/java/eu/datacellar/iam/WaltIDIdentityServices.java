@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.IntStream;
 
 import org.eclipse.edc.spi.monitor.Monitor;
@@ -310,7 +311,7 @@ public class WaltIDIdentityServices {
         public JSONObject getJsonObject() {
             Map<String, Object> map = new HashMap<>();
 
-            map.put("id", "first simple example");
+            map.put("id", UUID.randomUUID().toString());
 
             HashMap<String, Object> constraints = new HashMap<String, Object>() {
                 {

@@ -38,6 +38,14 @@ public class VCIdentityExtension implements ServiceExtension {
     @Setting
     private static final String WALLET_ID = "eu.datacellar.wallet.id";
 
+    @Setting
+    private static final String TRUST_ANCHOR_DID = "eu.datacellar.trust.did";
+
+    @Setting
+    private static final String UNIVERSAL_RESOLVER_URL = "eu.datacellar.uniresolver.url";
+
+    private static final String DEV_UNIRESOLVER_URL = "https://dev.uniresolver.io/1.0/identifiers";
+
     @Inject
     private TypeManager typeManager;
 
@@ -79,6 +87,15 @@ public class VCIdentityExtension implements ServiceExtension {
 
     @Override
     public void initialize(ServiceExtensionContext context) {
+        String didTrustAnchor = context.getSetting(TRUST_ANCHOR_DID, null);
+
+        if (didTrustAnchor == null) {
+            throw new IllegalArgumentException(
+                    "The following setting is required: %s".formatted(TRUST_ANCHOR_DID));
+        }
+
+        String uniresolverUrl = context.getSetting(UNIVERSAL_RESOLVER_URL, DEV_UNIRESOLVER_URL);
+
         var participantId = context.getParticipantId();
         var monitor = context.getMonitor();
 
@@ -87,7 +104,13 @@ public class VCIdentityExtension implements ServiceExtension {
 
             context.registerService(
                     IdentityService.class,
-                    new VCIdentityService(monitor, typeManager, participantId, identityServices));
+                    new VCIdentityService(
+                            monitor,
+                            typeManager,
+                            participantId,
+                            identityServices,
+                            didTrustAnchor,
+                            uniresolverUrl));
         } catch (IOException | InterruptedException e) {
             context.getMonitor().severe("Failed to initialize WaltIDIdentityServices", e);
             System.exit(1);

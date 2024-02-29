@@ -2,9 +2,8 @@ plugins {
     `java-library`
 }
 
-val waltIdVersion = "1.0.2402271122-SNAPSHOT"
 val okHttpVersion = "4.12.0"
-val jwtVersion = "4.4.0"
+val jwtVersion = "0.12.5"
 
 dependencies {
     implementation(libs.edc.connector.core)
@@ -14,7 +13,7 @@ dependencies {
 
     implementation(libs.json)
     implementation("com.squareup.okhttp3:okhttp:$okHttpVersion")
-    implementation("id.walt.did:waltid-did:$waltIdVersion")
-    implementation("id.walt.credentials:waltid-verifiable-credentials:$waltIdVersion")
-    implementation("com.auth0:java-jwt:$jwtVersion")
+    implementation("io.jsonwebtoken:jjwt-api:$jwtVersion")
+    runtimeOnly("io.jsonwebtoken:jjwt-impl:$jwtVersion")
+    runtimeOnly("io.jsonwebtoken:jjwt-jackson:$jwtVersion")
 }
