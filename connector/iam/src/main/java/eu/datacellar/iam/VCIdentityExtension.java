@@ -46,6 +46,15 @@ public class VCIdentityExtension implements ServiceExtension {
         return NAME;
     }
 
+    /**
+     * Builds the WaltIDIdentityServices object based on the provided context
+     * settings.
+     *
+     * @param context the ServiceExtensionContext object containing the settings
+     * @return the WaltIDIdentityServices object
+     * @throws IOException          if an I/O error occurs
+     * @throws InterruptedException if the operation is interrupted
+     */
     public WaltIDIdentityServices buildIdentityServices(ServiceExtensionContext context)
             throws IOException, InterruptedException {
         String walletUrl = context.getSetting(WALLET_URL, null);
@@ -53,7 +62,9 @@ public class VCIdentityExtension implements ServiceExtension {
         String walletPassword = context.getSetting(WALLET_PASSWORD, null);
 
         if (walletUrl == null || walletEmail == null || walletPassword == null) {
-            throw new IllegalArgumentException("Wallet URL, email, and password must be provided");
+            throw new IllegalArgumentException(
+                    "The following settings are required: %s, %s, %s".formatted(
+                            WALLET_URL, WALLET_EMAIL, WALLET_PASSWORD));
         }
 
         String walletId = context.getSetting(WALLET_ID, null);
@@ -74,7 +85,8 @@ public class VCIdentityExtension implements ServiceExtension {
         try {
             WaltIDIdentityServices identityServices = buildIdentityServices(context);
 
-            context.registerService(IdentityService.class,
+            context.registerService(
+                    IdentityService.class,
                     new VCIdentityService(monitor, typeManager, participantId, identityServices));
         } catch (IOException | InterruptedException e) {
             context.getMonitor().severe("Failed to initialize WaltIDIdentityServices", e);

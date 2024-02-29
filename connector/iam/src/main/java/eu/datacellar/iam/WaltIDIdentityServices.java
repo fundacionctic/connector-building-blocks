@@ -1,9 +1,12 @@
 package eu.datacellar.iam;
 
 import java.io.IOException;
+import java.time.ZonedDateTime;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.IntStream;
 
 import org.eclipse.edc.spi.monitor.Monitor;
 import org.json.JSONArray;
@@ -98,7 +101,9 @@ public class WaltIDIdentityServices {
             monitor.warning("Failed to find wallet ID. HTTP request failed with status code: " + response.code());
 
             throw new RuntimeException(
-                    String.format("HTTP request failed with status code: %s", response.code()));
+                    String.format(
+                            "HTTP request to find Wallet ID failed with status code: %s",
+                            response.code()));
         }
 
         String responseBody = response.body().string();
@@ -144,7 +149,9 @@ public class WaltIDIdentityServices {
 
         if (!response.isSuccessful()) {
             throw new RuntimeException(
-                    String.format("HTTP request failed with status code: %s", response.code()));
+                    String.format(
+                            "HTTP request to get Wallet token failed with status code: %s",
+                            response.code()));
         }
 
         String responseBody = response.body().string();
@@ -174,10 +181,12 @@ public class WaltIDIdentityServices {
                 + "/exchange/matchCredentialsForPresentationDefinition";
 
         String token = getWalletToken();
-        String jsonBody = presentationDefinition.getJsonObject().toString();
+        JSONObject presDefJsonObj = presentationDefinition.getJsonObject();
+        String jsonBody = presDefJsonObj.toString();
         RequestBody body = RequestBody.create(jsonBody, MediaType.parse("application/json; charset=utf-8"));
 
         monitor.debug(String.format("POST %s", urlMatch));
+        monitor.debug("Using presentation definition: %s".formatted(jsonBody));
 
         Request request = new Request.Builder()
                 .url(urlMatch)
@@ -190,7 +199,9 @@ public class WaltIDIdentityServices {
 
         if (!response.isSuccessful()) {
             throw new RuntimeException(
-                    String.format("HTTP request failed with status code: %s", response.code()));
+                    String.format(
+                            "HTTP request to match credentials failed with status code: %s",
+                            response.code()));
         }
 
         String responseBody = response.body().string();
@@ -208,7 +219,7 @@ public class WaltIDIdentityServices {
     /**
      * Represents a response containing matching credentials.
      */
-    public class MatchCredentialsResponse {
+    public static class MatchCredentialsResponse {
         JSONArray matchingCredentials;
 
         /**
@@ -219,16 +230,57 @@ public class WaltIDIdentityServices {
         public MatchCredentialsResponse(JSONArray matchingCredentials) {
             this.matchingCredentials = matchingCredentials;
         }
+
+        /**
+         * Checks if the response is empty.
+         *
+         * @return True if the response is empty, false otherwise.
+         */
+        public boolean isEmpty() {
+            return matchingCredentials == null || matchingCredentials.isEmpty();
+        }
+
+        /**
+         * Retrieves the latest JSONObject from the list of matching credentials.
+         *
+         * @return The latest JSONObject, or null if no matching credentials are found.
+         */
+        public JSONObject getMostRecent() {
+            if (isEmpty()) {
+                return null;
+            }
+
+            return IntStream.range(0, matchingCredentials.length())
+                    .mapToObj(matchingCredentials::getJSONObject)
+                    .max(Comparator.comparing(o -> ZonedDateTime.parse(o.getString("addedOn"))))
+                    .orElse(null);
+        }
+
+        /**
+         * Retrieves the most recent JWT encoded document.
+         *
+         * @return The most recent JWT encoded document as a String, or null if no
+         *         document is available.
+         */
+        public String getMostRecentJWTEncoded() {
+            JSONObject latest = getMostRecent();
+
+            if (latest == null) {
+                return null;
+            }
+
+            return latest.getString("document");
+        }
     }
 
     /**
      * Represents a presentation definition for a verifiable credential.
      */
-    public class PresentationDefinition {
+    public static class PresentationDefinition {
         /**
          * The default VC (Verifiable Credential) type for WaltIDIdentityServices.
          */
-        public static final String DEFAULT_VC_TYPE = "gx:LegalParticipant";
+        public static final String DEFAULT_VC_TYPE = "VerifiableCredential";
 
         private String vcType = DEFAULT_VC_TYPE;
 
@@ -268,14 +320,8 @@ public class WaltIDIdentityServices {
                                     put("path", Arrays.asList("$.type"));
                                     put("filter", new HashMap<String, Object>() {
                                         {
-                                            put("type", "array");
-                                            put("contains", new HashMap<String, Object>() {
-                                                {
-                                                    put("type", "string");
-                                                    put("pattern",
-                                                            String.format("^%s$", vcType));
-                                                }
-                                            });
+                                            put("type", "string");
+                                            put("pattern", "^%s$".formatted(vcType));
                                         }
                                     });
                                 }

@@ -2,6 +2,7 @@ package eu.datacellar.iam;
 
 import static java.lang.String.format;
 
+import java.io.IOException;
 import java.util.Objects;
 
 import org.eclipse.edc.spi.iam.ClaimToken;
@@ -11,6 +12,9 @@ import org.eclipse.edc.spi.iam.TokenRepresentation;
 import org.eclipse.edc.spi.monitor.Monitor;
 import org.eclipse.edc.spi.result.Result;
 import org.eclipse.edc.spi.types.TypeManager;
+
+import eu.datacellar.iam.WaltIDIdentityServices.MatchCredentialsResponse;
+import eu.datacellar.iam.WaltIDIdentityServices.PresentationDefinition;
 
 /**
  * This class represents a VCIdentityService that implements the IdentityService
@@ -24,6 +28,16 @@ public class VCIdentityService implements IdentityService {
     private final String clientId;
     private final WaltIDIdentityServices identityServices;
 
+    /**
+     * This class represents a VCIdentityService, which is responsible for managing
+     * identity services
+     * for a specific client.
+     *
+     * @param monitor          The monitor object used for monitoring the service.
+     * @param typeManager      The type manager object used for managing types.
+     * @param clientId         The ID of the client.
+     * @param identityServices The identity services associated with the client.
+     */
     public VCIdentityService(Monitor monitor, TypeManager typeManager, String clientId,
             WaltIDIdentityServices identityServices) {
         this.monitor = monitor;
@@ -34,14 +48,30 @@ public class VCIdentityService implements IdentityService {
 
     @Override
     public Result<TokenRepresentation> obtainClientCredentials(TokenParameters parameters) {
-        monitor.warning(
+        monitor.info(
                 String.format("obtainClientCredentials: (scope=%s) (audience=%s)",
                         parameters.getScope(),
                         parameters.getAudience()));
 
-        var token = new MockToken();
+        PresentationDefinition presentationDefinition = new PresentationDefinition();
+        MatchCredentialsResponse matchCredentialsResponse;
+
+        try {
+            matchCredentialsResponse = identityServices
+                    .matchCredentials(presentationDefinition);
+        } catch (IOException e) {
+            monitor.warning("Failed to match credentials", e);
+            return Result.failure("Failed to match credentials: " + e.getMessage());
+        }
+
+        String jwtEncodedVC = matchCredentialsResponse.getMostRecentJWTEncoded();
+
+        monitor.debug("JWT-encoded Verifiable Credential: %s".formatted(jwtEncodedVC));
+
+        var token = new VerifiableCredentialsToken();
         token.setAudience(parameters.getAudience());
         token.setClientId(clientId);
+        token.setJwtEncodedVC(jwtEncodedVC);
 
         TokenRepresentation tokenRepresentation = TokenRepresentation.Builder.newInstance()
                 .token(typeManager.writeValueAsString(token))
@@ -52,9 +82,9 @@ public class VCIdentityService implements IdentityService {
 
     @Override
     public Result<ClaimToken> verifyJwtToken(TokenRepresentation tokenRepresentation, String audience) {
-        monitor.warning(String.format("verifyJwtToken: %s", tokenRepresentation.getToken()));
+        monitor.info(String.format("verifyJwtToken: %s", tokenRepresentation.getToken()));
 
-        var token = typeManager.readValue(tokenRepresentation.getToken(), MockToken.class);
+        var token = typeManager.readValue(tokenRepresentation.getToken(), VerifiableCredentialsToken.class);
 
         if (!Objects.equals(token.audience, audience)) {
             return Result.failure(format("Mismatched audience: expected %s, got %s", audience, token.audience));
@@ -66,14 +96,18 @@ public class VCIdentityService implements IdentityService {
                 .build());
     }
 
-    private static class MockToken {
+    private static class VerifiableCredentialsToken {
         private String region = "eu";
         private String audience;
         private String clientId;
-        private static final String AUTHOR = "CTIC";
+        private String jwtEncodedVC;
 
-        public String getAuthor() {
-            return AUTHOR;
+        public String getRegion() {
+            return region;
+        }
+
+        public void setRegion(String region) {
+            this.region = region;
         }
 
         public String getAudience() {
@@ -84,14 +118,6 @@ public class VCIdentityService implements IdentityService {
             this.audience = audience;
         }
 
-        public String getRegion() {
-            return region;
-        }
-
-        public void setRegion(String region) {
-            this.region = region;
-        }
-
         public String getClientId() {
             return clientId;
         }
@@ -99,5 +125,14 @@ public class VCIdentityService implements IdentityService {
         public void setClientId(String clientId) {
             this.clientId = clientId;
         }
+
+        public String getJwtEncodedVC() {
+            return jwtEncodedVC;
+        }
+
+        public void setJwtEncodedVC(String jwtEncodedVC) {
+            this.jwtEncodedVC = jwtEncodedVC;
+        }
+
     }
 }

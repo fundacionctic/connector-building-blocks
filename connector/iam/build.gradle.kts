@@ -4,6 +4,7 @@ plugins {
 
 val waltIdVersion = "1.0.2402271122-SNAPSHOT"
 val okHttpVersion = "4.12.0"
+val jwtVersion = "4.4.0"
 
 dependencies {
     implementation(libs.edc.connector.core)
@@ -15,4 +16,5 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:$okHttpVersion")
     implementation("id.walt.did:waltid-did:$waltIdVersion")
     implementation("id.walt.credentials:waltid-verifiable-credentials:$waltIdVersion")
+    implementation("com.auth0:java-jwt:$jwtVersion")
 }
