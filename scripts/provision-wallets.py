@@ -2,16 +2,16 @@ import json
 import logging
 import os
 import pprint
-from dataclasses import dataclass
 import tempfile
+import uuid
+from dataclasses import dataclass
 from typing import Any, Dict, Tuple, Union
 from urllib.parse import quote
-import uuid
-import sh
 
 import coloredlogs
 import environ
 import requests
+import sh
 
 _logger = logging.getLogger(__name__)
 
@@ -420,6 +420,35 @@ def build_wallet_user(
     return wallet_user
 
 
+def issue_vc(
+    issuer_key_jwk: dict,
+    issuer_did: str,
+    vc_template: dict,
+    issuer_api_base_url: str,
+    recipient_wallet_user: WalletUser,
+):
+    _logger.info("Creating credential offer signed by: %s", issuer_did)
+
+    credential_offer_url = get_openid4vc_credential_offer_url(
+        jwk=issuer_key_jwk,
+        vc=vc_template,
+        issuer_api_base_url=issuer_api_base_url,
+        issuer_did=issuer_did,
+    )
+
+    _logger.info(
+        "Accepting credential offer with recipient user: %s", recipient_wallet_user.did
+    )
+
+    accept_credential_offer(
+        wallet_api_base_url=recipient_wallet_user.wallet_api_base_url,
+        wallet_id=recipient_wallet_user.wallet_id,
+        user_did_key=recipient_wallet_user.did,
+        wallet_token=recipient_wallet_user.token,
+        credential_offer_url=credential_offer_url,
+    )
+
+
 def main():
     cfg = environ.to_config(AppConfig)
     _logger.info(cfg)
@@ -513,25 +542,28 @@ def main():
         ),
     )
 
-    _logger.info("Creating credential offer URL")
+    vc_consumer = {**_VC}
+    vc_consumer["credentialSubject"]["gx:legalName"] = "Consumer"
 
-    credential_offer_url = get_openid4vc_credential_offer_url(
-        jwk=anchor_wallet_user.export_key_jwk(),
-        vc=_VC,
-        issuer_api_base_url=cfg.issuer_api_base_url,
+    vc_provider = {**_VC}
+    vc_provider["credentialSubject"]["gx:legalName"] = "Provider"
+
+    issuer_key_jwk = anchor_wallet_user.export_key_jwk()
+
+    issue_vc(
+        issuer_key_jwk=issuer_key_jwk,
         issuer_did=anchor_wallet_user.did,
+        vc_template=vc_consumer,
+        issuer_api_base_url=cfg.issuer_api_base_url,
+        recipient_wallet_user=consumer_wallet_user,
     )
 
-    _logger.info(
-        "Using offer request with recipient user: %s", consumer_wallet_user.did
-    )
-
-    accept_credential_offer(
-        wallet_api_base_url=consumer_wallet_user.wallet_api_base_url,
-        wallet_id=consumer_wallet_user.wallet_id,
-        user_did_key=consumer_wallet_user.did,
-        wallet_token=consumer_wallet_user.token,
-        credential_offer_url=credential_offer_url,
+    issue_vc(
+        issuer_key_jwk=issuer_key_jwk,
+        issuer_did=anchor_wallet_user.did,
+        vc_template=vc_provider,
+        issuer_api_base_url=cfg.issuer_api_base_url,
+        recipient_wallet_user=provider_wallet_user,
     )
 
 
