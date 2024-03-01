@@ -47,6 +47,7 @@ public class VCIdentityService implements IdentityService {
 
     private static final String KTY_RSA = "RSA";
     private static final String JWT_VC_KEY = "vc";
+    private static final long CLOCK_SKEW_SECONDS = 300;
 
     /**
      * This class represents a VCIdentityService, which is responsible for managing
@@ -191,11 +192,12 @@ public class VCIdentityService implements IdentityService {
             }
 
             jwtClaims = jwtParserBuilder
+                    .clockSkewSeconds(CLOCK_SKEW_SECONDS)
                     .build()
                     .parseSignedClaims(token.getVcAsJwt())
                     .getPayload();
         } catch (JwtException e) {
-            return Result.failure("JWT exception: %s".formatted(e.getMessage()));
+            return Result.failure("JWT parse exception: %s".formatted(e.getMessage()));
         }
 
         if (!jwtClaims.containsKey(JWT_VC_KEY)) {
