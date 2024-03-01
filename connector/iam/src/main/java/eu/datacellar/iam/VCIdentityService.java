@@ -44,10 +44,12 @@ public class VCIdentityService implements IdentityService {
     private final WaltIDIdentityServices identityServices;
     private final String didTrustAnchor;
     private final String uniresolverUrl;
+    private final Map<String, DIDCacheEntry> didCache = new java.util.HashMap<>();
 
     private static final String KTY_RSA = "RSA";
     private static final String JWT_VC_KEY = "vc";
     private static final long CLOCK_SKEW_SECONDS = 300;
+    private static final long DID_CACHE_TTL_SECONDS = 60 * 5;
 
     /**
      * This class represents a VCIdentityService, which is responsible for managing
@@ -76,6 +78,17 @@ public class VCIdentityService implements IdentityService {
             throw new IllegalArgumentException("Only did:web is supported: " + didTrustAnchor);
         }
 
+        if (didCache.containsKey(didTrustAnchor)) {
+            DIDCacheEntry cacheEntry = didCache.get(didTrustAnchor);
+
+            if (!cacheEntry.isExpired()) {
+                monitor.debug("Using cached DID document: %s".formatted(didTrustAnchor));
+                return cacheEntry.getDidJson();
+            } else {
+                monitor.debug("Cached DID document expired: %s".formatted(didTrustAnchor));
+            }
+        }
+
         String urlDID = "%s/%s".formatted(uniresolverUrl.replaceAll("/+$", ""), didTrustAnchor);
 
         OkHttpClient client = new OkHttpClient();
@@ -96,6 +109,12 @@ public class VCIdentityService implements IdentityService {
         String responseBody = response.body().string();
         monitor.debug("Raw response: " + responseBody);
         JSONObject didJsonObj = new JSONObject(responseBody);
+
+        if (didCache.containsKey(didTrustAnchor)) {
+            didCache.remove(didTrustAnchor);
+        }
+
+        didCache.put(didTrustAnchor, new DIDCacheEntry(didJsonObj, System.currentTimeMillis()));
 
         return didJsonObj;
     }
@@ -264,6 +283,28 @@ public class VCIdentityService implements IdentityService {
 
         public void setVcAsJwt(String vcAsJwt) {
             this.vcAsJwt = vcAsJwt;
+        }
+    }
+
+    private static class DIDCacheEntry {
+        private JSONObject didJson;
+        private long timestamp;
+
+        public DIDCacheEntry(JSONObject didJson, long timestamp) {
+            this.didJson = didJson;
+            this.timestamp = timestamp;
+        }
+
+        public JSONObject getDidJson() {
+            return didJson;
+        }
+
+        public boolean isExpired(long now) {
+            return (now - timestamp) > (DID_CACHE_TTL_SECONDS * 1000);
+        }
+
+        public boolean isExpired() {
+            return isExpired(System.currentTimeMillis());
         }
     }
 }
