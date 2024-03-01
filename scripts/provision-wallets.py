@@ -5,13 +5,17 @@ import pprint
 import tempfile
 import uuid
 from dataclasses import dataclass
-from typing import Any, Dict, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union
 from urllib.parse import quote
 
 import coloredlogs
 import environ
 import requests
 import sh
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from jwcrypto import jwk
 
 _logger = logging.getLogger(__name__)
 
@@ -245,7 +249,8 @@ class WalletUser:
             (
                 "Attempting to register DID (hostname=%s) (remote_path=%s). "
                 "Please note that this requires SSH access to the server (%s) "
-                "via the default SSH key with the current user."
+                "via the default SSH key with the current user. "
+                "Make sure that your key is in the authorized_keys file of the server."
             ),
             hostname,
             remote_path,
@@ -272,7 +277,7 @@ class WalletUser:
                 pass
 
 
-def generate_key(
+def generate_wallet_key(
     wallet_api_base_url: str,
     wallet_token: str,
     wallet_id: str,
@@ -300,6 +305,76 @@ def generate_key(
     return key_id
 
 
+def generate_rsa_jwk_keypair(key_size: int = 2048) -> Dict[str, Any]:
+    private_key = rsa.generate_private_key(
+        public_exponent=65537, key_size=key_size, backend=default_backend()
+    )
+
+    private_pem = private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption(),
+    )
+
+    jwk_key = jwk.JWK.from_pem(private_pem)
+
+    return jwk_key.export(private_key=True, as_dict=True)
+
+
+def list_keys(
+    wallet_api_base_url: str, wallet_token: str, wallet_id: str
+) -> List[Dict]:
+    url_list = wallet_api_base_url + f"/wallet-api/wallet/{wallet_id}/keys"
+    headers = {"Authorization": "Bearer " + wallet_token}
+    res_list = requests.get(url_list, headers=headers)
+    res_list.raise_for_status()
+    return res_list.json()
+
+
+def import_key(
+    wallet_api_base_url: str, wallet_token: str, wallet_id: str, jwk: Dict[str, Any]
+) -> str:
+    key_id = jwk["kid"]
+
+    keys_list_before = list_keys(
+        wallet_api_base_url=wallet_api_base_url,
+        wallet_token=wallet_token,
+        wallet_id=wallet_id,
+    )
+
+    if any([item["keyId"]["id"] == key_id for item in keys_list_before]):
+        raise ValueError("Key (kid=%s) already exists in the wallet", key_id)
+
+    url_import_key = wallet_api_base_url + f"/wallet-api/wallet/{wallet_id}/keys/import"
+
+    headers = {"Authorization": "Bearer " + wallet_token}
+
+    _logger.debug(
+        "Importing key to wallet (%s):\n%s", url_import_key, pprint.pformat(jwk)
+    )
+
+    res_import_key = requests.post(url_import_key, headers=headers, json=jwk)
+
+    try:
+        res_import_key.raise_for_status()
+    except:
+        _logger.error(res_import_key.text)
+        raise
+
+    keys_list_after = list_keys(
+        wallet_api_base_url=wallet_api_base_url,
+        wallet_token=wallet_token,
+        wallet_id=wallet_id,
+    )
+
+    if not any([item["keyId"]["id"] == key_id for item in keys_list_after]):
+        raise RuntimeError("Imported key (kid=%s) not found in the list", key_id)
+
+    _logger.info("Imported key (kid=%s) into wallet: %s", key_id, url_import_key)
+
+    return key_id
+
+
 def create_did_web(
     wallet_api_base_url: str,
     wallet_token: str,
@@ -308,17 +383,30 @@ def create_did_web(
     algorithm: str = "RSA",
     wallet_id: str = None,
     alias: str = None,
+    generate_key_outside_wallet: bool = False,
 ) -> Tuple[str, str, str]:
     wallet_id = wallet_id or get_first_wallet_id(wallet_api_base_url, wallet_token)
 
     headers = {"Authorization": "Bearer " + wallet_token}
 
-    key_id = generate_key(
-        wallet_api_base_url=wallet_api_base_url,
-        wallet_token=wallet_token,
-        wallet_id=wallet_id,
-        algorithm=algorithm,
-    )
+    if generate_key_outside_wallet:
+        _logger.debug(
+            "Generating key outside wallet to validate that the wallet plays well with external keys"
+        )
+
+        key_id = import_key(
+            wallet_api_base_url=wallet_api_base_url,
+            wallet_token=wallet_token,
+            wallet_id=wallet_id,
+            jwk=generate_rsa_jwk_keypair(),
+        )
+    else:
+        key_id = generate_wallet_key(
+            wallet_api_base_url=wallet_api_base_url,
+            wallet_token=wallet_token,
+            wallet_id=wallet_id,
+            algorithm=algorithm,
+        )
 
     _logger.info("Creating DID for key %s (wallet=%s)", key_id, wallet_id)
 
@@ -363,6 +451,7 @@ def build_wallet_user(
     did_web_domain: str,
     did_web_path: str,
     alias: str = "datacellar",
+    generate_key_outside_wallet: bool = False,
 ) -> WalletUser:
     """Build a wallet user object with a token and wallet ID."""
 
@@ -391,6 +480,7 @@ def build_wallet_user(
             alias=alias,
             did_web_domain=did_web_domain,
             did_web_path=did_web_path,
+            generate_key_outside_wallet=generate_key_outside_wallet,
         )
 
     did_dict = find_did_by_alias(
@@ -486,6 +576,7 @@ def main():
             "password": cfg.wallet_anchor_user_password,
             "did_web_domain": cfg.did_web_domain,
             "did_web_path": cfg.did_web_path_anchor,
+            "generate_key_outside_wallet": True,
         },
         {
             "wallet_api_base_url": cfg.wallet_consumer_api_base_url,
@@ -493,6 +584,7 @@ def main():
             "password": cfg.wallet_consumer_user_password,
             "did_web_domain": cfg.did_web_domain,
             "did_web_path": cfg.did_web_path_consumer,
+            "generate_key_outside_wallet": True,
         },
         {
             "wallet_api_base_url": cfg.wallet_provider_api_base_url,
@@ -500,6 +592,7 @@ def main():
             "password": cfg.wallet_provider_user_password,
             "did_web_domain": cfg.did_web_domain,
             "did_web_path": cfg.did_web_path_provider,
+            "generate_key_outside_wallet": True,
         },
     ]:
         _logger.info("Logging in wallet user: %s", kwargs["email"])
