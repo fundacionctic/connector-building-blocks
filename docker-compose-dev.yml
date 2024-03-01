@@ -96,6 +96,8 @@ services:
       - 7002:7002
     volumes:
       - ./dev-config/waltid/issuer:/waltid-issuer-api/config
+    extra_hosts:
+      - host.docker.internal:host-gateway
   verifier:
     image: waltid/verifier-api:1.0.2402271122-SNAPSHOT
     container_name: verifier
@@ -104,6 +106,8 @@ services:
       - 7003:7003
     volumes:
       - ./dev-config/waltid/verifier:/waltid-verifier-api/config
+    extra_hosts:
+      - host.docker.internal:host-gateway
   consumer_wallet:
     image: waltid/wallet-api:1.0.2402271122-SNAPSHOT
     container_name: consumer_wallet
@@ -113,6 +117,8 @@ services:
     volumes:
       - consumer_wallet_data:/waltid-wallet-api/data
       - ./dev-config/waltid/wallet-consumer:/waltid-wallet-api/config
+    extra_hosts:
+      - host.docker.internal:host-gateway
   anchor_wallet:
     image: waltid/wallet-api:1.0.2402271122-SNAPSHOT
     container_name: anchor_wallet
@@ -122,6 +128,8 @@ services:
     volumes:
       - anchor_wallet_data:/waltid-wallet-api/data
       - ./dev-config/waltid/wallet-anchor:/waltid-wallet-api/config
+    extra_hosts:
+      - host.docker.internal:host-gateway
   provider_wallet:
     image: waltid/wallet-api:1.0.2402271122-SNAPSHOT
     container_name: provider_wallet
@@ -131,6 +139,8 @@ services:
     volumes:
       - provider_wallet_data:/waltid-wallet-api/data
       - ./dev-config/waltid/wallet-provider:/waltid-wallet-api/config
+    extra_hosts:
+      - host.docker.internal:host-gateway
 volumes:
   consumer_wallet_data: {}
   anchor_wallet_data: {}
