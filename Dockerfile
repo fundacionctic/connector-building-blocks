@@ -39,9 +39,11 @@ RUN mkdir -p ${PATH_CONNECTOR}
 WORKDIR ${PATH_CONNECTOR}
 
 ARG ENABLE_OAUTH2=false
+ARG ENABLE_SSI=false
 
 COPY ./connector .
 ENV ORG_GRADLE_PROJECT_useOauthIdentity=${ENABLE_OAUTH2}
+ENV ORG_GRADLE_PROJECT_useSSI=${ENABLE_SSI}
 RUN /opt/gradle/latest/bin/gradle clean build
 
 COPY ./scripts/keystore-to-vault.sh .
