@@ -12,7 +12,7 @@
     - [Provider Push](#provider-push)
   - [Frequently Asked Questions](#frequently-asked-questions)
 
-> [!WARNING]
+> [!CAUTION]
 > Please note that most of the code in this repository is still a work in progress and will thus likely go through several breaking changes throughout its development.
 
 ## Introduction
