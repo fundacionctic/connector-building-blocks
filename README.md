@@ -189,7 +189,7 @@ edc.transfer.proxy.token.signer.privatekey.alias=datacellar
 edc.transfer.proxy.token.verifier.publickey.alias=publickey
 ```
 
-These are the aliases for the private key and public certificate. The value `publickey` refers to the key of the public certificate in the vault properties file ([`vault.properties`](dev-config/certs-provider/vault.properties)).
+These are the aliases for the private key and public certificate. The value `publickey` refers to the item containing the public certificate in the `vault.properties` file.
 
 ```properties
 eu.datacellar.openapi.url=http://host.docker.internal:9090/openapi.json
