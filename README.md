@@ -8,8 +8,8 @@
     - [Configuration and Deployment](#configuration-and-deployment)
       - [Provider](#provider)
       - [Consumer](#consumer)
-    - [Run the Consumer Pull example script](#run-the-consumer-pull-example-script)
-    - [Run the Provider Push example script](#run-the-provider-push-example-script)
+    - [Consumer Pull](#consumer-pull)
+    - [Provider Push](#provider-push)
   - [Frequently Asked Questions](#frequently-asked-questions)
 
 > [!WARNING]
@@ -27,7 +27,7 @@ The repository is organized as follows:
 
 * The `connector` folder contains a Java project with a very early draft version of the connector extensions and a connector launcher.
 * The `mock-backend` folder contains an example HTTP API as exposed by a data space participant. This API is described by an [OpenAPI](https://learn.openapis.org/) document. The logic of the component itself does not hold any value; its purpose is to demonstrate where each participant should contribute.
-* The `edcpy` folder contains a Python package built on top of Poetry, providing a series of utilities to interact with a data space based on the EDC ecosystem. For example, it contains the logic to execute all the necessary HTTP requests to successfully complete a transfer process. Additionally, it offers an example implementation of a consumer backend.
+* The `edcpy` folder contains a Python package built on top of Poetry, providing a series of utilities to interact with a data space based on the EDC ecosystem. For example, it contains the logic to execute all the necessary HTTP requests to successfully complete a transfer process. Additionally, it offers an example implementation of a _consumer backend_.
 * The `dev-config` and `example` folders, alongside the `Vagrantfile`, contain the configuration and scripts necessary to deploy a consumer and a provider, and to demonstrate end-to-end communications based on the Dataspace Protocol between them.
 
 ## Public Artifacts
@@ -174,7 +174,7 @@ This is the public Dataspace Protocol URL that other connectors will use to comm
 edc.receiver.http.endpoint=http://host.docker.internal:18000/pull
 ```
 
-This is the URL where the Consumer Backend will be listening in the Consumer Pull use case. Since a connector strictly acting as a provider does not require a Consumer Backend service, this property is not relevant for the provider.
+This is the URL where the consumer backend will be listening in the Consumer Pull use case. Since a connector strictly acting as a provider does not require a consumer backend service, this property is not relevant for the provider.
 
 ```properties
 edc.dataplane.token.validation.endpoint=http://host.docker.internal:19192/control/token
@@ -236,16 +236,16 @@ task create-example-certs-consumer
 
 The properties file for the consumer is located at [`dev-config/dev-consumer.properties`](dev-config/dev-consumer.properties).
 
-The properties are similar to the ones used for the provider, with the exception that, in the case of the consumer, the `edc.receiver.http.endpoint` property must point to the Consumer Pull URL of the Consumer Backend service (see the `consumer_backend` service in the [`docker-compose-consumer.yml`](docker-compose-consumer.yml) file):
+The properties are similar to the ones used for the provider, with the exception that, in the case of the consumer, the `edc.receiver.http.endpoint` property must point to the Consumer Pull URL of the consumer backend service (see the `consumer_backend` service in the [`docker-compose-consumer.yml`](docker-compose-consumer.yml) file):
 
 ```properties
 edc.receiver.http.endpoint=http://host.docker.internal:28000/pull
 ```
 
-**3. Deploy the connector alongside the Consumer Backend and the message broker**
+**3. Deploy the connector alongside the consumer backend and the message broker**
 
 > [!TIP]
-> Check the [FAQs](#frequently-asked-questions) to see why a **message broker** is necessary and what a **Consumer Backend** is.
+> Check the [FAQs](#frequently-asked-questions) to see why a **message broker** is necessary and what a **consumer backend** is.
 
 You need to deploy the stack defined in `docker-compose-consumer.yml` to start the consumer connector, the consumer backend and the message broker:
 
@@ -265,7 +265,7 @@ CONTAINER ID   IMAGE                      COMMAND                  CREATED      
 5530123dbee6   rabbitmq:3.11-management   "docker-entrypoint.s…"   5 minutes ago   Up 5 minutes   4369/tcp, 5671/tcp, 0.0.0.0:5672->5672/tcp, 15671/tcp, 15691-15692/tcp, 25672/tcp, 0.0.0.0:15672->15672/tcp   consumer_broker
 ```
 
-### Run the Consumer Pull example script
+### Consumer Pull
 
 This example demonstrates the **Consumer Pull** type of data transfer as defined in the [Transfer Data Plane](https://github.com/eclipse-edc/Connector/tree/v0.5.1/extensions/control-plane/transfer/transfer-data-plane) extension.
 
@@ -283,7 +283,7 @@ The following list presents some key points about the script to help you underst
 
 * The script uses the `edcpy` package to interact with the connector. This is just a convenience, and you can implement the same logic using any programming language. In other words, `edcpy` is not a requirement to interact with the connector; it's just a tool to make the process easier.
 * The `edcpy` package basically implements the logic described in the [transfer samples of the eclipse-edc/Samples](https://github.com/eclipse-edc/Samples/tree/main/transfer) repository. Instead of having to manually execute the HTTP requests, the package encapsulates this logic in a more developer-friendly way.
-* The `ConnectorController` is the main entry point in `edcpy` to interact with the connector. Instances of this class can be configured via environment variables that have the prefix `EDC_` or directly through the constructor. See the [`edcpy/config.py`](edcpy/config.py) file for more details on the available configuration options.
+* The `ConnectorController` is the main entry point in `edcpy` to interact with the connector. Instances of this class can be configured via environment variables that have the prefix `EDC_` or directly through the constructor. See the [`edcpy/config.py`](edcpy/edcpy/config.py) file for more details on the available configuration options.
 * The script itself is also configured via environment variables (check the `AppConfig` class).
 * The script utilises an `asyncio.Queue` to asynchronously buffer messages from the message broker. Using a queue is not mandatory, you can implement the same logic using any other mechanism. The details of dealing with the message broker are abstracted by the `with_messaging_app` context manager.
 * To consume an asset from a connector, you need to know the asset ID (e.g. `GET-consumption`). In this example, the asset ID is hardcoded in the script, but in a real-world scenario, it could be dynamically retrieved from the catalogue of the connector.
@@ -357,7 +357,7 @@ $ poetry run python ../example/example_pull.py
 [...]
 ```
 
-### Run the Provider Push example script
+### Provider Push
 
 This example demonstrates the **Provider Push** data transfer type, which is the alternative to the aforementioned Consumer Pull type.
 
@@ -402,14 +402,14 @@ $ poetry run python ../example/example_push.py
 
 ## Frequently Asked Questions
 
-**What exactly is a _Consumer Backend_?**
+**What exactly is a _consumer backend_?**
 
-A **Consumer Backend** is a service within the connector ecosystem with two primary responsibilities:
+A **consumer backend** is a service within the connector ecosystem with two primary responsibilities:
 
 * In the [Consumer Pull](https://github.com/eclipse-edc/Connector/tree/main/extensions/control-plane/transfer/transfer-data-plane#consumer-pull) use case, it receives the `EndpointDataReference` object from the provider side. This object contains details on how and where to send the HTTP request to obtain the final response.
 * In the [Provider Push](https://github.com/eclipse-edc/Connector/tree/main/extensions/control-plane/transfer/transfer-data-plane#provider-push) use case, it receives the actual final response.
 
-The **Consumer Backend** implementation—the implementation of the `run-http-backend` command—is provided out-of-the-box by the [`edcpy`](edcpy) package. It does not need to be developed by each participant.
+The **consumer backend** implementation is provided out-of-the-box by the [`edcpy`](edcpy) package. It is not necessary for each participant to develop its own version; the same implementation can be reused across the data space.
 
 **How does the provider know how to expose the Mock Backend HTTP API and create the related assets in the data space?**
 
@@ -419,17 +419,17 @@ The JSON file of the API schema serves as the authoritative source, determining 
 
 **What is the role of the RabbitMQ message broker?**
 
-In both the _Consumer Pull_ and _Provider Push_ approaches, an HTTP server (i.e. _Consumer Backend_) needs to be running on the consumer's side.
+In both the _Consumer Pull_ and _Provider Push_ approaches, an HTTP server (i.e. _consumer backend_) needs to be running on the consumer's side.
 
-In this project, [RabbitMQ](https://www.rabbitmq.com/) was chosen as a tool to decouple the messages received by the _Consumer Backend_ and enable arbitrary applications to subscribe to and process them asynchronously.
+In this project, [RabbitMQ](https://www.rabbitmq.com/) was chosen as a tool to decouple the messages received by the _consumer backend_ and enable arbitrary applications to subscribe to and process them asynchronously.
 
-RabbitMQ was selected due to its popularity and ease of use as a message broker. Other options, such as Redis, could have been chosen as well. It's worth noting that a message broker is not strictly necessary. Any mechanism capable of passing the messages received on the _Consumer Backend_ to the application would be suitable.
+RabbitMQ was selected due to its popularity and ease of use as a message broker. Other options, such as Redis, could have been chosen as well. It's worth noting that a message broker is not strictly necessary. Any mechanism capable of passing the messages received on the _consumer backend_ to the application would be suitable.
 
 **What is the `edcpy` package, and is Python required?**
 
-The [Management](https://app.swaggerhub.com/apis/eclipse-edc-bot/management-api) and [Control](https://app.swaggerhub.com/apis/eclipse-edc-bot/control-api) APIs of the Eclipse Connector involve complex interactions with multiple requests. The `edcpy` package serves as a means to encapsulate this logic, making it reusable. Additionally, it provides a ready-to-use _Consumer Backend_ that integrates with RabbitMQ.
+The [Management](https://app.swaggerhub.com/apis/eclipse-edc-bot/management-api) and [Control](https://app.swaggerhub.com/apis/eclipse-edc-bot/control-api) APIs of the Eclipse Connector involve complex interactions with multiple requests. The `edcpy` package serves as a means to encapsulate this logic, making it reusable. Additionally, it provides a ready-to-use _consumer backend_ that integrates with RabbitMQ.
 
-However, it's important to note that the use of Python is not mandatory. The `edcpy` package is designed to (hopefully) facilitate the development process, but if you prefer to use another programming language, you have the flexibility to build your own _Consumer Backend_ and directly communicate with the Management API.
+However, it's important to note that the use of Python is not mandatory. The `edcpy` package is designed to (hopefully) facilitate the development process, but if you prefer to use another programming language, you have the flexibility to build your own _consumer backend_ and directly communicate with the Management API.
 
 **What are the minimum requirements that an HTTP API must have to be interoperable with the _Core Connector_?**
 
