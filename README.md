@@ -61,10 +61,7 @@ The example in this section will illustrate the following scenario:
 * To simplify the example, no authentication will be used. Nevertheless, it's worth noting that the connector will eventually support authentication via W3C Verifiable Credentials (VC) for real-world scenarios.
 
 > [!NOTE]
-> This example assumes that all tasks are executed on the same machine.
-
-> [!TIP]
-> You can review the details of what is exactly executed by each task in the [Taskfile](Taskfile.yml).
+> This example assumes that all commands are executed on the same machine.
 
 ### Configuration and Deployment
 
@@ -78,18 +75,18 @@ This HTTP API is the component that encapsulates the value contributed by the pr
 
 The Mock HTTP API is not exposed to the Internet; it is only accessible by the connector. The connector acts as a gateway, exposing the API to the data space in a secure and controlled manner.
 
-To start the Mock HTTP API, run the following command:
+To start the Mock HTTP API, deploy the following Compose stack:
 
 ```console
-task up-provider-mock-api
+docker compose -f ./mock-backend/docker-compose.yml up -d --build --wait
 ```
 
 This command will start the Mock HTTP API as a Docker container. It will be accessible by default at port 9090:
 
 ```console
-$ docker ps
-CONTAINER ID   IMAGE                   COMMAND                  CREATED              STATUS              PORTS                    NAMES
-01665cb4bf43   mock-backend-http_api   "uvicorn http-api:ap…"   About a minute ago   Up About a minute   0.0.0.0:9090->9090/tcp   mock_backend_http_api
+$ docker compose -f ./mock-backend/docker-compose.yml ps
+NAME                    IMAGE                   COMMAND                  SERVICE    CREATED       STATUS       PORTS
+mock_backend_http_api   mock-backend-http_api   "uvicorn http-api:ap…"   http_api   6 hours ago   Up 3 hours   0.0.0.0:9090->9090/tcp
 ```
 
 If you visit the documentation at [http://localhost:9090/docs](http://localhost:9090/docs), you'll find that the Mock HTTP API exposes a couple of endpoints: one for executing an electricity consumption prediction model and another for retrieving electricity consumption data. These endpoints serve as mocks and return dummy data. The documentation is automatically generated from the OpenAPI schema file that describes the API.
