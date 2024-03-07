@@ -1,0 +1,22 @@
+services:
+  provider:
+    build: .
+    image: edc-connector
+    pull_policy: never
+    container_name: provider
+    restart: on-failure
+    ports:
+      - 9191:9191
+      - 9193:9193
+      - 9194:9194
+      - 9291:9291
+      - 9192:9192
+    environment:
+      PROPERTIES_FILE_PATH: /opt/src/dev-config/box-provider.properties
+      KEYSTORE_PATH: /opt/src/dev-config/certs-provider/cert.pfx
+      KEYSTORE_PASSWORD: datacellar
+    volumes:
+      - .:/opt/src
+      # To ensure that mDNS resolution is enabled in the container
+      - /var/run/dbus:/var/run/dbus
+      - /var/run/avahi-daemon/socket:/var/run/avahi-daemon/socket

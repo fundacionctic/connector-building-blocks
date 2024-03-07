@@ -18,8 +18,8 @@ tasks:
   clean:
     desc: Performs cleanup by removing generated artifacts, including files, directories, and containers resulting from task execution
     cmds:
-      - docker compose -f {{.ROOT_DIR}}/docker-compose-consumer.yml down -v
-      - docker compose -f {{.ROOT_DIR}}/docker-compose-provider.yml down -v
+      - docker compose -f {{.ROOT_DIR}}/docker-compose-box-consumer.yml down -v
+      - docker compose -f {{.ROOT_DIR}}/docker-compose-box-provider.yml down -v
       - docker compose -f {{.ROOT_DIR}}/docker-compose-dev.yml down -v
       - docker compose -f {{.ROOT_DIR}}/mock-backend/docker-compose.yml down -v
       - rm -fr {{.EXAMPLE_CONSUMER_CERTS_DIR}}
@@ -82,17 +82,22 @@ tasks:
         vars:
           CERTS_DIR: "{{.EXAMPLE_PROVIDER_CERTS_DIR}}"
 
-  provision-example-provider:
-    desc: Provisions the example Provider
+  up-provider-mock-api:
+    desc: Starts the Mock HTTP API exposed by the provider to the data space
     cmds:
-      - task: create-example-certs-provider
       - >
         docker compose
         -f {{.ROOT_DIR}}/mock-backend/docker-compose.yml
         up -d --build --wait
+
+  provision-example-provider:
+    desc: Provisions the example Provider
+    cmds:
+      - task: create-example-certs-provider
+      - task: up-provider-mock-api
       - >
         docker compose
-        -f {{.ROOT_DIR}}/docker-compose-provider.yml
+        -f {{.ROOT_DIR}}/docker-compose-box-provider.yml
         up -d --build --wait
 
   provision-example-consumer:
@@ -101,7 +106,7 @@ tasks:
       - task: create-example-certs-consumer
       - >
         docker compose
-        -f {{.ROOT_DIR}}/docker-compose-consumer.yml
+        -f {{.ROOT_DIR}}/docker-compose-box-consumer.yml
         up -d --build --wait
 
   provision-example-virtualenv:

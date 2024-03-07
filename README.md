@@ -1,29 +1,31 @@
-# Eclipse Dataspace Components Proof of Concept
+# Data Space Connector Building Blocks
 
-- [Eclipse Dataspace Components Proof of Concept](#eclipse-dataspace-components-proof-of-concept)
+- [Data Space Connector Building Blocks](#data-space-connector-building-blocks)
   - [Introduction](#introduction)
   - [Public Artifacts](#public-artifacts)
     - [Configuration of the Connector Image](#configuration-of-the-connector-image)
-  - [Examples](#examples)
-    - [Prerequisites](#prerequisites)
-    - [Consumer Pull](#consumer-pull)
-    - [Provider Push](#provider-push)
+  - [Example](#example)
+    - [Configuration and Deployment](#configuration-and-deployment)
+      - [Provider](#provider)
+      - [Consumer](#consumer)
   - [Frequently Asked Questions](#frequently-asked-questions)
 
-> [!IMPORTANT]
-> The previous IAM solution, which relied on OAuth 2 and Keycloak, will be replaced by another extension that aligns more closely with SSI principles. In this new extension, participants will authenticate themselves using W3C Verifiable Credentials. This is still a work in progress.
+> [!WARNING]
+> Please note that most of the code in this repository is still a work in progress and will thus likely go through several breaking changes throughout its development.
 
 ## Introduction
 
-This project contains a proof of concept that aims to automate the deployment of a Minimum Viable Dataspace and demonstrate how arbitrary data sources can be integrated into the data space using the Eclipse Dataspace Components software stack.
+This repository contains a collection of software components that aim at simplifying the deployment of data space connectors based on the [Eclipse Dataspace Components](https://eclipse-edc.github.io/docs/#/) (EDC) ecosystem and the interactions of applications with those connectors. Specifically, the following components are provided here:
 
-The approach taken here is that **any data space participant component can expose an HTTP API described by a standard OpenAPI schema**. Then, there is a Core Connector that is able to understand this schema and create a series of assets in the data space to represent the HTTP endpoints. These endpoints, in turn, provide access to the datasets and services offered by the participant component in question.
+* An EDC connector extension capable of interpreting an OpenAPI schema and generating a set of assets within the data space to represent the services provided by a participant component. The underlying idea is to enable participants to develop their own HTTP APIs while the extension abstracts away the intricacies of exposing these HTTP APIs to the data space.
+* An EDC connector extension that implements authentication via W3C Verifiable Credentials.
+* A Python library that implements the logic to interact with the [Management](https://app.swaggerhub.com/apis/eclipse-edc-bot/management-api) and [Control](https://app.swaggerhub.com/apis/eclipse-edc-bot/control-api) APIs of the EDC connector to go through the necessary steps to transfer data between two participants in the data space.
 
 The repository is organized as follows:
 
-* The `connector` folder contains a Java project with a very early draft version of the _Core Connector_ extension. This extension is responsible for creating the assets in the data space based on the OpenAPI schema of the participant component.
+* The `connector` folder contains a Java project with a very early draft version of the connector extensions and a connector launcher.
 * The `mock-backend` folder contains an example HTTP API as exposed by a data space participant. This API is described by an [OpenAPI](https://learn.openapis.org/) document. The logic of the component itself does not hold any value; its purpose is to demonstrate where each participant should contribute.
-* The `edcpy` folder contains a Python package built on top of Poetry, providing a series of utilities to interact with an EDC-based dataspace. For example, it contains the logic to execute all the necessary HTTP requests to successfully complete a transfer process. Additionally, it offers an example implementation of a [Consumer Backend](https://github.com/eclipse-edc/Connector/tree/main/extensions/control-plane/transfer/transfer-data-plane).
+* The `edcpy` folder contains a Python package built on top of Poetry, providing a series of utilities to interact with a data space based on the EDC ecosystem. For example, it contains the logic to execute all the necessary HTTP requests to successfully complete a transfer process. Additionally, it offers an example implementation of a [Consumer Backend](https://github.com/eclipse-edc/Connector/tree/main/extensions/control-plane/transfer/transfer-data-plane).
 * The `dev-config` and `example` folders, alongside the `Vagrantfile`, contain the configuration and scripts necessary to deploy a consumer and a provider, and to demonstrate end-to-end communications based on the Dataspace Protocol between them.
 
 ## Public Artifacts
@@ -31,7 +33,7 @@ The repository is organized as follows:
 This repository publishes two software artifacts for convenience:
 
 * The `edcpy` Python package, which is [published to PyPI](https://pypi.org/project/edcpy/).
-* The `agmangas/edc-connector` Docker image for the _Core Connector_, which is [published to Docker Hub](https://hub.docker.com/r/agmangas/edc-connector).
+* The `agmangas/edc-connector` Docker image for the connector launcher, which is [published to Docker Hub](https://hub.docker.com/r/agmangas/edc-connector).
 
 ### Configuration of the Connector Image
 
@@ -43,158 +45,233 @@ Although the later examples go into more detail about how to configure the conne
 | `KEYSTORE_PATH`        | Path to a keystore file containing the private key and certificate for the connector. The keystore should be in PKCS12 format. |
 | `KEYSTORE_PASSWORD`    | The password for the keystore.                                                                                                 |
 
-## Examples
+## Example
 
-There is a `Vagrantfile` in the root of the repository, which serves as the configuration file for Vagrant. [Vagrant](https://www.vagrantup.com/) is a tool utilized here to generate reproducible versions of two separate Ubuntu Virtual Machines: one for the provider and another for the consumer. This approach guarantees that the examples portray a more realistic scenario where the consumer and provider are deployed on different instances. Consequently, this distinction is reflected in the configuration files, providing a more illustrative demonstration rather than relying only on localhost access for all configuration properties.
+The example in this section will illustrate the following scenario:
 
-After installing Vagrant on your system, simply run `vagrant up` to create both the provider and the consumer. The `Vagrantfile` is configured to handle all the necessary provisioning steps, such as installing dependencies and building the connector. Once the build process is complete, you can log into the consumer and provider by using `vagrant ssh consumer` or `vagrant ssh provider`.
+* There is a data space participant with an HTTP API (i.e., the [Mock HTTP API](mock-backend)) that needs to be exposed to the data space. This participant is the **provider**.
+* There is another data space participant that wants to consume the data from the HTTP API of the first participant. This participant is the **consumer**.
+* Both the provider and the consumer start from scratch regarding the configuration of the connector and the deployment of the necessary components.
+* Both the provider and the consumer have installed the following prerequisites:
+  * [Docker](https://www.docker.com/products/docker-desktop/): All services, including the connector, will be deployed as Docker containers.
+  * [Taskfile](https://taskfile.dev/): We'll use Taskfile as a task runner in this example to simplify the deployment process and ensure its reproducibility.
+* To simplify the example, no authentication will be used. Nevertheless, it's worth noting that the connector will eventually support authentication via W3C Verifiable Credentials (VC) for real-world scenarios.
 
-We use Multicast DNS to ensure that `provider.local` resolves to the provider’s IP and that `consumer.local` resolves to the consumers’ IP. This forces us to install `avahi-daemon` and `libnss-mdns` in both the consumer and provider, and also to bind the volumes `/var/run/dbus` and `/var/run/avahi-daemon/socket` on all Docker containers.
-
-The following examples demonstrate two distinct approaches, which are summarized in the table below for clarity:
-
-| Approach          | Key Characteristics                                                                                                                                              |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Provider Push** | The provider pushes data to the consumer by sending HTTP requests to the consumer's backend directly. These requests contain the responses from the mock API.    |
-| **Consumer Pull** | The consumer pulls data from the provider by sending HTTP requests to the provider’s data plane public API. The provider proxies these requests to the mock API. |
+> [!NOTE]
+> This example assumes that all tasks are executed on the same machine.
 
 > [!TIP]
-> Please note that the example scripts should be run in the Consumer VM, which can be accessed by running `vagrant ssh consumer`.
+> You can review the details of what is exactly executed by each task in the [Taskfile](Taskfile.yml).
 
-### Prerequisites
+### Configuration and Deployment
 
-* [VirtualBox](https://www.virtualbox.org/wiki/Downloads): a popular virtualization product.
-* [Vagrant](https://developer.hashicorp.com/vagrant/downloads): a command line tool for managing virtual machines.
+#### Provider
 
-You just need to download and install the releases for your operating system. Vagrant should be able to find and use the [VirtualBox provider](https://developer.hashicorp.com/vagrant/docs/providers/virtualbox) automatically.
+First, we will deploy the services of the provider participant.
 
-There are no other prerequisites, as Vagrant will take care of installing all the necessary dependencies inside the virtual machines.
+**1. Deploy the [Mock HTTP API](mock-backend)**
 
-### Consumer Pull
+This HTTP API is the component that encapsulates the value contributed by the provider to the data space. The services and datasets offered by the provider to other participants are accessed via this HTTP API. In this example, we refer to this component as the _Mock HTTP API_.
 
-This example demonstrates the _Consumer Pull_ use case as defined in the [documentation of the Transfer Data Plane extension](https://github.com/eclipse-edc/Connector/tree/main/extensions/control-plane/transfer/transfer-data-plane).
+The Mock HTTP API is not exposed to the Internet; it is only accessible by the connector. The connector acts as a gateway, exposing the API to the data space in a secure and controlled manner.
 
-In this pattern, a single access token can be reused to send multiple requests to the same HTTP endpoint with different body contents and query arguments.
-
-The _Consumer Backend_ and the _Connectors_ are off-the-shelf components that can be reused among different participants of the data space. This means that you don't actually need to implement any of these components yourself, just provide the appropriate configuration files.
-
-![HTTP Pull example](./diagrams/http-pull-example.png "HTTP Pull example")
+To start the Mock HTTP API, run the following command:
 
 ```console
-vagrant@consumer:~$ cd /vagrant/
-vagrant@consumer:/vagrant$ task run-pull-example-from-consumer
-
-[...]
-
-task: [run-pull-example-from-consumer] $HOME/edc-venv/bin/python /vagrant/example/example_pull.py
-
-[...]
-
-2024-02-23 09:28:55 consumer __main__[41499] INFO Sending HTTP GET request with arguments:
-{'headers': {'Authorization': 'eyJhbGciOiJSUzI1NiJ9.eyJleHAiOjE3MDg2ODExMzUsImRhZCI6IntcInByb3BlcnRpZXNcIjp7XCJwYXRoXCI6XCIvY29uc3VtcHRpb25cIixcIm1ldGhvZFwiOlwiR0VUXCIsXCJodHRwczovL3czaWQub3JnL2VkYy92MC4wLjEvbnMvdHlwZVwiOlwiSHR0cERhdGFcIixcInByb3h5UXVlcnlQYXJhbXNcIjpcInRydWVcIixcIm5hbWVcIjpcImRhdGEtYWRkcmVzcy1HRVQtY29uc3VtcHRpb25cIixcInByb3h5Qm9keVwiOlwidHJ1ZVwiLFwiY29udGVudFR5cGVcIjpcImFwcGxpY2F0aW9uL2pzb25cIixcImh0dHBzOi8vdzNpZC5vcmcvZWRjL3YwLjAuMS9ucy9iYXNlVXJsXCI6XCJodHRwOi8vcHJvdmlkZXIubG9jYWw6OTA5MFwifX0ifQ.TqHNY3kwP7eB64tmTMkTv5jsvQElp3A2_i10bjDdKzrkFxuphcOJC__B040x2OVF_UlafFpb-0vM9bhUgp7zsTH0FG0pzTB-AmrZWVByKHm6vl1XzSvd8uRZdOyHREsIHEPzYtejnHJC-qcx4gIfH3n7n9x6sBlzY4ALdB_PAlSrDSjB7vXzSTkj2mujxjOnwdY-hX6XjFe_HLktH0BBJYFTh7W0rREEbaNl9PjQPrH2vf2mbfOFLAcKbdR7_zXPhhHhaiEAgQIClUbBQ5T2tGhZ0SSEtd1VG-lNpqunUoZRgtqDLni0dMsHvZuDZPqs1vXEmjUgwD300ucGaEDtTpbArHQZS2RazxFbzY9P947afw8qPlokzbEiOZ-7fZJbGkwViAzXuDxP9cWH5iAMOYgJJ8uSFc-m7oq8k7lRsjOGMcgHzNcNNgbe0Uk9iRuZdEuf1IxgWftACJUjdkHQLln3TNUuYHTftJViLWgL3ACKbbs4sHaNJK8cWUIf6AxG2E4omN-4lQGld94ziDn2Z_T58IyQJqRFHLC4g9bwbRH8Ntl1WzkucH6eIk5FgN4-8YgZHgOThAgRBUr4dn164HUJoJ9kilHV-d2QfunYu-1sgFGzCENtNv0oRT4iw6Ha5uAu9dk7Idm5Wk7xkwuU46ojVAqRCmRNT3DeHQ92oqQ'},
- 'method': 'GET',
- 'url': 'http://provider.local:9291/public/'}
-
-[...]
-
-2024-02-23 09:28:56 consumer __main__[41499] INFO Response:
-{'location': 'Asturias',
- 'results': [{'date': '2024-02-22T00:00:00+00:00', 'value': 53},
-             {'date': '2024-02-22T01:00:00+00:00', 'value': 62},
-             {'date': '2024-02-22T02:00:00+00:00', 'value': 10},
-             {'date': '2024-02-22T03:00:00+00:00', 'value': 73},
-             {'date': '2024-02-22T04:00:00+00:00', 'value': 22},
-             {'date': '2024-02-22T05:00:00+00:00', 'value': 72},
-             {'date': '2024-02-22T06:00:00+00:00', 'value': 98},
-             {'date': '2024-02-22T07:00:00+00:00', 'value': 80},
-             {'date': '2024-02-22T08:00:00+00:00', 'value': 39},
-             {'date': '2024-02-22T09:00:00+00:00', 'value': 77},
-             {'date': '2024-02-22T10:00:00+00:00', 'value': 88},
-             {'date': '2024-02-22T11:00:00+00:00', 'value': 7},
-             {'date': '2024-02-22T12:00:00+00:00', 'value': 80},
-             {'date': '2024-02-22T13:00:00+00:00', 'value': 74},
-             {'date': '2024-02-22T14:00:00+00:00', 'value': 94},
-             {'date': '2024-02-22T15:00:00+00:00', 'value': 49},
-             {'date': '2024-02-22T16:00:00+00:00', 'value': 7},
-             {'date': '2024-02-22T17:00:00+00:00', 'value': 87},
-             {'date': '2024-02-22T18:00:00+00:00', 'value': 14},
-             {'date': '2024-02-22T19:00:00+00:00', 'value': 27},
-             {'date': '2024-02-22T20:00:00+00:00', 'value': 0},
-             {'date': '2024-02-22T21:00:00+00:00', 'value': 60},
-             {'date': '2024-02-22T22:00:00+00:00', 'value': 3},
-             {'date': '2024-02-22T23:00:00+00:00', 'value': 93}]}
-
-[...]
-
-2024-02-23 09:28:59 consumer __main__[41499] INFO Sending HTTP POST request with arguments:
-{'headers': {'Authorization': 'eyJhbGciOiJSUzI1NiJ9.eyJleHAiOjE3MDg2ODExMzksImRhZCI6IntcInByb3BlcnRpZXNcIjp7XCJwYXRoXCI6XCIvY29uc3VtcHRpb24vcHJlZGljdGlvblwiLFwibWV0aG9kXCI6XCJQT1NUXCIsXCJodHRwczovL3czaWQub3JnL2VkYy92MC4wLjEvbnMvdHlwZVwiOlwiSHR0cERhdGFcIixcInByb3h5UXVlcnlQYXJhbXNcIjpcInRydWVcIixcIm5hbWVcIjpcImRhdGEtYWRkcmVzcy1QT1NULWNvbnN1bXB0aW9uLXByZWRpY3Rpb25cIixcInByb3h5Qm9keVwiOlwidHJ1ZVwiLFwiY29udGVudFR5cGVcIjpcImFwcGxpY2F0aW9uL2pzb25cIixcImh0dHBzOi8vdzNpZC5vcmcvZWRjL3YwLjAuMS9ucy9iYXNlVXJsXCI6XCJodHRwOi8vcHJvdmlkZXIubG9jYWw6OTA5MFwifX0ifQ.agOUe_CM2T_bTGNsPgggkvgvusMInsIipnP66tgemHoy6WmoIEomhSY9FLzjjjOSwXEH1mZg2PPUPk7Bkbzh9Cnz75RFsGvruvaFiwLbREcXQFLfD_dtvHBSdAtf2ufAulS9e0CzsLqUrwpY934kn0RmKFnQyOfCdQJrIF_kD2loy3J56ygKXYKpQuw_U4QMoM2UW4QjIFJ8jhkIAfmU2hNZi7-UHM-AM-2TZXRQnBD76unMlbki_iA4HMdjmRb6iwAIPpgmOEnctYcGYdhH0v9MTBcMhKcdlQ8i9MTYa-1YkzOIFgAu3E4pt_GM1cDiQxbU2u2sCD9daCRk39UxRTcqgv2XLQ8T8XSgPzIbEaJ19cNb-3TIq1Tw29c9y7mD7delbtMQiGyGcT6dthcfIGOdPH6aUnvWUzikGRgWo9Npd-O5o1VEwLROTPaHUyl6nAlWscwm1_P6vDhppql39layUDk2qcc5bkNOLkxKK2Z6PSFSkAhdN3nE2y_Tz8kbgtu8-CQefaNs2rLkkObxN89M9bszg4AxToxKpBSOIMfZMNAtpr5OtHj3zZluLd_cQJl-U-hQVm7NqGy1-KGBY575PJlCKtr5iEIXJKf5oD2viLiqFTx7s080CGToGBOxdmj3slExU3HI4xIKyzN1nCpw_AjxhlR72z2Z-iBoMK8'},
- 'json': {'date_from': '2023-06-15T14:30:00',
-          'date_to': '2023-06-15T18:00:00',
-          'location': 'Asturias'},
- 'method': 'POST',
- 'url': 'http://provider.local:9291/public/'}
-
-[...]
-
-2024-02-23 09:29:00 consumer __main__[41499] INFO Response:
-{'location': 'Asturias',
- 'results': [{'date': '2023-06-15T14:30:00+00:00', 'value': 16},
-             {'date': '2023-06-15T15:30:00+00:00', 'value': 4},
-             {'date': '2023-06-15T16:30:00+00:00', 'value': 49},
-             {'date': '2023-06-15T17:30:00+00:00', 'value': 1}]}
-
-[...]
+task up-provider-mock-api
 ```
 
-### Provider Push
-
-This example demonstrates the _Provider Push_ use case as defined in the [documentation of the Transfer Data Plane extension](https://github.com/eclipse-edc/Connector/tree/main/extensions/control-plane/transfer/transfer-data-plane).
-
-![HTTP Push example](./diagrams/http-push-example.png "HTTP Push example")
-
-> [!WARNING]
-> There is a known issue in the _Provider Push_ example where the Provider connector throws a `java.io.IOException: closed` exception when attempting to transfer the data. This happens arbitrarily, and we still haven't been able to identify the root cause.
+This command will start the Mock HTTP API as a Docker container. It will be accessible by default at port 9090:
 
 ```console
-vagrant@consumer:/vagrant$ task run-push-example-from-consumer
+$ docker ps
+CONTAINER ID   IMAGE                   COMMAND                  CREATED              STATUS              PORTS                    NAMES
+01665cb4bf43   mock-backend-http_api   "uvicorn http-api:ap…"   About a minute ago   Up About a minute   0.0.0.0:9090->9090/tcp   mock_backend_http_api
+```
 
-[...]
+If you visit the documentation at [http://localhost:9090/docs](http://localhost:9090/docs), you'll find that the Mock HTTP API exposes a couple of endpoints: one for executing an electricity consumption prediction model and another for retrieving electricity consumption data. These endpoints serve as mocks and return dummy data. The documentation is automatically generated from the OpenAPI schema file that describes the API.
 
-task: [run-push-example-from-consumer] $HOME/edc-venv/bin/python /vagrant/example/example_push.py
+**2. Generate a keystore containing the private key and certificate**
 
-[...]
+> [!WARNING]
+> We should eventually stop using keystores, as they have been marked as unsafe by the original authors of the connector.
 
-2024-02-23 09:33:03 consumer __main__[41771] INFO Received response from Mock Backend HTTP API:
-{'location': 'Asturias',
- 'results': [{'date': '2024-02-22T00:00:00+00:00', 'value': 85},
-             {'date': '2024-02-22T01:00:00+00:00', 'value': 77},
-             {'date': '2024-02-22T02:00:00+00:00', 'value': 63},
-             {'date': '2024-02-22T03:00:00+00:00', 'value': 16},
-             {'date': '2024-02-22T04:00:00+00:00', 'value': 10},
-             {'date': '2024-02-22T05:00:00+00:00', 'value': 36},
-             {'date': '2024-02-22T06:00:00+00:00', 'value': 46},
-             {'date': '2024-02-22T07:00:00+00:00', 'value': 48},
-             {'date': '2024-02-22T08:00:00+00:00', 'value': 9},
-             {'date': '2024-02-22T09:00:00+00:00', 'value': 50},
-             {'date': '2024-02-22T10:00:00+00:00', 'value': 12},
-             {'date': '2024-02-22T11:00:00+00:00', 'value': 70},
-             {'date': '2024-02-22T12:00:00+00:00', 'value': 41},
-             {'date': '2024-02-22T13:00:00+00:00', 'value': 59},
-             {'date': '2024-02-22T14:00:00+00:00', 'value': 63},
-             {'date': '2024-02-22T15:00:00+00:00', 'value': 86},
-             {'date': '2024-02-22T16:00:00+00:00', 'value': 100},
-             {'date': '2024-02-22T17:00:00+00:00', 'value': 34},
-             {'date': '2024-02-22T18:00:00+00:00', 'value': 81},
-             {'date': '2024-02-22T19:00:00+00:00', 'value': 55},
-             {'date': '2024-02-22T20:00:00+00:00', 'value': 49},
-             {'date': '2024-02-22T21:00:00+00:00', 'value': 58},
-             {'date': '2024-02-22T22:00:00+00:00', 'value': 41},
-             {'date': '2024-02-22T23:00:00+00:00', 'value': 89}]}
+The connector requires a password-protected keystore in PKCS12 format (`.pfx`) containing its private key and certificate.
 
-[...]
+In this example, we will generate the certificate and key manually. However, in a real-world scenario, the keystore could be dynamically created by reading the connector's wallet during connector initialization.
+
+To generate the keystore, run the following command:
+
+```console
+task create-example-certs-provider
+```
+
+This will [build a Docker image](scripts/Dockerfile) with the dependencies for the keystore generation script ([`create-certs.sh`](scripts/create-certs.sh)) and run a container that executes that script. The keystore will be saved in the `dev-config/certs-provider` directory:
+
+```console
+$ ls -lah dev-config/certs-provider/
+total 40
+drwxr-xr-x   6 agmangas  staff   192B Mar  7 14:19 .
+drwxr-xr-x  14 agmangas  staff   448B Mar  7 14:19 ..
+-rw-r--r--   1 agmangas  staff   2.0K Mar  7 14:19 cert.pem
+-rw-------   1 agmangas  staff   4.2K Mar  7 14:19 cert.pfx
+-rw-------   1 agmangas  staff   3.2K Mar  7 14:19 key.pem
+-rw-r--r--   1 agmangas  staff   2.1K Mar  7 14:19 vault.properties
+```
+
+You can modify the keystore password and the output directory by editing the variables in the [Taskfile](Taskfile.yml).
+
+**3. Prepare the configuration properties file**
+
+All the configuration details for the connector are defined in a properties file, which is passed as an argument to the connector JAR.
+
+The properties file for the provider is located at [`dev-config/dev-provider.properties`](dev-config/dev-provider.properties). We'll go through all the properties in the following paragraphs.
+
+```properties
+edc.participant.id=example-provider
+edc.ids.id=example-provider
+```
+
+These properties are the connector ID that uniquely identify each participant in the data space. Experience has shown that using the same value for both properties is preferable to avoid confusion.
+
+```properties
+edc.hostname=host.docker.internal
+```
+
+This should be the public hostname where the connector is deployed. Please note that it should be the name of the host machine, rather than the container's hostname.
+
+> [!NOTE]
+> You will notice that the properties file uses the [`host.docker.internal` hostname](https://docs.docker.com/desktop/networking/#i-want-to-connect-from-a-container-to-a-service-on-the-host). This hostname is special as it resolves to the host machine from within a Docker container.
+
+```properties
+web.http.port=19191
+web.http.path=/api
+web.http.management.port=19193
+web.http.management.path=/management
+web.http.protocol.port=19194
+web.http.protocol.path=/protocol
+web.http.public.port=19291
+web.http.public.path=/public
+web.http.control.port=19192
+web.http.control.path=/control
+```
+
+The ports and paths where the various interfaces of the connector are available. These interfaces include the Management, Protocol, Public and Control APIs.
+
+> [!NOTE]
+> The provider ports are configured to be `19xxx`, while the consumer ports are `29xxx`.
+
+```properties
+edc.dsp.callback.address=http://host.docker.internal:19194/protocol
+```
+
+This is the public Dataspace Protocol URL that other connectors will use to communicate with our connector. It should be based on the `edc.hostname`, `web.http.protocol.port` and `web.http.protocol.path` properties.
+
+```properties
+edc.receiver.http.endpoint=http://host.docker.internal:18000/pull
+```
+
+This is the URL where the Consumer Backend will be listening in the Consumer Pull use case. Since a connector strictly acting as a provider does not require a Consumer Backend service, this property is not relevant for the provider.
+
+```properties
+edc.dataplane.token.validation.endpoint=http://host.docker.internal:19192/control/token
+```
+
+Please check the [Data Plane API extension](https://github.com/eclipse-edc/Connector/blob/v0.5.1/extensions/data-plane/data-plane-control-api/README.md) for information regarding this property.
+
+```properties
+edc.public.key.alias=publickey
+edc.transfer.dataplane.token.signer.privatekey.alias=datacellar
+edc.transfer.proxy.token.signer.privatekey.alias=datacellar
+edc.transfer.proxy.token.verifier.publickey.alias=publickey
+```
+
+These are the aliases for the private key and public certificate. The value `publickey` refers to the key of the public certificate in the vault properties file ([`vault.properties`](dev-config/certs-provider/vault.properties)).
+
+```properties
+eu.datacellar.openapi.url=http://host.docker.internal:9090/openapi.json
+```
+
+> [!NOTE]
+> All properties with names starting with `eu.datacellar` are defined within the extensions contained in this repository and are not part of the original connector codebase.
+
+This is the URL where the OpenAPI schema file of the Mock HTTP API is accessible. The connector will retrieve this file to dynamically build the assets and expose them to the data space.
+
+Finally, the `eu.datacellar.wallet.*`, `eu.datacellar.trust.*` and `eu.datacellar.uniresolver.*` properties are part of the W3C Verifiable Credentials extension and are not relevant for this example either.
+
+**4. Deploy the connector**
+
+You need to deploy the stack defined in `docker-compose-provider.yml` to start the provider connector:
+
+```console
+docker compose -f ./docker-compose-provider.yml up -d --build --wait
+```
+
+This command will build the image defined in the [`Dockerfile`](Dockerfile) and run a container using the properties file and keystore that we prepared earlier.
+
+Once the provider connector is running, you can check its status by running the following command:
+
+```console
+$ docker ps -a --filter name="provider.*"
+CONTAINER ID   IMAGE          COMMAND                  CREATED          STATUS          PORTS                                                            NAMES
+2fb81b1dc25b   671518adc863   "/bin/sh -c '${PATH_…"   16 minutes ago   Up 16 minutes   0.0.0.0:19191-19194->19191-19194/tcp, 0.0.0.0:19291->19291/tcp   provider
+```
+
+#### Consumer
+
+After deploying the provider, we can proceed with deploying the consumer's services.
+
+**1. Generate a keystore containing the private key and certificate**
+
+This step is equivalent to the one we performed for the provider. The only difference is that the keystore will be saved in the `dev-config/certs-consumer` directory:
+
+```console
+task create-example-certs-consumer
+```
+
+**2. Prepare the configuration properties file**
+
+The properties file for the consumer is located at [`dev-config/dev-consumer.properties`](dev-config/dev-consumer.properties).
+
+The properties are similar to the ones used for the provider, with the exception that, in the case of the consumer, the `edc.receiver.http.endpoint` property must point to the Consumer Pull URL of the Consumer Backend service (see the `consumer_backend` service in the [`docker-compose-consumer.yml`](docker-compose-consumer.yml) file):
+
+```properties
+edc.receiver.http.endpoint=http://host.docker.internal:28000/pull
+```
+
+**3. Deploy the connector alongside the Consumer Backend and the message broker**
+
+> [!TIP]
+> Check the [FAQs](#frequently-asked-questions) to see why a **message broker** is necessary and what a **Consumer Backend** is.
+
+You need to deploy the stack defined in `docker-compose-consumer.yml` to start the consumer connector, the consumer backend and the message broker:
+
+```console
+docker compose -f ./docker-compose-consumer.yml up -d --build --wait
+```
+
+The connector image is the same as the one used for the provider, so the build should be much faster this time.
+
+Once the consumer services are running, you can check their status by running the following command:
+
+```console
+$ docker ps -a --filter name="consumer.*"
+CONTAINER ID   IMAGE                      COMMAND                  CREATED         STATUS         PORTS                                                                                                         NAMES
+2db8c161dcb6   edc-connector              "/bin/sh -c '${PATH_…"   5 minutes ago   Up 5 minutes   0.0.0.0:29191-29194->29191-29194/tcp, 0.0.0.0:29291->29291/tcp                                                consumer
+23c40c1a3675   edc-connector              "run-http-backend"       5 minutes ago   Up 5 minutes   0.0.0.0:28000->28000/tcp                                                                                      consumer_backend
+5530123dbee6   rabbitmq:3.11-management   "docker-entrypoint.s…"   5 minutes ago   Up 5 minutes   4369/tcp, 5671/tcp, 0.0.0.0:5672->5672/tcp, 15671/tcp, 15691-15692/tcp, 25672/tcp, 0.0.0.0:15672->15672/tcp   consumer_broker
 ```
 
 ## Frequently Asked Questions
+
+**What exactly is a _Consumer Backend_?**
+
+A **Consumer Backend** is a service within the connector ecosystem with two primary responsibilities:
+
+* In the [Consumer Pull](https://github.com/eclipse-edc/Connector/tree/main/extensions/control-plane/transfer/transfer-data-plane#consumer-pull) use case, it receives the `EndpointDataReference` object from the provider side. This object contains details on how and where to send the HTTP request to obtain the final response.
+* In the [Provider Push](https://github.com/eclipse-edc/Connector/tree/main/extensions/control-plane/transfer/transfer-data-plane#provider-push) use case, it receives the actual final response.
+
+The **Consumer Backend** implementation—the implementation of the `run-http-backend` command—is provided out-of-the-box by the [`edcpy`](edcpy) package. It does not need to be developed by each participant.
 
 **How does the provider know how to expose the Mock Backend HTTP API and create the related assets in the data space?**
 
