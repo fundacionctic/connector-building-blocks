@@ -8,6 +8,8 @@
     - [Configuration and Deployment](#configuration-and-deployment)
       - [Provider](#provider)
       - [Consumer](#consumer)
+    - [Run the Consumer Pull example script](#run-the-consumer-pull-example-script)
+    - [Run the Provider Push example script](#run-the-provider-push-example-script)
   - [Frequently Asked Questions](#frequently-asked-questions)
 
 > [!WARNING]
@@ -25,7 +27,7 @@ The repository is organized as follows:
 
 * The `connector` folder contains a Java project with a very early draft version of the connector extensions and a connector launcher.
 * The `mock-backend` folder contains an example HTTP API as exposed by a data space participant. This API is described by an [OpenAPI](https://learn.openapis.org/) document. The logic of the component itself does not hold any value; its purpose is to demonstrate where each participant should contribute.
-* The `edcpy` folder contains a Python package built on top of Poetry, providing a series of utilities to interact with a data space based on the EDC ecosystem. For example, it contains the logic to execute all the necessary HTTP requests to successfully complete a transfer process. Additionally, it offers an example implementation of a [Consumer Backend](https://github.com/eclipse-edc/Connector/tree/main/extensions/control-plane/transfer/transfer-data-plane).
+* The `edcpy` folder contains a Python package built on top of Poetry, providing a series of utilities to interact with a data space based on the EDC ecosystem. For example, it contains the logic to execute all the necessary HTTP requests to successfully complete a transfer process. Additionally, it offers an example implementation of a consumer backend.
 * The `dev-config` and `example` folders, alongside the `Vagrantfile`, contain the configuration and scripts necessary to deploy a consumer and a provider, and to demonstrate end-to-end communications based on the Dataspace Protocol between them.
 
 ## Public Artifacts
@@ -55,6 +57,7 @@ The example in this section will illustrate the following scenario:
 * Both the provider and the consumer have installed the following prerequisites:
   * [Docker](https://www.docker.com/products/docker-desktop/): All services, including the connector, will be deployed as Docker containers.
   * [Taskfile](https://taskfile.dev/): We'll use Taskfile as a task runner in this example to simplify the deployment process and ensure its reproducibility.
+  * Python and [Poetry](https://python-poetry.org/): To run the example scripts.
 * To simplify the example, no authentication will be used. Nevertheless, it's worth noting that the connector will eventually support authentication via W3C Verifiable Credentials (VC) for real-world scenarios.
 
 > [!NOTE]
@@ -260,6 +263,141 @@ CONTAINER ID   IMAGE                      COMMAND                  CREATED      
 2db8c161dcb6   edc-connector              "/bin/sh -c '${PATH_…"   5 minutes ago   Up 5 minutes   0.0.0.0:29191-29194->29191-29194/tcp, 0.0.0.0:29291->29291/tcp                                                consumer
 23c40c1a3675   edc-connector              "run-http-backend"       5 minutes ago   Up 5 minutes   0.0.0.0:28000->28000/tcp                                                                                      consumer_backend
 5530123dbee6   rabbitmq:3.11-management   "docker-entrypoint.s…"   5 minutes ago   Up 5 minutes   4369/tcp, 5671/tcp, 0.0.0.0:5672->5672/tcp, 15671/tcp, 15691-15692/tcp, 25672/tcp, 0.0.0.0:15672->15672/tcp   consumer_broker
+```
+
+### Run the Consumer Pull example script
+
+This example demonstrates the **Consumer Pull** type of data transfer as defined in the [Transfer Data Plane](https://github.com/eclipse-edc/Connector/tree/v0.5.1/extensions/control-plane/transfer/transfer-data-plane) extension.
+
+In this case, the consumer _pulls_ data from the provider by sending HTTP requests to the provider’s data plane public API. The provider proxies these requests to the Mock HTTP API. A single access token can be reused to send multiple requests to the same HTTP endpoint with different body contents and query arguments.
+
+The diagram below presents an overview of this data transfer process as implemented in this example:
+
+![Consumer Pull diagram](diagrams/http-pull-example.png)
+
+It is interesting to note that when the consumer application sends a request to the HTTP API through the provider connector, the provider connector acts as a proxy (step 6 in the diagram). This means that the HTTP API is not directly exposed to the Internet, and its access is controlled by the provider connector, even if the HTTP API itself does not implement any authentication mechanism.
+
+The example is implemented in the [`example_pull.py`](example/example_pull.py) script.
+
+The following list presents some key points about the script to help you understand what it does and how it works:
+
+* The script uses the `edcpy` package to interact with the connector. This is just a convenience, and you can implement the same logic using any programming language. In other words, `edcpy` is not a requirement to interact with the connector; it's just a tool to make the process easier.
+* The `edcpy` package basically implements the logic described in the [transfer samples of the eclipse-edc/Samples](https://github.com/eclipse-edc/Samples/tree/main/transfer) repository. Instead of having to manually execute the HTTP requests, the package encapsulates this logic in a more developer-friendly way.
+* The `ConnectorController` is the main entry point in `edcpy` to interact with the connector. Instances of this class can be configured via environment variables that have the prefix `EDC_` or directly through the constructor. See the [`edcpy/config.py`](edcpy/config.py) file for more details on the available configuration options.
+* The script itself is also configured via environment variables (check the `AppConfig` class).
+* The script utilises an `asyncio.Queue` to asynchronously buffer messages from the message broker. Using a queue is not mandatory, you can implement the same logic using any other mechanism. The details of dealing with the message broker are abstracted by the `with_messaging_app` context manager.
+* To consume an asset from a connector, you need to know the asset ID (e.g. `GET-consumption`). In this example, the asset ID is hardcoded in the script, but in a real-world scenario, it could be dynamically retrieved from the catalogue of the connector.
+
+> [!TIP]
+> We highly recommend you to check the [transfer samples in eclipse-edc/Samples](https://github.com/eclipse-edc/Samples/tree/main/transfer) to better understand what the script is doing.
+
+To run the script, the first thing we need to do is ensure that the appropriate environment variables are set. You can export the variables to your shell by running the following command:
+
+```console
+export $(grep -v '^#' ./dev-config/.env.dev.consumer | xargs)
+```
+
+You can check that the variables were correctly set:
+
+```console
+$ env | grep EDC
+EDC_CONNECTOR_HOST=host.docker.internal
+EDC_CONNECTOR_CONNECTOR_ID=example-consumer
+EDC_CONNECTOR_PARTICIPANT_ID=example-consumer
+EDC_CONNECTOR_MANAGEMENT_PORT=29193
+EDC_CONNECTOR_CONTROL_PORT=29192
+EDC_CONNECTOR_PUBLIC_PORT=29291
+EDC_CONNECTOR_PROTOCOL_PORT=29194
+EDC_RABBIT_URL=amqp://guest:guest@localhost:5672
+```
+
+Then, ensure that the dependencies of the `edcpy` package are installed. A Python virtualenv will be created in `.venv`:
+
+```console
+$ cd edcpy
+$ poetry install
+
+[...]
+
+  • Installing environ-config (23.2.0)
+  • Installing fastapi (0.109.2)
+  • Installing faststream (0.4.3)
+  • Installing pyjwt (2.8.0)
+  • Installing pytest (7.4.4)
+  • Installing python-slugify (8.0.4)
+  • Installing requests (2.31.0)
+
+Installing the current project: edcpy (0.2.0a0)
+```
+
+Finally, you can run the example script:
+
+```console
+$ poetry run python ../example/example_pull.py
+
+[...]
+
+2024-03-07 18:37:51 agmangas-macpro-m1.local __main__[44749] INFO Sending HTTP POST request with arguments:
+{'headers': {'Authorization': 'eyJhbGciOiJSUzI1NiJ9.eyJleHAiOjE3MDk4MzM2NzEsImRhZCI6IntcInByb3BlcnRpZXNcIjp7XCJwYXRoXCI6XCIvY29uc3VtcHRpb24vcHJlZGljdGlvblwiLFwibWV0aG9kXCI6XCJQT1NUXCIsXCJodHRwczovL3czaWQub3JnL2VkYy92MC4wLjEvbnMvdHlwZVwiOlwiSHR0cERhdGFcIixcInByb3h5UXVlcnlQYXJhbXNcIjpcInRydWVcIixcIm5hbWVcIjpcImRhdGEtYWRkcmVzcy1QT1NULWNvbnN1bXB0aW9uLXByZWRpY3Rpb25cIixcInByb3h5Qm9keVwiOlwidHJ1ZVwiLFwiY29udGVudFR5cGVcIjpcImFwcGxpY2F0aW9uL2pzb25cIixcImh0dHBzOi8vdzNpZC5vcmcvZWRjL3YwLjAuMS9ucy9iYXNlVXJsXCI6XCJodHRwOi8vaG9zdC5kb2NrZXIuaW50ZXJuYWw6OTA5MFwifX0ifQ.Yj1JPPHjc3ELFvIb_V95hFGDEuPt1S0Or7Lgmu7LFxgkQGsNYRq6W45Jt2TAILGrCv34L1g8DQiB5NT3hhnnGHXn9O95-PKyWlzDLFpf4iFQzwkXJJbTA7kDCrGiyqTmgZMfI3U-CDcO_BuTuBk-G6I5fJE15elnyNRhXK7feOTrzwrz0Cz2Xdzj0cUn_MCDfeSMFWFzatDJm-2nRCElEnqpr3ouFVw-Xhq0XAAEB8nF4-0BM-HzBfQ5V8qLp8rxE_ExzkJaDmUAsVRSvJv9C1nnfIkkWn8geYV0-SxRkHx8mTjQLl9jAL3Nq_pBT8rrrtV7b8dYX42McMKDS7YPKdyqFss8jm4dUO2CWEfbEhOoapT0qN93l3W-OLwuthJxoaq4tpSQ3zsHHPZuaOS-HdcU45x_0vS1zGzPhII1chDPi3nH18_7ebu4FDG6smbB3ew1k4Kv0AH09wLNNUzqaXwhbb0ajBd-QNT3M3cTDSVBWlpgP07OTzWYVnXvJqQRbSXqlX30mjyYv19L6TtDJCtw9DIMKftURPHrmqDh4QKExrafZmUQcUfABfakmcHGB2XW5L-Yv6ba9bHMYkDAVE5SXme4gzcJXwfM3e4wm9XyBwu3sPzjlocAPpmhqBij8zhLRilIHbuSJqq8tuJqffmjO94GhCgwSSSzgYieaJg'},
+ 'json': {'date_from': '2023-06-15T14:30:00',
+          'date_to': '2023-06-15T18:00:00',
+          'location': 'Asturias'},
+ 'method': 'POST',
+ 'url': 'http://host.docker.internal:19291/public/'}
+
+2024-03-07 18:37:51 agmangas-macpro-m1.local httpx[44749] INFO HTTP Request: POST http://host.docker.internal:19291/public/ "HTTP/1.1 200 OK"
+
+2024-03-07 18:37:51 agmangas-macpro-m1.local __main__[44749] INFO Response:
+{'location': 'Asturias',
+ 'results': [{'date': '2023-06-15T14:30:00+00:00', 'value': 82},
+             {'date': '2023-06-15T15:30:00+00:00', 'value': 82},
+             {'date': '2023-06-15T16:30:00+00:00', 'value': 97},
+             {'date': '2023-06-15T17:30:00+00:00', 'value': 88}]}
+
+[...]
+```
+
+### Run the Provider Push example script
+
+This example demonstrates the **Provider Push** data transfer type, which is the alternative to the aforementioned Consumer Pull type.
+
+In this case, the provider pushes data to the consumer by sending HTTP requests to the consumer's backend directly. These requests contain the responses from the Mock HTTP API.
+
+![Provider Push diagram](diagrams/http-push-example.png)
+
+If you have already set the environment variables for the consumer and installed the dependencies for the `edcpy` package, you can run the example script:
+
+```console
+$ poetry run python ../example/example_push.py
+
+[...]
+
+2024-03-07 20:42:12 agmangas-macpro-m1.local __main__[57376] INFO Received response from Mock Backend HTTP API:
+{'location': 'Asturias',
+ 'results': [{'date': '2024-03-06T00:00:00+00:00', 'value': 72},
+             {'date': '2024-03-06T01:00:00+00:00', 'value': 39},
+             {'date': '2024-03-06T02:00:00+00:00', 'value': 52},
+             {'date': '2024-03-06T03:00:00+00:00', 'value': 36},
+             {'date': '2024-03-06T04:00:00+00:00', 'value': 53},
+             {'date': '2024-03-06T05:00:00+00:00', 'value': 82},
+             {'date': '2024-03-06T06:00:00+00:00', 'value': 86},
+             {'date': '2024-03-06T07:00:00+00:00', 'value': 39},
+             {'date': '2024-03-06T08:00:00+00:00', 'value': 19},
+             {'date': '2024-03-06T09:00:00+00:00', 'value': 61},
+             {'date': '2024-03-06T10:00:00+00:00', 'value': 30},
+             {'date': '2024-03-06T11:00:00+00:00', 'value': 99},
+             {'date': '2024-03-06T12:00:00+00:00', 'value': 18},
+             {'date': '2024-03-06T13:00:00+00:00', 'value': 0},
+             {'date': '2024-03-06T14:00:00+00:00', 'value': 76},
+             {'date': '2024-03-06T15:00:00+00:00', 'value': 91},
+             {'date': '2024-03-06T16:00:00+00:00', 'value': 6},
+             {'date': '2024-03-06T17:00:00+00:00', 'value': 72},
+             {'date': '2024-03-06T18:00:00+00:00', 'value': 55},
+             {'date': '2024-03-06T19:00:00+00:00', 'value': 64},
+             {'date': '2024-03-06T20:00:00+00:00', 'value': 7},
+             {'date': '2024-03-06T21:00:00+00:00', 'value': 35},
+             {'date': '2024-03-06T22:00:00+00:00', 'value': 22},
+             {'date': '2024-03-06T23:00:00+00:00', 'value': 29}]}
 ```
 
 ## Frequently Asked Questions
