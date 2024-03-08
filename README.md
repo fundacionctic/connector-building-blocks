@@ -23,6 +23,9 @@ This repository contains a collection of software components that aim at simplif
 * An EDC connector extension that implements authentication via W3C Verifiable Credentials.
 * A Python library that implements the logic to interact with the [Management](https://app.swaggerhub.com/apis/eclipse-edc-bot/management-api) and [Control](https://app.swaggerhub.com/apis/eclipse-edc-bot/control-api) APIs of the EDC connector to go through the necessary steps to transfer data between two participants in the data space.
 
+> [!TIP]
+> Extensions are self-contained software components that add new functionalities to the connector. For example, there are extensions to add authentication based on OAuth2 and to enable the connector to serve files from S3 buckets. In this instance, we are developing our own connector extensions to tailor the connector to our specific use case. Check the [basic EDC connector samples](https://github.com/eclipse-edc/Samples/blob/main/basic/basic-02-health-endpoint/README.md) to get a better understanding of how extensions work.
+
 The repository is organized as follows:
 
 * The `connector` folder contains a Java project with a very early draft version of the connector extensions and a connector launcher.
@@ -428,14 +431,14 @@ The [Management](https://app.swaggerhub.com/apis/eclipse-edc-bot/management-api)
 
 However, it's important to note that the use of Python is not mandatory. The `edcpy` package is designed to (hopefully) facilitate the development process, but if you prefer to use another programming language, you have the flexibility to build your own _consumer backend_ and directly communicate with the Management API.
 
-**What are the minimum requirements that an HTTP API must have to be interoperable with the _Core Connector_?**
+**What are the minimum requirements that an HTTP API must have to be interoperable with the OpenAPI connector extension?**
 
-We will strive to ensure that the core connector is compatible with any arbitrary HTTP API, as long as it is properly described using the OpenAPI specification.
+We will strive to ensure that our connector is compatible with any arbitrary HTTP API, as long as it is properly described using the OpenAPI specification.
 
 This means that you should have the liberty of using whatever technology stack you feel more comfortable with to develop the API.
 
 **Are OpenAPI-based APIs the only supported data sources?**
 
-Yes, for the time being. The _Core Connector_ is still in its early stages of development, and we are focusing on the most common use cases. However, we are open to expanding the scope of the project in the future.
+Yes, for the time being. These connector extensions are still in their early stages of development, and we are focusing on the most common use cases. However, we are open to expanding the scope of the project in the future.
 
 In any case, the OpenAPI specification is flexible enough to describe a wide variety of APIs. It should be fairly simple to expose your existing data source as an OpenAPI-based API.
