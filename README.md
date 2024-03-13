@@ -15,6 +15,13 @@
 > [!CAUTION]
 > Please note that most of the code in this repository is still a work in progress and will thus likely go through several breaking changes throughout its development.
 
+## ToDo
+
+- [ ] Finalise the design of our authentication extension, which will be based on W3C Verifiable Credentials (VC) and Decentralised Identifiers (DID).
+- [ ] Improve the documentation to demonstrate the integration of W3C VC and DID into the deployment process.
+- [ ] Remove the need to use PKCS12 keystores in production.
+- [ ] Consider writing additional examples of deployment.
+
 ## Introduction
 
 This repository contains a collection of software components that aim at simplifying the deployment of data space connectors based on the [Eclipse Dataspace Components](https://eclipse-edc.github.io/docs/#/) (EDC) ecosystem and the interactions of applications with those connectors. Specifically, the following components are provided here:
