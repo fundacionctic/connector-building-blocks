@@ -40,6 +40,9 @@ The repository is organized as follows:
 * The `edcpy` folder contains a Python package built on top of Poetry, providing a series of utilities to interact with a data space based on the EDC ecosystem. For example, it contains the logic to execute all the necessary HTTP requests to successfully complete a transfer process. Additionally, it offers an example implementation of a _consumer backend_.
 * The `dev-config` and `example` folders, alongside the `Vagrantfile`, contain the configuration and scripts necessary to deploy a consumer and a provider, and to demonstrate end-to-end communications based on the Dataspace Protocol between them.
 
+> [!TIP]
+> The example can be deployed using only Docker, with both the provider and the consumer on the same machine. Another option is to use [Vagrant](https://developer.hashicorp.com/vagrant/docs) (see the `Vagrantfile`), which results in the consumer and provider each having their own separate Virtual Machine (VM). This README focuses on the first option, based solely on Docker for simplicity.
+
 ## Public Artifacts
 
 This repository publishes two software artifacts for convenience:
