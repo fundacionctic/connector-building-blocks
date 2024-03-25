@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.IntStream;
 
@@ -14,6 +15,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -164,6 +166,90 @@ public class WaltIDIdentityServices {
         monitor.debug("Got wallet token: " + token);
 
         return token;
+    }
+
+    /**
+     * Retrieves the key as a JWK (JSON Web Key) for the specified DID holder.
+     *
+     * @param didHolder The DID holder to retrieve the key for.
+     * @return The key in JWK format.
+     * @throws IOException If an I/O error occurs while making the request.
+     */
+    public JSONObject getKeyAsJWK(String didHolder) throws IOException {
+        String token = getWalletToken();
+
+        String keyId = null;
+
+        if (didHolder.contains("#")) {
+            String[] parts = didHolder.split("#");
+            keyId = parts[parts.length - 1];
+            monitor.debug("Key ID is already contained in DID: %s".formatted(didHolder));
+        }
+
+        if (keyId == null) {
+            String urlListDids = walletUrl + "/wallet-api/wallet/" + walletId + "/dids";
+
+            Request reqListDids = new Request.Builder()
+                    .url(urlListDids)
+                    .get()
+                    .addHeader("Authorization", String.format("Bearer %s", token))
+                    .build();
+
+            monitor.debug("Looking for DID: %s".formatted(didHolder));
+
+            Response resListDids = client.newCall(reqListDids).execute();
+
+            if (!resListDids.isSuccessful()) {
+                String errMsg = "HTTP request to export key failed with status code: %s".formatted(resListDids.code());
+                monitor.warning(errMsg);
+                throw new RuntimeException(errMsg);
+            }
+
+            String resBodyListDids = resListDids.body().string();
+            monitor.debug("List DIDs raw response: %s".formatted(resBodyListDids));
+            JSONArray didsArr = new JSONArray(resBodyListDids);
+
+            Optional<JSONObject> latestObject = IntStream.range(0, didsArr.length())
+                    .mapToObj(didsArr::getJSONObject)
+                    .filter(obj -> obj.getString("did").equals(didHolder))
+                    .max(Comparator.comparing(obj -> ZonedDateTime.parse(obj.getString("createdOn"))));
+
+            if (!latestObject.isPresent()) {
+                String errMsg = "DID not found: %s".formatted(didHolder);
+                monitor.warning(errMsg);
+                throw new RuntimeException(errMsg);
+            }
+
+            JSONObject selectedDid = latestObject.get();
+            keyId = selectedDid.getString("keyId");
+        }
+
+        monitor.info("Exporting key with ID: %s".formatted(keyId));
+
+        String baseUrl = walletUrl + "/wallet-api/wallet/" + walletId + "/keys/export/" + keyId;
+        HttpUrl.Builder urlBuilder = HttpUrl.parse(baseUrl).newBuilder();
+        urlBuilder.addQueryParameter("format", "JWK");
+        urlBuilder.addQueryParameter("loadPrivateKey", "true");
+        String urlGetKey = urlBuilder.build().toString();
+
+        Request reqKey = new Request.Builder()
+                .url(urlGetKey)
+                .get()
+                .addHeader("Authorization", String.format("Bearer %s", token))
+                .build();
+
+        Response resKey = client.newCall(reqKey).execute();
+
+        if (!resKey.isSuccessful()) {
+            String errMsg = "HTTP request to export key failed with status code: %s".formatted(resKey.code());
+            monitor.warning(errMsg);
+            throw new RuntimeException(errMsg);
+        }
+
+        String resBodyKey = resKey.body().string();
+        monitor.debug("Export key raw response: %s".formatted(resBodyKey));
+
+        return new JSONObject(resBodyKey);
     }
 
     /**

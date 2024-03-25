@@ -3,10 +3,6 @@ package eu.datacellar.iam;
 import static java.lang.String.format;
 
 import java.io.IOException;
-import java.security.interfaces.RSAPublicKey;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
 import org.eclipse.edc.spi.iam.ClaimToken;
@@ -20,16 +16,7 @@ import org.json.JSONObject;
 
 import eu.datacellar.iam.WaltIDIdentityServices.MatchCredentialsResponse;
 import eu.datacellar.iam.WaltIDIdentityServices.PresentationDefinition;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.JwtException;
-import io.jsonwebtoken.JwtParserBuilder;
-import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Jwk;
-import io.jsonwebtoken.security.Jwks;
-import io.jsonwebtoken.security.RsaPublicJwk;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
 
 /**
  * This class represents a VCIdentityService that implements the IdentityService
@@ -43,13 +30,7 @@ public class VCIdentityService implements IdentityService {
     private final String clientId;
     private final WaltIDIdentityServices identityServices;
     private final String didTrustAnchor;
-    private final String uniresolverUrl;
-    private final Map<String, DIDCacheEntry> didCache = new java.util.HashMap<>();
-
-    private static final String KTY_RSA = "RSA";
-    private static final String JWT_VC_KEY = "vc";
-    private static final long CLOCK_SKEW_SECONDS = 300;
-    private static final long DID_CACHE_TTL_SECONDS = 60 * 5;
+    private final KeyResolver keyResolver;
 
     /**
      * This class represents a VCIdentityService, which is responsible for managing
@@ -70,74 +51,7 @@ public class VCIdentityService implements IdentityService {
         this.clientId = clientId;
         this.identityServices = identityServices;
         this.didTrustAnchor = didTrustAnchor;
-        this.uniresolverUrl = uniresolverUrl;
-    }
-
-    private JSONObject resolveTrustAnchorDIDToJson() throws IOException {
-        if (!didTrustAnchor.startsWith("did:web:")) {
-            throw new IllegalArgumentException("Only did:web is supported: " + didTrustAnchor);
-        }
-
-        if (didCache.containsKey(didTrustAnchor)) {
-            DIDCacheEntry cacheEntry = didCache.get(didTrustAnchor);
-
-            if (!cacheEntry.isExpired()) {
-                monitor.debug("Using cached DID document: %s".formatted(didTrustAnchor));
-                return cacheEntry.getDidJson();
-            } else {
-                monitor.debug("Cached DID document expired: %s".formatted(didTrustAnchor));
-            }
-        }
-
-        String urlDID = "%s/%s".formatted(uniresolverUrl.replaceAll("/+$", ""), didTrustAnchor);
-
-        OkHttpClient client = new OkHttpClient();
-
-        Request request = new Request.Builder()
-                .url(urlDID)
-                .header("Accept", "application/did+json")
-                .get()
-                .build();
-
-        Response response = client.newCall(request).execute();
-
-        if (!response.isSuccessful()) {
-            throw new RuntimeException(
-                    String.format("HTTP request to resolve DID failed with status code: %s", response.code()));
-        }
-
-        String responseBody = response.body().string();
-        monitor.debug("Raw response: " + responseBody);
-        JSONObject didJsonObj = new JSONObject(responseBody);
-
-        if (didCache.containsKey(didTrustAnchor)) {
-            didCache.remove(didTrustAnchor);
-        }
-
-        didCache.put(didTrustAnchor, new DIDCacheEntry(didJsonObj, System.currentTimeMillis()));
-
-        return didJsonObj;
-    }
-
-    private Jwk<?> resolveTrustAnchorDIDToPublicKeyJWK() throws IOException {
-        JSONObject didJsonObj = resolveTrustAnchorDIDToJson();
-
-        return Jwks.parser().build().parse(didJsonObj
-                .getJSONArray("verificationMethod")
-                .getJSONObject(0)
-                .getJSONObject("publicKeyJwk")
-                .toString());
-    }
-
-    private RSAPublicKey getRSAPublicKeyFromJWK(Jwk<?> jwk) {
-        if (!jwk.getType().equalsIgnoreCase(KTY_RSA)) {
-            throw new IllegalArgumentException("Expected RSA public key, got: '%s' instead.".formatted(jwk.getType()));
-        }
-
-        RsaPublicJwk rsaPublicJwk = (RsaPublicJwk) jwk;
-        RSAPublicKey rsaPublicKey = rsaPublicJwk.toKey();
-
-        return rsaPublicKey;
+        this.keyResolver = new KeyResolver(uniresolverUrl, monitor);
     }
 
     @Override
@@ -151,21 +65,45 @@ public class VCIdentityService implements IdentityService {
         MatchCredentialsResponse matchCredentialsResponse;
 
         try {
+            // ToDo: Refine the presentation definition
             matchCredentialsResponse = identityServices
                     .matchCredentials(presentationDefinition);
         } catch (IOException e) {
-            monitor.warning("Failed to match credentials", e);
-            return Result.failure("Failed to match credentials: " + e.getMessage());
+            return Result.failure("Failed to match credentials: %s".formatted(e.getMessage()));
         }
 
         String jwtEncodedVC = matchCredentialsResponse.getMostRecentJWTEncoded();
-
         monitor.debug("JWT-encoded Verifiable Credential: %s".formatted(jwtEncodedVC));
 
-        var token = new VerifiableCredentialsToken();
+        Jwk<?> anchorJwk;
+
+        try {
+            anchorJwk = keyResolver.resolveDIDToPublicKeyJWK(didTrustAnchor);
+        } catch (IOException e) {
+            return Result.failure("Failed to resolve DID trust anchor: %s".formatted(e.getMessage()));
+        }
+
+        PresentationBuilder presentationBuilder = new PresentationBuilder(anchorJwk, identityServices);
+
+        presentationBuilder
+                .addJwtCredential(jwtEncodedVC)
+                .setAudience(parameters.getAudience());
+
+        String jwtEncodedVP;
+
+        try {
+            jwtEncodedVP = presentationBuilder.buildPresentationJwt();
+        } catch (IOException e) {
+            return Result.failure("Failed to build presentation: %s".formatted(e.getMessage()));
+        }
+
+        monitor.debug("JWT-encoded Verifiable Presentation: %s".formatted(jwtEncodedVP));
+
+        var token = new VerifiablePresentationToken();
         token.setAudience(parameters.getAudience());
         token.setClientId(clientId);
-        token.setVcAsJwt(jwtEncodedVC);
+        token.setJwtVerifiablePresentation(jwtEncodedVP);
+        token.setClientDid(presentationBuilder.getHolderDid());
 
         TokenRepresentation tokenRepresentation = TokenRepresentation.Builder.newInstance()
                 .token(typeManager.writeValueAsString(token))
@@ -176,9 +114,10 @@ public class VCIdentityService implements IdentityService {
 
     @Override
     public Result<ClaimToken> verifyJwtToken(TokenRepresentation tokenRepresentation, String audience) {
-        monitor.info(String.format("verifyJwtToken: %s", tokenRepresentation.getToken()));
+        monitor.debug("verifyJwtToken.tokenRepresentation: %s".formatted(tokenRepresentation.getToken()));
+        monitor.debug("verifyJwtToken.audience: %s".formatted(audience));
 
-        var token = typeManager.readValue(tokenRepresentation.getToken(), VerifiableCredentialsToken.class);
+        var token = typeManager.readValue(tokenRepresentation.getToken(), VerifiablePresentationToken.class);
 
         if (!Objects.equals(token.audience, audience)) {
             return Result.failure(format("Mismatched audience: expected %s, got %s", audience, token.audience));
@@ -187,67 +126,56 @@ public class VCIdentityService implements IdentityService {
         Jwk<?> anchorJwk;
 
         try {
-            anchorJwk = resolveTrustAnchorDIDToPublicKeyJWK();
+            anchorJwk = keyResolver.resolveDIDToPublicKeyJWK(didTrustAnchor);
         } catch (IOException e) {
-            return Result.failure("Failed to resolve DID trust anchor: %s".formatted(e.getMessage()));
+            return Result.failure("Failed to resolve trust anchor DID: %s".formatted(e.getMessage()));
         }
 
-        List<String> supportedKeyTypes = Arrays.asList(KTY_RSA);
-        String keyTypeErrorMsg = "Key type '%s' is not supported".formatted(anchorJwk.getType());
-
-        if (!supportedKeyTypes.contains(anchorJwk.getType())) {
-            return Result.failure(keyTypeErrorMsg);
-        }
-
-        Claims jwtClaims;
+        Jwk<?> counterPartyJwk;
 
         try {
-            JwtParserBuilder jwtParserBuilder = Jwts.parser();
-
-            if (anchorJwk.getType().equalsIgnoreCase(KTY_RSA)) {
-                jwtParserBuilder.verifyWith(getRSAPublicKeyFromJWK(anchorJwk));
-            } else {
-                return Result.failure(keyTypeErrorMsg);
-            }
-
-            jwtClaims = jwtParserBuilder
-                    .clockSkewSeconds(CLOCK_SKEW_SECONDS)
-                    .build()
-                    .parseSignedClaims(token.getVcAsJwt())
-                    .getPayload();
-        } catch (JwtException e) {
-            return Result.failure("JWT parse exception: %s".formatted(e.getMessage()));
+            counterPartyJwk = keyResolver.resolveDIDToPublicKeyJWK(token.getClientDid());
+        } catch (IOException e) {
+            return Result.failure("Failed to resolve counter-party DID: %s".formatted(e.getMessage()));
         }
 
-        if (!jwtClaims.containsKey(JWT_VC_KEY)) {
-            return Result.failure(
-                    "JWT does not contain a Verifiable Credential (key=%s)".formatted(JWT_VC_KEY));
+        // This VP should fulfill the following conditions:
+        // 1. Both the subject and the issuer of this VP should be the same DID.
+        // 2. The subjects of all the VC in the VP should be the issuer of the VP.
+        // 3. The VC in the VP should be signed by the trust anchor.
+        PresentationParser presentationParser = new PresentationParser(
+                token.getJwtVerifiablePresentation(),
+                anchorJwk,
+                counterPartyJwk);
+
+        try {
+            presentationParser.validate();
+        } catch (Exception e) {
+            return Result.failure("Failed to validate presentation: %s".formatted(e.getMessage()));
         }
 
-        @SuppressWarnings("unchecked")
-        Map<String, Object> vcMap = (Map<String, Object>) jwtClaims.get(JWT_VC_KEY);
-        JSONObject vcJsonObject = new JSONObject(vcMap);
-        String vcJsonString = vcJsonObject.toString();
+        JSONObject vpJsonObject = PresentationParser.vpJsonObjectFromClaims(presentationParser.getClaims());
+        monitor.debug("Counter-party VP JSON object: %s".formatted(vpJsonObject.toString()));
 
-        monitor.debug("JSON-encoded counter-party Verifiable Credential: %s".formatted(vcJsonString));
-
+        // ToDo: Add the claims extracted from the VP to the token
         return Result.success(ClaimToken.Builder.newInstance()
                 .claim("region", token.region)
                 .claim("client_id", token.clientId)
-                .claim("sub", jwtClaims.getSubject())
-                .claim("iss", jwtClaims.getIssuer())
-                .claim("exp", jwtClaims.getExpiration().getTime())
-                .claim("iat", jwtClaims.getIssuedAt().getTime())
-                .claim("nbf", jwtClaims.getNotBefore().getTime())
-                .claim("vc", vcJsonString)
+                // .claim("sub", jwtClaims.getSubject())
+                // .claim("iss", jwtClaims.getIssuer())
+                // .claim("exp", jwtClaims.getExpiration().getTime())
+                // .claim("iat", jwtClaims.getIssuedAt().getTime())
+                // .claim("nbf", jwtClaims.getNotBefore().getTime())
+                // .claim("vc", vcJsonString)
                 .build());
     }
 
-    private static class VerifiableCredentialsToken {
+    private static class VerifiablePresentationToken {
         private String region = "eu";
         private String audience;
         private String clientId;
-        private String vcAsJwt;
+        private String clientDid;
+        private String jwtVerifiablePresentation;
 
         @SuppressWarnings("unused")
         public String getRegion() {
@@ -277,34 +205,20 @@ public class VCIdentityService implements IdentityService {
             this.clientId = clientId;
         }
 
-        public String getVcAsJwt() {
-            return vcAsJwt;
+        public String getJwtVerifiablePresentation() {
+            return jwtVerifiablePresentation;
         }
 
-        public void setVcAsJwt(String vcAsJwt) {
-            this.vcAsJwt = vcAsJwt;
-        }
-    }
-
-    private static class DIDCacheEntry {
-        private JSONObject didJson;
-        private long timestamp;
-
-        public DIDCacheEntry(JSONObject didJson, long timestamp) {
-            this.didJson = didJson;
-            this.timestamp = timestamp;
+        public void setJwtVerifiablePresentation(String jwtVP) {
+            this.jwtVerifiablePresentation = jwtVP;
         }
 
-        public JSONObject getDidJson() {
-            return didJson;
+        public String getClientDid() {
+            return clientDid;
         }
 
-        public boolean isExpired(long now) {
-            return (now - timestamp) > (DID_CACHE_TTL_SECONDS * 1000);
-        }
-
-        public boolean isExpired() {
-            return isExpired(System.currentTimeMillis());
+        public void setClientDid(String clientDid) {
+            this.clientDid = clientDid;
         }
     }
 }
