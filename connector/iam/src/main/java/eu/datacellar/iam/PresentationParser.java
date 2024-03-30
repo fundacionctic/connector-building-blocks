@@ -161,6 +161,29 @@ public class PresentationParser {
     }
 
     /**
+     * Converts the Verifiable Presentation (VP) into a JSONObject.
+     *
+     * @return a JSONObject representation of the Verifiable Presentation.
+     */
+    public JSONObject toJsonObject() {
+        JSONObject vpJsonObject = vpJsonObjectFromClaims(getClaims());
+        JSONArray vcsJwt = vpJsonObject.getJSONArray(JWT_VP_VC_KEY);
+        JSONArray vcs = new JSONArray();
+
+        for (int i = 0; i < vcsJwt.length(); i++) {
+            String jwtCredential = vcsJwt.getString(i);
+            CredentialParser credParser = new CredentialParser(jwtCredential, issuerJwk);
+            Claims vcClaims = credParser.getClaims();
+            JSONObject vcJsonObject = CredentialParser.vcJsonObjectFromClaims(vcClaims);
+            vcs.put(vcJsonObject);
+        }
+
+        vpJsonObject.put(JWT_VP_VC_KEY, vcs);
+
+        return vpJsonObject;
+    }
+
+    /**
      * Represents an exception that occurs during the presentation parsing process.
      */
     public static class PresentationException extends RuntimeException {

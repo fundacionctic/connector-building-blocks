@@ -25,6 +25,10 @@ import io.jsonwebtoken.security.Jwk;
  * tokens.
  */
 public class VCIdentityService implements IdentityService {
+    // This is the type of Verifiable Credential that the connector will search for
+    // in the wallet and then present to the counter-party.
+    private static final String PRESENTED_VC_TYPE = "DataCellarCredential";
+
     private final Monitor monitor;
     private final TypeManager typeManager;
     private final String clientId;
@@ -61,11 +65,10 @@ public class VCIdentityService implements IdentityService {
                         parameters.getScope(),
                         parameters.getAudience()));
 
-        PresentationDefinition presentationDefinition = new PresentationDefinition();
+        PresentationDefinition presentationDefinition = new PresentationDefinition(PRESENTED_VC_TYPE);
         MatchCredentialsResponse matchCredentialsResponse;
 
         try {
-            // ToDo: Refine the presentation definition
             matchCredentialsResponse = identityServices
                     .matchCredentials(presentationDefinition);
         } catch (IOException e) {
@@ -134,7 +137,7 @@ public class VCIdentityService implements IdentityService {
         Jwk<?> counterPartyJwk;
 
         try {
-            counterPartyJwk = keyResolver.resolveDIDToPublicKeyJWK(token.getClientDid());
+            counterPartyJwk = keyResolver.resolveDIDToPublicKeyJWK(token.clientDid);
         } catch (IOException e) {
             return Result.failure("Failed to resolve counter-party DID: %s".formatted(e.getMessage()));
         }
@@ -154,19 +157,15 @@ public class VCIdentityService implements IdentityService {
             return Result.failure("Failed to validate presentation: %s".formatted(e.getMessage()));
         }
 
-        JSONObject vpJsonObject = PresentationParser.vpJsonObjectFromClaims(presentationParser.getClaims());
-        monitor.debug("Counter-party VP JSON object: %s".formatted(vpJsonObject.toString()));
+        JSONObject vpJsonObject = presentationParser.toJsonObject();
+        String vpJsonString = vpJsonObject.toString();
+        monitor.debug("Counter-party VP JSON: %s".formatted(vpJsonString));
 
-        // ToDo: Add the claims extracted from the VP to the token
         return Result.success(ClaimToken.Builder.newInstance()
                 .claim("region", token.region)
                 .claim("client_id", token.clientId)
-                // .claim("sub", jwtClaims.getSubject())
-                // .claim("iss", jwtClaims.getIssuer())
-                // .claim("exp", jwtClaims.getExpiration().getTime())
-                // .claim("iat", jwtClaims.getIssuedAt().getTime())
-                // .claim("nbf", jwtClaims.getNotBefore().getTime())
-                // .claim("vc", vcJsonString)
+                .claim("client_did", token.clientDid)
+                .claim("vp", vpJsonString)
                 .build());
     }
 

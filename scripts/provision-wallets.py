@@ -19,30 +19,52 @@ from jwcrypto import jwk
 
 _logger = logging.getLogger(__name__)
 
-_VC = {
-    "@context": [
-        "https://www.w3.org/2018/credentials/v1",
-        "https://w3id.org/security/suites/jws-2020/v1",
-        "https://registry.lab.gaia-x.eu/development/api/trusted-shape-registry/v1/shapes/jsonld/trustframework#",
-        "https://schema.org/version/latest/schemaorg-current-https.jsonld",
-    ],
-    "id": "https://gaiax.cticpoc.com/.well-known/participant.json",
-    "type": ["VerifiableCredential"],
-    "issuer": {"id": "did:web:gaiax.cticpoc.com"},
-    "issuanceDate": "2024-02-26T13:04:12.854Z",
-    "credentialSubject": {
-        "type": "gx:LegalParticipant",
-        "gx:legalName": "CTIC Technology Centre",
-        "gx:legalRegistrationNumber": {
-            "id": "https://gaiax.cticpoc.com/.well-known/lrn.json"
-        },
-        "gx:headquarterAddress": {"gx:countrySubdivisionCode": "ES-AS"},
-        "gx:legalAddress": {"gx:countrySubdivisionCode": "ES-AS"},
-        "gx-terms-and-conditions:gaiaxTermsAndConditions": "https://gaiax.cticpoc.com/.well-known/tsandcs.json",
-        "id": "https://gaiax.cticpoc.com/.well-known/participant.json",
-        "schema:description": "This field demonstrates the possibility of using additional ontologies to add fields that are not explicitly included in the Trust Framework specification.",
-    },
-}
+
+class VerifiableCredential:
+    def __init__(self, name: str, country_subdivision_code: str = "ES-AS") -> None:
+        self.name = name
+        self.country_subdivision_code = country_subdivision_code
+
+    def to_json_dict(self) -> Dict[str, Any]:
+        # Some fields are set to None because they will be
+        # filled in later by the Issuer service.
+
+        uid_lrn = uuid.uuid4().hex
+        uid_tac = uuid.uuid4().hex
+
+        return {
+            "@context": [
+                "https://www.w3.org/2018/credentials/v1",
+                "https://w3id.org/security/suites/jws-2020/v1",
+                "https://registry.lab.gaia-x.eu/development/api/trusted-shape-registry/v1/shapes/jsonld/trustframework#",
+                "https://schema.org/version/latest/schemaorg-current-https.jsonld",
+            ],
+            "id": None,
+            "type": ["VerifiableCredential", "DataCellarCredential"],
+            "issuer": {"id": None},
+            "issuanceDate": None,
+            "credentialSubject": {
+                "type": "gx:LegalParticipant",
+                "gx:legalName": self.name,
+                "gx:legalRegistrationNumber": {
+                    "id": f"https://example.com/lrn/{uid_lrn}"
+                },
+                "gx:headquarterAddress": {
+                    "gx:countrySubdivisionCode": self.country_subdivision_code
+                },
+                "gx:legalAddress": {
+                    "gx:countrySubdivisionCode": self.country_subdivision_code
+                },
+                "gx-terms-and-conditions:gaiaxTermsAndConditions": f"https://example.com/tac/{uid_tac}",
+                "id": None,
+                "schema:description": (
+                    "This field demonstrates the possibility of "
+                    "using additional ontologies to add fields "
+                    "that are not explicitly included in the "
+                    "Trust Framework specification."
+                ),
+            },
+        }
 
 
 @environ.config(prefix="")
@@ -635,11 +657,8 @@ def main():
         ),
     )
 
-    vc_consumer = {**_VC}
-    vc_consumer["credentialSubject"]["gx:legalName"] = "Consumer"
-
-    vc_provider = {**_VC}
-    vc_provider["credentialSubject"]["gx:legalName"] = "Provider"
+    vc_consumer = VerifiableCredential(name="Consumer").to_json_dict()
+    vc_provider = VerifiableCredential(name="Provider").to_json_dict()
 
     issuer_key_jwk = anchor_wallet_user.export_key_jwk()
 
