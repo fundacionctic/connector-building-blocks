@@ -1,6 +1,7 @@
 # Data Space Connector Building Blocks
 
 - [Data Space Connector Building Blocks](#data-space-connector-building-blocks)
+  - [ToDo](#todo)
   - [Introduction](#introduction)
   - [Public Artifacts](#public-artifacts)
     - [Configuration of the Connector Image](#configuration-of-the-connector-image)
@@ -214,10 +215,10 @@ Finally, the `eu.datacellar.wallet.*`, `eu.datacellar.trust.*` and `eu.datacella
 
 **4. Deploy the connector**
 
-You need to deploy the stack defined in `docker-compose-provider.yml` to start the provider connector:
+You need to deploy the stack defined in `docker-compose-minimal-provider.yml` to start the provider connector:
 
 ```console
-docker compose -f ./docker-compose-provider.yml up -d --build --wait
+docker compose -f ./docker-compose-minimal-provider.yml up -d --build --wait
 ```
 
 This command will build the image defined in the [`Dockerfile`](Dockerfile) and run a container using the properties file and keystore that we prepared earlier.
@@ -246,7 +247,7 @@ task create-example-certs-consumer
 
 The properties file for the consumer is located at [`dev-config/dev-consumer.properties`](dev-config/dev-consumer.properties).
 
-The properties are similar to the ones used for the provider, with the exception that, in the case of the consumer, the `edc.receiver.http.endpoint` property must point to the Consumer Pull URL of the consumer backend service (see the `consumer_backend` service in the [`docker-compose-consumer.yml`](docker-compose-consumer.yml) file):
+The properties are similar to the ones used for the provider, with the exception that, in the case of the consumer, the `edc.receiver.http.endpoint` property must point to the Consumer Pull URL of the consumer backend service (see the `consumer_backend` service in the [`docker-compose-minimal-consumer.yml`](docker-compose-minimal-consumer.yml) file):
 
 ```properties
 edc.receiver.http.endpoint=http://host.docker.internal:28000/pull
@@ -257,10 +258,10 @@ edc.receiver.http.endpoint=http://host.docker.internal:28000/pull
 > [!TIP]
 > Check the [FAQs](#frequently-asked-questions) to see why a **message broker** is necessary and what a **consumer backend** is.
 
-You need to deploy the stack defined in `docker-compose-consumer.yml` to start the consumer connector, the consumer backend and the message broker:
+You need to deploy the stack defined in `docker-compose-minimal-consumer.yml` to start the consumer connector, the consumer backend and the message broker:
 
 ```console
-docker compose -f ./docker-compose-consumer.yml up -d --build --wait
+docker compose -f ./docker-compose-minimal-consumer.yml up -d --build --wait
 ```
 
 The connector image is the same as the one used for the provider, so the build should be much faster this time.
