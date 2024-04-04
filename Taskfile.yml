@@ -137,9 +137,6 @@ tasks:
 
   dev-up:
     desc: Starts the development environment stack
-    dotenv:
-      - dev-config/.env.dev.wallets
-      - dev-config/.env.dev.wallets.local
     deps:
       - create-example-certs-consumer
       - create-example-certs-provider
@@ -160,9 +157,20 @@ tasks:
       - docker compose -f {{.ROOT_DIR}}/docker-compose-dev.yml down -v
       - docker compose -f {{.ROOT_DIR}}/mock-backend/docker-compose.yml down -v
 
+  dev-provision-wallets-venv:
+    cmds:
+      - virtualenv --python python3 {{.ROOT_DIR}}/scripts/.venv
+      - "{{.ROOT_DIR}}/scripts/.venv/bin/pip install --upgrade pip"
+      - "{{.ROOT_DIR}}/scripts/.venv/bin/pip install --upgrade -r {{.ROOT_DIR}}/scripts/requirements.txt"
+    status:
+      - test -d {{.ROOT_DIR}}/scripts/.venv
+
   dev-provision-wallets:
+    desc: Provisions the wallets for the development environment
+    deps:
+      - dev-provision-wallets-venv
     dotenv:
       - dev-config/.env.dev.wallets
       - dev-config/.env.dev.wallets.local
     cmds:
-      - python scripts/provision-wallets.py
+      - "{{.ROOT_DIR}}/scripts/.venv/bin/python {{.ROOT_DIR}}/scripts/provision-wallets.py"
