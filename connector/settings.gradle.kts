@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-include("core-connector")
+include("openapi-connector")
 include("iam")

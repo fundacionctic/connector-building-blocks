@@ -269,16 +269,20 @@ public class OpenAPICoreExtension implements ServiceExtension {
 
         paramsProvider.registerSourceDecorator((request, address, builder) -> {
             if (pkgVersion != null) {
-                builder.header("X-Core-Connector-Source-Version", pkgVersion);
+                builder.header("X-OpenAPI-Connector-Source-Version", pkgVersion);
             }
+
+            builder.header("X-OpenAPI-Connector", "source");
 
             return builder;
         });
 
         paramsProvider.registerSinkDecorator((request, address, builder) -> {
             if (pkgVersion != null) {
-                builder.header("X-Core-Connector-Sink-Version", pkgVersion);
+                builder.header("X-OpenAPI-Connector-Sink-Version", pkgVersion);
             }
+
+            builder.header("X-OpenAPI-Connector", "sink");
 
             return builder;
         });

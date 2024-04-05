@@ -15,7 +15,7 @@ services:
         -Dedc.keystore.password=datacellar,
         -Dedc.vault=/opt/src/dev-config/certs-consumer/vault.properties,
         -jar,
-        /opt/src/connector/core-connector/build/libs/core-connector.jar,
+        /opt/src/connector/openapi-connector/build/libs/openapi-connector.jar,
       ]
     ports:
       - 29191:29191
@@ -76,7 +76,7 @@ services:
         -Dedc.keystore=/opt/src/dev-config/certs-provider/cert.pfx,
         -Dedc.keystore.password=datacellar,
         -jar,
-        /opt/src/connector/core-connector/build/libs/core-connector.jar,
+        /opt/src/connector/openapi-connector/build/libs/openapi-connector.jar,
       ]
     ports:
       - 19191:19191

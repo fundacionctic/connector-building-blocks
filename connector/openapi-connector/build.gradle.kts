@@ -52,6 +52,6 @@ var distZip = tasks.getByName("distZip")
 tasks.withType<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar> {
     exclude("**/pom.properties", "**/pom.xm")
     mergeServiceFiles()
-    archiveFileName.set("core-connector.jar")
+    archiveFileName.set("openapi-connector.jar")
     dependsOn(distTar, distZip)
 }

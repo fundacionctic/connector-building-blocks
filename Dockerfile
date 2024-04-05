@@ -54,4 +54,4 @@ CMD ${PATH_CONNECTOR}/keystore-to-vault.sh && \
     -Dedc.vault=${PATH_CONNECTOR}/vault.properties \
     -Dedc.keystore=${KEYSTORE_PATH} \
     -Dedc.keystore.password=${KEYSTORE_PASSWORD} \
-    -jar ${PATH_CONNECTOR}/core-connector/build/libs/core-connector.jar
+    -jar ${PATH_CONNECTOR}/openapi-connector/build/libs/openapi-connector.jar
