@@ -124,3 +124,6 @@ The OpenAPI connector extension can parse the presentation definition to build p
 The OpenAPI connector extension implements the logic for the `hasVerifiableCredentialType` constraint, which retrieves the Verifiable Presentation from the counterparty participant claims and validates that the presentation contains at least one Verifiable Credential of the expected type.
 
 In other words, in this case, a consumer who does not present a Verifiable Presentation containing a Verifiable Credential of type `DataCellarCredential` will not be allowed access to the `POST-consumption-prediction` _Dataset_.
+
+> [!WARNING]
+> Currently, the extension only supports checking for filters that target `$.type`, meaning we can only check for Verifiable Credential types. Future versions may implement logic for more advanced claim checks.
