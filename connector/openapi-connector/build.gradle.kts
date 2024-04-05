@@ -25,6 +25,7 @@ dependencies {
 
     implementation(libs.swaggerParser)
     implementation(libs.slugify)
+    implementation(libs.json)
 
     if (
         project.hasProperty("useOauthIdentity") &&

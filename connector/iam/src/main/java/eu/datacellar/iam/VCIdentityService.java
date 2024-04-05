@@ -212,6 +212,7 @@ public class VCIdentityService implements IdentityService {
             this.jwtVerifiablePresentation = jwtVP;
         }
 
+        @SuppressWarnings("unused")
         public String getClientDid() {
             return clientDid;
         }

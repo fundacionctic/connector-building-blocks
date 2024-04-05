@@ -6,6 +6,8 @@ import static org.eclipse.edc.spi.query.Criterion.criterion;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Map;
+import java.util.UUID;
 
 import org.eclipse.edc.connector.contract.spi.offer.store.ContractDefinitionStore;
 import org.eclipse.edc.connector.contract.spi.types.offer.ContractDefinition;
@@ -33,6 +35,8 @@ import org.eclipse.edc.spi.monitor.Monitor;
 import org.eclipse.edc.spi.system.ServiceExtension;
 import org.eclipse.edc.spi.system.ServiceExtensionContext;
 import org.eclipse.edc.spi.types.domain.asset.Asset;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import com.github.slugify.Slugify;
 
@@ -47,6 +51,7 @@ import io.swagger.v3.parser.core.models.SwaggerParseResult;
 @Extension(value = OpenAPICoreExtension.NAME)
 public class OpenAPICoreExtension implements ServiceExtension {
 
+    private static final String OPENAPI_PRESENTATION_DEFINITION_EXT_KEY = "x-connector-presentation-definition";
     private static final String WEB_HTTP_CONTROL_PORT = "web.http.control.port";
     private static final int DEFAULT_WEB_HTTP_CONTROL_PORT = 9192;
     private static final String WEB_HTTP_PUBLIC_PORT = "web.http.public.port";
@@ -64,11 +69,6 @@ public class OpenAPICoreExtension implements ServiceExtension {
      * The ID of the data plane instance.
      */
     public static final String DATA_PLANE_ID = "core-data-plane";
-
-    /**
-     * The ID of the policy definition.
-     */
-    public static final String POLICY_DEFINITION_ID = "core-policy-definition";
 
     /**
      * The URL of the OpenAPI specification of the backend API.
@@ -132,29 +132,92 @@ public class OpenAPICoreExtension implements ServiceExtension {
         return dataPlaneInstance;
     }
 
-    private PolicyDefinition buildPolicyDefinition() {
+    private String extractCredentialTypePattern(Map<String, Object> presentationDefinition) {
+        JSONObject presDefJsonObj = new JSONObject(presentationDefinition);
+        JSONArray inputDescriptors = presDefJsonObj.optJSONArray("input_descriptors");
+
+        if (inputDescriptors == null || inputDescriptors.length() == 0) {
+            throw new IllegalArgumentException(
+                    "Invalid presentation definition: input_descriptors is missing or empty");
+        }
+
+        JSONObject inputDescriptor = inputDescriptors.getJSONObject(0);
+        JSONObject constraints = inputDescriptor.optJSONObject("constraints");
+
+        if (constraints == null) {
+            throw new IllegalArgumentException("Invalid presentation definition: constraints is missing");
+        }
+
+        JSONArray fields = constraints.optJSONArray("fields");
+
+        if (fields == null || fields.length() == 0) {
+            throw new IllegalArgumentException("Invalid presentation definition: fields is missing or empty");
+        }
+
+        JSONObject field = fields.getJSONObject(0);
+        JSONArray paths = field.optJSONArray("path");
+
+        if (paths == null || paths.length() == 0) {
+            throw new IllegalArgumentException("Invalid presentation definition: path is missing or empty");
+        }
+
+        String credentialType = paths.getString(0);
+
+        if (!credentialType.equals("$.type")) {
+            throw new IllegalArgumentException("Invalid presentation definition: path is not equal to $.type");
+        }
+
+        JSONObject filter = field.optJSONObject("filter");
+
+        if (filter == null) {
+            throw new IllegalArgumentException("Invalid presentation definition: filter is missing");
+        }
+
+        return filter.getString("pattern");
+    }
+
+    /**
+     * Builds a policy definition based on the given presentation definition.
+     * Please check the following reference to learn more about presentation
+     * definitions:
+     * https://identity.foundation/presentation-exchange/spec/v2.0.0/#presentation-definition
+     * Note that we only support a very limited subset of presentation definition
+     * schemas (basically, only the VC type filter).
+     *
+     * @param presentationDefinition The presentation definition.
+     * @return The policy definition.
+     */
+    private PolicyDefinition buildPolicyDefinition(Map<String, Object> presentationDefinition, Monitor monitor) {
         final Action USE_ACTION = Action.Builder.newInstance().type("USE").build();
 
         ruleBindingRegistry.bind(USE_ACTION.getType(), ALL_SCOPES);
+
+        PolicyDefinition.Builder policyDefBuilder = PolicyDefinition.Builder.newInstance()
+                .id(UUID.randomUUID().toString());
+
+        if (presentationDefinition == null) {
+            return policyDefBuilder.policy(Policy.Builder.newInstance().build()).build();
+        }
+
         ruleBindingRegistry.bind(CredentialConstraintFunction.KEY, ALL_SCOPES);
 
-        // This policy constraint function always returns true, so it does not actually
-        // enforce any constraint.
-        // This is just a placeholder to demonstrate how to register a policy function.
+        CredentialConstraintFunction atomConstraintFunction = new CredentialConstraintFunction(monitor);
+
         policyEngine.registerFunction(ALL_SCOPES, Permission.class,
                 CredentialConstraintFunction.KEY,
-                new CredentialConstraintFunction());
+                atomConstraintFunction);
+
+        String credentialTypePattern = extractCredentialTypePattern(presentationDefinition);
 
         var credentialConstraint = AtomicConstraint.Builder.newInstance()
                 .leftExpression(new LiteralExpression(CredentialConstraintFunction.KEY))
                 .operator(Operator.IN)
-                .rightExpression(new LiteralExpression("expectedCredential")).build();
+                .rightExpression(new LiteralExpression(credentialTypePattern)).build();
 
         var permission = Permission.Builder.newInstance().action(USE_ACTION).constraint(credentialConstraint)
                 .build();
 
-        return PolicyDefinition.Builder.newInstance()
-                .id(POLICY_DEFINITION_ID)
+        return policyDefBuilder
                 .policy(Policy.Builder.newInstance().permission(permission).build())
                 .build();
     }
@@ -188,7 +251,8 @@ public class OpenAPICoreExtension implements ServiceExtension {
         }
     }
 
-    private void createAssets(ServiceExtensionContext context, String policyUid) {
+    @SuppressWarnings("unchecked")
+    private void createAssets(ServiceExtensionContext context) {
         Monitor monitor = context.getMonitor();
         Slugify slg = Slugify.builder().lowerCase(false).build();
         OpenAPI openAPI = readOpenAPISchema(context.getMonitor());
@@ -219,7 +283,18 @@ public class OpenAPICoreExtension implements ServiceExtension {
                 monitor.debug(String.format("Created asset '%s' with data address: %s", assetId,
                         dataAddress.getProperties()));
 
-                saveContractDefinition(policyUid, assetId);
+                Map<String, Object> extensions = operation.getExtensions();
+                Map<String, Object> presentationDefinition = null;
+
+                if (extensions != null && extensions.containsKey(OPENAPI_PRESENTATION_DEFINITION_EXT_KEY)) {
+                    presentationDefinition = (Map<String, Object>) extensions
+                            .get(OPENAPI_PRESENTATION_DEFINITION_EXT_KEY);
+                }
+
+                monitor.debug("Building Policy for Presentation Definition: %s".formatted(presentationDefinition));
+                PolicyDefinition policy = buildPolicyDefinition(presentationDefinition, monitor);
+                policyStore.create(policy);
+                saveContractDefinition(policy.getUid(), assetId);
 
                 monitor.debug(String.format("Created contract definition for asset '%s'", assetId));
             });
@@ -257,9 +332,7 @@ public class OpenAPICoreExtension implements ServiceExtension {
         openapiUrl = context.getSetting(OPENAPI_URL, null);
 
         if (openapiUrl != null) {
-            PolicyDefinition policy = buildPolicyDefinition();
-            policyStore.create(policy);
-            createAssets(context, policy.getUid());
+            createAssets(context);
         } else {
             monitor.warning(String.format("OpenAPI URL (property '%s') is not set", OPENAPI_URL));
         }

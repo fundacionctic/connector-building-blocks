@@ -2,8 +2,9 @@ import asyncio
 import logging
 import pprint
 import random
+import uuid
 from datetime import date, datetime
-from typing import List
+from typing import Any, Dict, List
 
 import arrow
 import coloredlogs
@@ -14,10 +15,10 @@ coloredlogs.install(level=logging.DEBUG)
 _logger = logging.getLogger(__name__)
 
 app = FastAPI(
-    title="Mock Component",
+    title="Mock Backend HTTP API",
     description=(
         "A mock API that serves as an example of how to"
-        " integrate a component with the Core Connector"
+        " integrate a service or dataset with the OpenAPI extension of the connector"
     ),
     version="0.0.1",
     contact={
@@ -44,7 +45,48 @@ class ElectrictyConsumptionData(BaseModel):
     results: List[ElectricityConsumptionSample]
 
 
-@app.post("/consumption/prediction", tags=["Electricity consumption"])
+_PRESENTATION_DEFINITION_EXT = "x-connector-presentation-definition"
+
+
+def _build_presentation_definition() -> Dict[str, Any]:
+    """
+    Builds an example Presentation Definition as defined by the DIF Presentation Exchange spec:
+    https://identity.foundation/presentation-exchange/spec/v2.0.0/#presentation-definition
+    Presentation Definitions are defined in API endpoints to impose authorization
+    constraints based on Verifiable Credentials.
+    """
+
+    return {
+        "id": str(uuid.uuid4()),
+        "input_descriptors": [
+            {
+                "id": "datacellar-credential",
+                "name": "The specific type of VC for Data Cellar",
+                "purpose": (
+                    "This is a simple example of how to declare the types of VCs "
+                    "that the connector expects to allow access to this endpoint."
+                ),
+                "constraints": {
+                    "fields": [
+                        {
+                            "path": ["$.type"],
+                            "filter": {
+                                "type": "string",
+                                "pattern": "DataCellarCredential",
+                            },
+                        }
+                    ]
+                },
+            }
+        ],
+    }
+
+
+@app.post(
+    "/consumption/prediction",
+    tags=["Electricity consumption"],
+    openapi_extra={_PRESENTATION_DEFINITION_EXT: _build_presentation_definition()},
+)
 async def run_consumption_prediction(
     body: ElectricityConsumptionPredictionRequest,
 ) -> ElectrictyConsumptionData:
@@ -67,7 +109,11 @@ async def run_consumption_prediction(
     return ElectrictyConsumptionData(location=body.location, results=results)
 
 
-@app.get("/consumption", tags=["Electricity consumption"])
+@app.get(
+    "/consumption",
+    tags=["Electricity consumption"],
+    openapi_extra={_PRESENTATION_DEFINITION_EXT: _build_presentation_definition()},
+)
 async def get_consumption_data(
     location: str = "Asturias", day: date = None
 ) -> ElectrictyConsumptionData:
