@@ -17,6 +17,8 @@ services:
       KEYSTORE_PASSWORD: datacellar
     volumes:
       - .:/opt/src
+    extra_hosts:
+      - host.docker.internal:host-gateway
   consumer_backend:
     build: .
     image: edc-connector
@@ -33,6 +35,8 @@ services:
       EDC_HTTP_API_PORT: 28000
     ports:
       - 28000:28000
+    extra_hosts:
+      - host.docker.internal:host-gateway
   broker:
     image: rabbitmq:3.11-management
     container_name: consumer_broker
@@ -43,3 +47,5 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
+    extra_hosts:
+      - host.docker.internal:host-gateway

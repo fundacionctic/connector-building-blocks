@@ -20,3 +20,5 @@ services:
       # To ensure that mDNS resolution is enabled in the container
       - /var/run/dbus:/var/run/dbus
       - /var/run/avahi-daemon/socket:/var/run/avahi-daemon/socket
+    extra_hosts:
+      - host.docker.internal:host-gateway

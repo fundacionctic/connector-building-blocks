@@ -17,3 +17,5 @@ services:
       KEYSTORE_PASSWORD: datacellar
     volumes:
       - .:/opt/src
+    extra_hosts:
+      - host.docker.internal:host-gateway
