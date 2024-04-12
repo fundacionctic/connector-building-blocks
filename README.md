@@ -76,7 +76,6 @@ The example in this section will illustrate the following scenario:
 > ```
 > vagrant@vagrant:~/connector-building-blocks/edcpy$ cat /etc/hosts
 > 127.0.0.1 localhost
-> 127.0.1.1 vagrant
 > 127.0.0.1 host.docker.internal
 > ```
 
