@@ -73,8 +73,9 @@ The example in this section will illustrate the following scenario:
 
 > [!IMPORTANT]
 > The default configuration of the example relies on `host.docker.internal` resolving to the host IP address. However, this may not be the case if you're using Linux. If that's the case, please ensure that `host.docker.internal` is added to your `/etc/hosts` file:
-> ```
-> vagrant@vagrant:~/connector-building-blocks/edcpy$ cat /etc/hosts
+> 
+> ```console
+> $ cat /etc/hosts
 > 127.0.0.1 localhost
 > 127.0.0.1 host.docker.internal
 > ```
