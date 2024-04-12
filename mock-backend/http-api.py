@@ -85,7 +85,7 @@ def _build_presentation_definition() -> Dict[str, Any]:
 @app.post(
     "/consumption/prediction",
     tags=["Electricity consumption"],
-    openapi_extra={_PRESENTATION_DEFINITION_EXT: _build_presentation_definition()},
+    # openapi_extra={_PRESENTATION_DEFINITION_EXT: _build_presentation_definition()},
 )
 async def run_consumption_prediction(
     body: ElectricityConsumptionPredictionRequest,
@@ -112,7 +112,7 @@ async def run_consumption_prediction(
 @app.get(
     "/consumption",
     tags=["Electricity consumption"],
-    openapi_extra={_PRESENTATION_DEFINITION_EXT: _build_presentation_definition()},
+    # openapi_extra={_PRESENTATION_DEFINITION_EXT: _build_presentation_definition()},
 )
 async def get_consumption_data(
     location: str = "Asturias", day: date = None
