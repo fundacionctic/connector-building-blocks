@@ -1,7 +1,6 @@
 # Data Space Connector Building Blocks
 
 - [Data Space Connector Building Blocks](#data-space-connector-building-blocks)
-  - [ToDo](#todo)
   - [Introduction](#introduction)
   - [Public Artifacts](#public-artifacts)
     - [Configuration of the Connector Image](#configuration-of-the-connector-image)
@@ -15,13 +14,6 @@
 
 > [!CAUTION]
 > Please note that most of the code in this repository is still a work in progress and will thus likely go through several breaking changes throughout its development.
-
-## ToDo
-
-- [ ] Finalise the design of our authentication extension, which will be based on W3C Verifiable Credentials (VC) and Decentralised Identifiers (DID).
-- [ ] Improve the documentation to demonstrate the integration of W3C VC and DID into the deployment process.
-- [ ] Remove the need to use PKCS12 keystores in production.
-- [ ] Consider writing additional examples of deployment.
 
 ## Introduction
 
@@ -78,6 +70,15 @@ The example in this section will illustrate the following scenario:
 > This example assumes that all commands are executed on the same machine.
 
 ### Configuration and Deployment
+
+> [!IMPORTANT]
+> The default configuration of the example relies on `host.docker.internal` resolving to the host IP address. However, this may not be the case if you're using Linux. If that's the case, please ensure that `host.docker.internal` is added to your `/etc/hosts` file:
+> ```
+> vagrant@vagrant:~/connector-building-blocks/edcpy$ cat /etc/hosts
+> 127.0.0.1 localhost
+> 127.0.1.1 vagrant
+> 127.0.0.1 host.docker.internal
+> ```
 
 #### Provider
 
