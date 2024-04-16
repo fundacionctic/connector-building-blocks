@@ -59,6 +59,7 @@ public class OpenAPICoreExtension implements ServiceExtension {
     private static final String DEFAULT_HTTP_SCHEME = "http";
     private static final String PUBLIC_API_URL_KEY = "publicApiUrl";
     private static final String DEFAULT_HOSTNAME = "localhost";
+    private static final String WEB_HTTP_PUBLIC_URL = "web.http.public.url";
 
     /**
      * The name of the extension.
@@ -118,13 +119,16 @@ public class OpenAPICoreExtension implements ServiceExtension {
         String publicPort = context.getSetting(WEB_HTTP_PUBLIC_PORT, String.valueOf(DEFAULT_WEB_HTTP_PUBLIC_PORT));
         String scheme = context.getSetting(HTTP_SCHEME, DEFAULT_HTTP_SCHEME);
 
+        String publicEndpoint = context.getSetting(WEB_HTTP_PUBLIC_URL,
+                String.format("%s://%s:%s/public/", scheme, hostname, publicPort));
+
         DataPlaneInstance dataPlaneInstance = DataPlaneInstance.Builder.newInstance()
                 .id(DATA_PLANE_ID)
                 .url(String.format("%s://%s:%s/control/transfer", scheme, hostname, controlPort))
                 .allowedSourceType(HTTP_DATA_TYPE)
                 .allowedDestType(HTTP_DATA_TYPE)
                 .allowedDestType(TransferDataPlaneConstants.HTTP_PROXY)
-                .property(PUBLIC_API_URL_KEY, String.format("%s://%s:%s/public/", scheme, hostname, publicPort))
+                .property(PUBLIC_API_URL_KEY, publicEndpoint)
                 .build();
 
         monitor.debug(String.format("Built data plane instance: %s", dataPlaneInstance.getProperties()));
