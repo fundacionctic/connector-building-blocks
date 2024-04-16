@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 import pprint
 import random
 import uuid
@@ -82,10 +83,17 @@ def _build_presentation_definition() -> Dict[str, Any]:
     }
 
 
+def _get_openapi_extra() -> Dict[str, Any]:
+    if not bool(os.getenv("ENABLE_PRESENTATION_DEFINITION", False)):
+        return {}
+
+    return {_PRESENTATION_DEFINITION_EXT: _build_presentation_definition()}
+
+
 @app.post(
     "/consumption/prediction",
     tags=["Electricity consumption"],
-    # openapi_extra={_PRESENTATION_DEFINITION_EXT: _build_presentation_definition()},
+    openapi_extra=_get_openapi_extra(),
 )
 async def run_consumption_prediction(
     body: ElectricityConsumptionPredictionRequest,
@@ -112,7 +120,7 @@ async def run_consumption_prediction(
 @app.get(
     "/consumption",
     tags=["Electricity consumption"],
-    # openapi_extra={_PRESENTATION_DEFINITION_EXT: _build_presentation_definition()},
+    openapi_extra=_get_openapi_extra(),
 )
 async def get_consumption_data(
     location: str = "Asturias", day: date = None

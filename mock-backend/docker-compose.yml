@@ -5,5 +5,7 @@ services:
     pull_policy: never
     command: ["uvicorn", "http-api:app", "--host", "0.0.0.0", "--port", "9090"]
     restart: on-failure
+    environment:
+      ENABLE_PRESENTATION_DEFINITION: ${ENABLE_PRESENTATION_DEFINITION:-}
     ports:
       - "9090:9090"
