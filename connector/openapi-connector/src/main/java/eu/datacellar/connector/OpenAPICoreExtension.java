@@ -5,9 +5,13 @@ import static org.eclipse.edc.policy.engine.spi.PolicyEngine.ALL_SCOPES;
 import static org.eclipse.edc.spi.query.Criterion.criterion;
 
 import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.Map;
 import java.util.UUID;
+
+import javax.sql.DataSource;
 
 import org.eclipse.edc.connector.contract.spi.offer.store.ContractDefinitionStore;
 import org.eclipse.edc.connector.contract.spi.types.offer.ContractDefinition;
@@ -35,8 +39,10 @@ import org.eclipse.edc.spi.monitor.Monitor;
 import org.eclipse.edc.spi.system.ServiceExtension;
 import org.eclipse.edc.spi.system.ServiceExtensionContext;
 import org.eclipse.edc.spi.types.domain.asset.Asset;
+import org.eclipse.edc.transaction.datasource.spi.DataSourceRegistry;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.postgresql.ds.PGSimpleDataSource;
 
 import com.github.slugify.Slugify;
 
@@ -60,6 +66,9 @@ public class OpenAPICoreExtension implements ServiceExtension {
     private static final String PUBLIC_API_URL_KEY = "publicApiUrl";
     private static final String DEFAULT_HOSTNAME = "localhost";
     private static final String WEB_HTTP_PUBLIC_URL = "web.http.public.url";
+    private static final String DATASOURCE_URL = "edc.datasource.default.url";
+    private static final String DATASOURCE_USER = "edc.datasource.default.user";
+    private static final String DATASOURCE_PASSWORD = "edc.datasource.default.password";
 
     /**
      * The name of the extension.
@@ -105,6 +114,9 @@ public class OpenAPICoreExtension implements ServiceExtension {
 
     @Inject
     private PolicyEngine policyEngine;
+
+    @Inject
+    private DataSourceRegistry dataSourceRegistry;
 
     @Override
     public String name() {
@@ -326,12 +338,64 @@ public class OpenAPICoreExtension implements ServiceExtension {
         return openAPI;
     }
 
+    private void ensureDefaultDataSource(ServiceExtensionContext context) {
+        Monitor monitor = context.getMonitor();
+
+        String pgUrl = context.getSetting(DATASOURCE_URL, null);
+        String pgUser = context.getSetting(DATASOURCE_USER, null);
+        String pgPass = context.getSetting(DATASOURCE_PASSWORD, null);
+
+        if (pgUrl == null || pgUser == null || pgPass == null) {
+            monitor.info("Undefined PostgreSQL connection properties: Skipping data source registration");
+            return;
+        }
+
+        DataSource resolvedSource = dataSourceRegistry.resolve(DataSourceRegistry.DEFAULT_DATASOURCE);
+
+        if (resolvedSource != null) {
+            monitor.info("Data source '%s' is already registered".formatted(DataSourceRegistry.DEFAULT_DATASOURCE));
+            return;
+        }
+
+        URI uri;
+
+        try {
+            uri = new URI(pgUrl.substring(5)); // remove "jdbc:"
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+            monitor.warning("Invalid PostgreSQL URL: Skipping data source registration");
+            return;
+        }
+
+        String host = uri.getHost();
+        int port = uri.getPort();
+        String dbName = uri.getPath().substring(1);
+
+        PGSimpleDataSource dataSource = new PGSimpleDataSource();
+        dataSource.setServerNames(new String[] { host });
+        dataSource.setPortNumbers(new int[] { port });
+        dataSource.setDatabaseName(dbName);
+        dataSource.setUser(pgUser);
+        dataSource.setPassword(pgPass);
+
+        monitor.info("Manually registering data source '%s' to '%s:%s/%s' with username %s"
+                .formatted(DataSourceRegistry.DEFAULT_DATASOURCE, host, port, dbName, pgUser));
+
+        dataSourceRegistry.register(DataSourceRegistry.DEFAULT_DATASOURCE, dataSource);
+    }
+
     @Override
     public void initialize(ServiceExtensionContext context) {
         Monitor monitor = context.getMonitor();
 
         DataPlaneInstance dataPlane = buildDataPlaneInstance(context);
         dataPlaneStore.create(dataPlane);
+
+        // ToDo: Review this
+        // Data sources should be registered automatically, but I keep getting this:
+        // "java.lang.NullPointerException: DataSource <name> could not be resolved"
+        // So I'm registering the default data source manually for now.
+        ensureDefaultDataSource(context);
 
         openapiUrl = context.getSetting(OPENAPI_URL, null);
 

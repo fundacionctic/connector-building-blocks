@@ -17,6 +17,7 @@ kafkaClients = "3.6.1"
 json = "20230227"
 swaggerParser = "2.1.15"
 slugify = "3.0.4"
+postgresql = "42.7.3"
 
 [libraries]
 assertj = { module = "org.assertj:assertj-core", version.ref = "assertj" }
@@ -84,6 +85,11 @@ opentelemetry = "io.opentelemetry.javaagent:opentelemetry-javaagent:2.1.0"
 json = { module = "org.json:json", version.ref = "json" }
 swaggerParser = { module = "io.swagger.parser.v3:swagger-parser", version.ref = "swaggerParser" }
 slugify = { module = "com.github.slugify:slugify", version.ref = "slugify" }
+edc-sql-pool-apache-commons = { module = "org.eclipse.edc:sql-pool-apache-commons", version.ref = "edc" }
+edc-transaction-local = { module = "org.eclipse.edc:transaction-local", version.ref = "edc" }
+edc-transaction-datasource-spi = { module = "org.eclipse.edc:transaction-datasource-spi", version.ref = "edc" }
+edc-sql-control-plane-sql = { module = "org.eclipse.edc:control-plane-sql", version.ref = "edc" }
+postgresql-postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
 
 [plugins]
 shadow = { id = "com.github.johnrengelman.shadow", version = "8.1.1" }

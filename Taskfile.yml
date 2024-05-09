@@ -42,9 +42,11 @@ tasks:
     vars:
       CLEAN: '{{default "true" .CLEAN}}'
       SSI: '{{default "false" .SSI}}'
+      SQL: '{{default "false" .SQL}}'
     env:
       # https://docs.gradle.org/current/userguide/build_environment.html#sec:project_properties
       ORG_GRADLE_PROJECT_useSSI: "{{.SSI}}"
+      ORG_GRADLE_PROJECT_useSQLStore: "{{.SQL}}"
     cmds:
       - gradle {{if eq .CLEAN "true"}}clean{{end}} build
 
@@ -143,6 +145,7 @@ tasks:
     vars:
       CLEAN: '{{default "false" .CLEAN}}'
       SSI: '{{default "false" .SSI}}'
+      SQL: '{{default "false" .SQL}}'
     cmds:
       - docker compose -f {{.ROOT_DIR}}/mock-backend/docker-compose.yml up -d --build --wait
       - task: build-connector

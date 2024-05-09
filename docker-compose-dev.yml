@@ -141,7 +141,47 @@ services:
       - ./dev-config/waltid/wallet-provider:/waltid-wallet-api/config
     extra_hosts:
       - host.docker.internal:host-gateway
+  consumer_postgres:
+    image: postgres:14
+    container_name: consumer_postgres
+    restart: on-failure
+    ports:
+      - 25432:5432
+    environment:
+      POSTGRES_DB: connector
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - consumer_postgres_data:/var/lib/postgresql/data
+      - ./dev-config/sql-store-schemas/:/docker-entrypoint-initdb.d/
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U postgres]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+  provider_postgres:
+    image: postgres:14
+    container_name: provider_postgres
+    restart: on-failure
+    ports:
+      - 15432:5432
+    environment:
+      POSTGRES_DB: connector
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - provider_postgres_data:/var/lib/postgresql/data
+      - ./dev-config/sql-store-schemas/:/docker-entrypoint-initdb.d/
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U postgres]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 volumes:
   consumer_wallet_data: {}
   anchor_wallet_data: {}
   provider_wallet_data: {}
+  consumer_postgres_data: {}
+  provider_postgres_data: {}

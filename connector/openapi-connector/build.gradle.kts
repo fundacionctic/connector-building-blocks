@@ -41,6 +41,19 @@ dependencies {
     } else {
         implementation(libs.edc.iam.mock)
     }
+
+    implementation(libs.postgresql.postgresql)
+
+    if (
+        project.hasProperty("useSQLStore") &&
+        project.property("useSQLStore").toString().toBoolean()
+    ) {
+        // https://github.com/eclipse-edc/Connector/discussions/3242
+        implementation(libs.edc.sql.control.plane.sql)
+        implementation(libs.edc.sql.pool.apache.commons)
+        implementation(libs.edc.transaction.local)
+        implementation(libs.edc.transaction.datasource.spi)
+    }
 }
 
 application {
