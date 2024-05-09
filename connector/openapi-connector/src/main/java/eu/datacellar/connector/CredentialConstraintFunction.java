@@ -26,6 +26,12 @@ public class CredentialConstraintFunction implements AtomicConstraintFunction<Pe
 
     private Monitor monitor;
 
+    /**
+     * Constructs a new instance of the CredentialConstraintFunction class with the
+     * specified monitor.
+     *
+     * @param monitor The monitor used for tracking and logging.
+     */
     public CredentialConstraintFunction(Monitor monitor) {
         this.monitor = monitor;
     }

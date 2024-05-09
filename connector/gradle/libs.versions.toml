@@ -3,26 +3,27 @@ format.version = "1.1"
 
 [versions]
 assertj = "3.25.3"
-awaitility = "4.2.0"
-edc = "0.4.1"
+awaitility = "4.2.1"
+edc = "0.6.0"
 jakarta-json = "2.0.1"
 junit-pioneer = "2.2.0"
 jupiter = "5.10.2"
-okhttp-mockwebserver = "5.0.0-alpha.12"
+okhttp-mockwebserver = "5.0.0-alpha.14"
 openTelemetry = "1.18.0"
 restAssured = "5.4.0"
-rsApi = "3.1.0"
-testcontainers = "1.19.5"
-kafkaClients = "3.6.1"
+rsApi = "4.0.0"
+testcontainers = "1.19.8"
+kafkaClients = "3.7.0"
 json = "20230227"
 swaggerParser = "2.1.15"
 slugify = "3.0.4"
 postgresql = "42.7.3"
+jwt = "0.12.5"
+okhttp = "4.12.0"
 
 [libraries]
 assertj = { module = "org.assertj:assertj-core", version.ref = "assertj" }
 awaitility = { module = "org.awaitility:awaitility", version.ref = "awaitility" }
-edc-core-spi = { module = "org.eclipse.edc:core-spi", version.ref = "edc" }
 edc-api-core = { module = "org.eclipse.edc:api-core", version.ref = "edc" }
 edc-api-observability = { module = "org.eclipse.edc:api-observability", version.ref = "edc" }
 edc-auth-tokenbased = { module = "org.eclipse.edc:auth-tokenbased", version.ref = "edc" }
@@ -34,7 +35,8 @@ edc-control-plane-api-client = { module = "org.eclipse.edc:control-plane-api-cli
 edc-control-plane-api = { module = "org.eclipse.edc:control-plane-api", version.ref = "edc" }
 edc-control-plane-core = { module = "org.eclipse.edc:control-plane-core", version.ref = "edc" }
 edc-control-plane-spi = { module = "org.eclipse.edc:control-plane-spi", version.ref = "edc" }
-edc-data-plane-api = { module = "org.eclipse.edc:data-plane-api", version.ref = "edc" }
+edc-data-plane-control-api = { module = "org.eclipse.edc:data-plane-control-api", version.ref = "edc" }
+edc-data-plane-public-api = { module = "org.eclipse.edc:data-plane-public-api", version.ref = "edc" }
 edc-data-plane-aws-s3 = { module = "org.eclipse.edc:data-plane-aws-s3", version.ref = "edc" }
 edc-data-plane-azure-storage = { module = "org.eclipse.edc:data-plane-azure-storage", version.ref = "edc" }
 edc-data-plane-client = { module = "org.eclipse.edc:data-plane-client", version.ref = "edc" }
@@ -42,7 +44,6 @@ edc-data-plane-core = { module = "org.eclipse.edc:data-plane-core", version.ref 
 edc-data-plane-http = { module = "org.eclipse.edc:data-plane-http", version.ref = "edc" }
 edc-data-plane-kafka = { module = "org.eclipse.edc:data-plane-kafka", version.ref = "edc" }
 edc-data-plane-selector-api = { module = "org.eclipse.edc:data-plane-selector-api", version.ref = "edc" }
-edc-data-plane-selector-client = { module = "org.eclipse.edc:data-plane-selector-client", version.ref = "edc" }
 edc-data-plane-selector-core = { module = "org.eclipse.edc:data-plane-selector-core", version.ref = "edc" }
 edc-data-plane-spi = { module = "org.eclipse.edc:data-plane-spi", version.ref = "edc" }
 edc-data-plane-util = { module = "org.eclipse.edc:data-plane-util", version.ref = "edc" }
@@ -51,7 +52,8 @@ edc-http = { module = "org.eclipse.edc:http", version.ref = "edc" }
 edc-iam-mock = { module = "org.eclipse.edc:iam-mock", version.ref = "edc" }
 edc-jersey-micrometer = { module = "org.eclipse.edc:jersey-micrometer", version.ref = "edc" }
 edc-jetty-micrometer = { module = "org.eclipse.edc:jetty-micrometer", version.ref = "edc" }
-edc-json-ld = { module = "org.eclipse.edc:json-ld", version.ref = "edc" }
+edc-json-ld-lib = { module = "org.eclipse.edc:json-ld-lib", version.ref = "edc" }
+edc-json-ld-spi = { module = "org.eclipse.edc:json-ld-spi", version.ref = "edc" }
 edc-junit = { module = "org.eclipse.edc:junit", version.ref = "edc" }
 edc-management-api = { module = "org.eclipse.edc:management-api", version.ref = "edc" }
 edc-micrometer-core = { module = "org.eclipse.edc:micrometer-core", version.ref = "edc" }
@@ -65,8 +67,7 @@ edc-transfer-pull-http-dynamic-receiver = { module = "org.eclipse.edc:transfer-p
 edc-util = { module = "org.eclipse.edc:util", version.ref = "edc" }
 edc-vault-azure = { module = "org.eclipse.edc:vault-azure", version.ref = "edc" }
 edc-vault-filesystem = { module = "org.eclipse.edc:vault-filesystem", version.ref = "edc" }
-edc-oauth2-client = { module = "org.eclipse.edc:oauth2-client", version.ref = "edc" }
-edc-oauth2-core = { module = "org.eclipse.edc:oauth2-core", version.ref = "edc" }
+edc-protocol-dsp = { module = "org.eclipse.edc:dsp", version.ref = "edc" }
 jakarta-rsApi = { module = "jakarta.ws.rs:jakarta.ws.rs-api", version.ref = "rsApi" }
 jakartaJson = { module = "org.glassfish:jakarta.json", version.ref = "jakarta-json" }
 junit-jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "jupiter" }
@@ -74,14 +75,18 @@ junit-jupiter-engine = { module = "org.junit.jupiter:junit-jupiter-engine", vers
 junit-jupiter-params = { module = "org.junit.jupiter:junit-jupiter-params", version.ref = "jupiter" }
 junit-pioneer = { module = "org.junit-pioneer:junit-pioneer", version.ref = "junit-pioneer" }
 okhttp-mockwebserver = { module = "com.squareup.okhttp3:mockwebserver", version.ref = "okhttp-mockwebserver" }
-opentelemetry-annotations = { module = "io.opentelemetry:opentelemetry-extension-annotations", version.ref = "openTelemetry" }
+opentelemetry-annotations = { module = "io.opentelemetry:opentelemetry-extension-annotations", version = "1.18.0" }
+opentelemetry-exporter-jaeger = { module = "io.opentelemetry:opentelemetry-exporter-jaeger", version = "1.34.1" }
+opentelemetry-javaagent = { module = "io.opentelemetry.javaagent:opentelemetry-javaagent", version = "2.3.0" }
 restAssured = { module = "io.rest-assured:rest-assured", version.ref = "restAssured" }
 testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
 testcontainers-junit-jupiter = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers" }
 kafka-clients = { module = "org.apache.kafka:kafka-clients", version.ref = "kafkaClients" }
 testcontainers-kafka = { module = "org.testcontainers:kafka", version.ref = "testcontainers" }
 testcontainers-junit = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers" }
-opentelemetry = "io.opentelemetry.javaagent:opentelemetry-javaagent:2.1.0"
+edc-oauth2-client = { module = "org.eclipse.edc:oauth2-client", version.ref = "edc" }
+edc-oauth2-core = { module = "org.eclipse.edc:oauth2-core", version.ref = "edc" }
+edc-core-spi = { module = "org.eclipse.edc:core-spi", version.ref = "edc" }
 json = { module = "org.json:json", version.ref = "json" }
 swaggerParser = { module = "io.swagger.parser.v3:swagger-parser", version.ref = "swaggerParser" }
 slugify = { module = "com.github.slugify:slugify", version.ref = "slugify" }
@@ -90,6 +95,10 @@ edc-transaction-local = { module = "org.eclipse.edc:transaction-local", version.
 edc-transaction-datasource-spi = { module = "org.eclipse.edc:transaction-datasource-spi", version.ref = "edc" }
 edc-sql-control-plane-sql = { module = "org.eclipse.edc:control-plane-sql", version.ref = "edc" }
 postgresql-postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
+jsonwebtoken-jjwt-api = { module = "io.jsonwebtoken:jjwt-api", version.ref = "jwt" }
+jsonwebtoken-jjwt-impl = { module = "io.jsonwebtoken:jjwt-impl", version.ref = "jwt" }
+jsonwebtoken-jjwt-jackson = { module = "io.jsonwebtoken:jjwt-jackson", version.ref = "jwt" }
+okhttp3-okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
 
 [plugins]
 shadow = { id = "com.github.johnrengelman.shadow", version = "8.1.1" }

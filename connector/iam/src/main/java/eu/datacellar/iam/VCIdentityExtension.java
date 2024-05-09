@@ -4,13 +4,16 @@ import java.io.IOException;
 
 import org.eclipse.edc.runtime.metamodel.annotation.Extension;
 import org.eclipse.edc.runtime.metamodel.annotation.Inject;
+import org.eclipse.edc.runtime.metamodel.annotation.Provider;
 import org.eclipse.edc.runtime.metamodel.annotation.Provides;
 import org.eclipse.edc.runtime.metamodel.annotation.Setting;
+import org.eclipse.edc.spi.iam.AudienceResolver;
 import org.eclipse.edc.spi.iam.IdentityService;
 import org.eclipse.edc.spi.monitor.Monitor;
 import org.eclipse.edc.spi.system.ServiceExtension;
 import org.eclipse.edc.spi.system.ServiceExtensionContext;
 import org.eclipse.edc.spi.types.TypeManager;
+import org.eclipse.edc.spi.types.domain.message.RemoteMessage;
 
 /**
  * This class represents the VCIdentityExtension, which is an implementation of
@@ -115,6 +118,15 @@ public class VCIdentityExtension implements ServiceExtension {
             context.getMonitor().severe("Failed to initialize WaltIDIdentityServices", e);
             System.exit(1);
         }
+    }
 
+    /**
+     * Resolves the audience for the remote message.
+     *
+     * @return The counter party address of the remote message.
+     */
+    @Provider
+    public AudienceResolver audienceResolver() {
+        return RemoteMessage::getCounterPartyAddress;
     }
 }

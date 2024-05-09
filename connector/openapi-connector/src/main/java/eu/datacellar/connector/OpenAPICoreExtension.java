@@ -15,7 +15,6 @@ import javax.sql.DataSource;
 
 import org.eclipse.edc.connector.contract.spi.offer.store.ContractDefinitionStore;
 import org.eclipse.edc.connector.contract.spi.types.offer.ContractDefinition;
-import org.eclipse.edc.connector.core.CoreServicesExtension;
 import org.eclipse.edc.connector.dataplane.http.spi.HttpDataAddress;
 import org.eclipse.edc.connector.dataplane.http.spi.HttpRequestParamsProvider;
 import org.eclipse.edc.connector.dataplane.selector.spi.instance.DataPlaneInstance;
@@ -69,6 +68,7 @@ public class OpenAPICoreExtension implements ServiceExtension {
     private static final String DATASOURCE_URL = "edc.datasource.default.url";
     private static final String DATASOURCE_USER = "edc.datasource.default.user";
     private static final String DATASOURCE_PASSWORD = "edc.datasource.default.password";
+    private static final String EDC_HOSTNAME = "edc.hostname";
 
     /**
      * The name of the extension.
@@ -126,7 +126,7 @@ public class OpenAPICoreExtension implements ServiceExtension {
     private DataPlaneInstance buildDataPlaneInstance(ServiceExtensionContext context) {
         Monitor monitor = context.getMonitor();
 
-        String hostname = context.getSetting(CoreServicesExtension.HOSTNAME_SETTING, DEFAULT_HOSTNAME);
+        String hostname = context.getSetting(EDC_HOSTNAME, DEFAULT_HOSTNAME);
         String controlPort = context.getSetting(WEB_HTTP_CONTROL_PORT, String.valueOf(DEFAULT_WEB_HTTP_CONTROL_PORT));
         String publicPort = context.getSetting(WEB_HTTP_PUBLIC_PORT, String.valueOf(DEFAULT_WEB_HTTP_PUBLIC_PORT));
         String scheme = context.getSetting(HTTP_SCHEME, DEFAULT_HTTP_SCHEME);
@@ -204,9 +204,7 @@ public class OpenAPICoreExtension implements ServiceExtension {
      * @return The policy definition.
      */
     private PolicyDefinition buildPolicyDefinition(Map<String, Object> presentationDefinition, Monitor monitor) {
-        final Action USE_ACTION = Action.Builder.newInstance().type("USE").build();
-
-        ruleBindingRegistry.bind(USE_ACTION.getType(), ALL_SCOPES);
+        ruleBindingRegistry.bind("use", ALL_SCOPES);
 
         PolicyDefinition.Builder policyDefBuilder = PolicyDefinition.Builder.newInstance()
                 .id(UUID.randomUUID().toString());
@@ -230,7 +228,8 @@ public class OpenAPICoreExtension implements ServiceExtension {
                 .operator(Operator.IN)
                 .rightExpression(new LiteralExpression(credentialTypePattern)).build();
 
-        var permission = Permission.Builder.newInstance().action(USE_ACTION).constraint(credentialConstraint)
+        var permission = Permission.Builder.newInstance().action(Action.Builder.newInstance().type("USE").build())
+                .constraint(credentialConstraint)
                 .build();
 
         return policyDefBuilder

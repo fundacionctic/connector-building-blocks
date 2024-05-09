@@ -266,7 +266,7 @@ class CatalogDataset:
 
     @property
     def default_asset_id(self) -> str:
-        return self.default_policy["odrl:target"]["@id"]
+        return self.data["@id"]
 
 
 @dataclass
@@ -325,8 +325,7 @@ class ConnectorController:
             management_url=self.connector_urls.management_url,
             counter_party_connector_id=counter_party_connector_id,
             counter_party_protocol_url=counter_party_protocol_url,
-            consumer_id=self.config.connector.participant_id,
-            provider_id=counter_party_connector_id,
+            asset_id=dataset.default_asset_id,
             policy=dataset.default_policy,
         )
 

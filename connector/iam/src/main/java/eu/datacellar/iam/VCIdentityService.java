@@ -1,14 +1,12 @@
 package eu.datacellar.iam;
 
-import static java.lang.String.format;
-
 import java.io.IOException;
-import java.util.Objects;
 
 import org.eclipse.edc.spi.iam.ClaimToken;
 import org.eclipse.edc.spi.iam.IdentityService;
 import org.eclipse.edc.spi.iam.TokenParameters;
 import org.eclipse.edc.spi.iam.TokenRepresentation;
+import org.eclipse.edc.spi.iam.VerificationContext;
 import org.eclipse.edc.spi.monitor.Monitor;
 import org.eclipse.edc.spi.result.Result;
 import org.eclipse.edc.spi.types.TypeManager;
@@ -60,10 +58,10 @@ public class VCIdentityService implements IdentityService {
 
     @Override
     public Result<TokenRepresentation> obtainClientCredentials(TokenParameters parameters) {
+        String audience = parameters.getStringClaim("aud");
+
         monitor.info(
-                String.format("obtainClientCredentials: (scope=%s) (audience=%s)",
-                        parameters.getScope(),
-                        parameters.getAudience()));
+                String.format("obtainClientCredentials: (audience=%s)", audience));
 
         PresentationDefinition presentationDefinition = new PresentationDefinition(PRESENTED_VC_TYPE);
         MatchCredentialsResponse matchCredentialsResponse;
@@ -90,7 +88,7 @@ public class VCIdentityService implements IdentityService {
 
         presentationBuilder
                 .addJwtCredential(jwtEncodedVC)
-                .setAudience(parameters.getAudience());
+                .setAudience(audience);
 
         String jwtEncodedVP;
 
@@ -103,7 +101,7 @@ public class VCIdentityService implements IdentityService {
         monitor.debug("JWT-encoded Verifiable Presentation: %s".formatted(jwtEncodedVP));
 
         var token = new VerifiablePresentationToken();
-        token.setAudience(parameters.getAudience());
+        token.setAudience(audience);
         token.setClientId(clientId);
         token.setJwtVerifiablePresentation(jwtEncodedVP);
         token.setClientDid(presentationBuilder.getHolderDid());
@@ -116,15 +114,10 @@ public class VCIdentityService implements IdentityService {
     }
 
     @Override
-    public Result<ClaimToken> verifyJwtToken(TokenRepresentation tokenRepresentation, String audience) {
+    public Result<ClaimToken> verifyJwtToken(TokenRepresentation tokenRepresentation, VerificationContext context) {
         monitor.debug("verifyJwtToken.tokenRepresentation: %s".formatted(tokenRepresentation.getToken()));
-        monitor.debug("verifyJwtToken.audience: %s".formatted(audience));
 
         var token = typeManager.readValue(tokenRepresentation.getToken(), VerifiablePresentationToken.class);
-
-        if (!Objects.equals(token.audience, audience)) {
-            return Result.failure(format("Mismatched audience: expected %s, got %s", audience, token.audience));
-        }
 
         Jwk<?> anchorJwk;
 
