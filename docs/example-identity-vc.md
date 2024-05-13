@@ -1,4 +1,6 @@
-# Run the Example with the Self-Sovereign Identity Extension
+# Self-Sovereign Identity Extension Example
+
+This guide shows how to run the [minimal example](index.md) using the SSI extension to enable authentication between connectors using W3C Verifiable Credentials.
 
 ## Configure the connectors
 

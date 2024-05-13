@@ -1,47 +1,11 @@
-# Data Space Connector Building Blocks
+# Minimal Example
 
-> [!CAUTION]
-> Please note that most of the code in this repository is still a work in progress and will thus likely go through several breaking changes throughout its development.
-
-## Introduction
-
-This repository contains a collection of software components that aim at simplifying the deployment of data space connectors based on the [Eclipse Dataspace Components](https://eclipse-edc.github.io/docs/#/) (EDC) ecosystem and the interactions of applications with those connectors. Specifically, the following components are provided here:
-
-* An EDC connector extension capable of interpreting an OpenAPI schema and generating a set of assets within the data space to represent the services provided by a participant component. The underlying idea is to enable participants to develop their own HTTP APIs while the extension abstracts away the intricacies of exposing these HTTP APIs to the data space.
-* An EDC connector extension that implements authentication via W3C Verifiable Credentials.
-* A Python library that implements the logic to interact with the [Management](https://app.swaggerhub.com/apis/eclipse-edc-bot/management-api) and [Control](https://app.swaggerhub.com/apis/eclipse-edc-bot/control-api) APIs of the EDC connector to go through the necessary steps to transfer data between two participants in the data space.
-
-> [!TIP]
-> Extensions are self-contained software components that add new functionalities to the connector. For example, there are extensions to add authentication based on OAuth2 and to enable the connector to serve files from S3 buckets. In this instance, we are developing our own connector extensions to tailor the connector to our specific use case. Check the [basic EDC connector samples](https://github.com/eclipse-edc/Samples/blob/main/basic/basic-02-health-endpoint/README.md) to get a better understanding of how extensions work.
-
-The repository is organized as follows:
-
-* The `connector` folder contains a Java project with a very early draft version of the connector extensions and a connector launcher.
-* The `mock-backend` folder contains an example HTTP API as exposed by a data space participant. This API is described by an [OpenAPI](https://learn.openapis.org/) document. The logic of the component itself does not hold any value; its purpose is to demonstrate where each participant should contribute.
-* The `edcpy` folder contains a Python package built on top of Poetry, providing a series of utilities to interact with a data space based on the EDC ecosystem. For example, it contains the logic to execute all the necessary HTTP requests to successfully complete a transfer process. Additionally, it offers an example implementation of a _consumer backend_.
-* The `dev-config` and `example` folders, alongside the `Vagrantfile`, contain the configuration and scripts necessary to deploy a consumer and a provider, and to demonstrate end-to-end communications based on the Dataspace Protocol between them.
-
-> [!TIP]
-> The example can be deployed using only Docker, with both the provider and the consumer on the same machine. Another option is to use [Vagrant](https://developer.hashicorp.com/vagrant/docs) (see the `Vagrantfile`), which results in the consumer and provider each having their own separate Virtual Machine (VM). This README focuses on the first option, based solely on Docker for simplicity.
-
-## Public Artifacts
-
-This repository publishes two software artifacts for convenience:
-
-* The `edcpy` Python package, which is [published to PyPI](https://pypi.org/project/edcpy/).
-* The `agmangas/edc-connector` Docker image for the connector launcher, which is [published to Docker Hub](https://hub.docker.com/r/agmangas/edc-connector).
-
-### Configuration of the Connector Image
-
-Although the later examples go into more detail about how to configure the connector, it is relevant to note that the `agmangas/edc-connector` image expects the following environment variables:
-
-| Variable Name          | Description                                                                                                                    |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `PROPERTIES_FILE_PATH` | Path to a properties file containing the configuration for the connector.                                                      |
-| `KEYSTORE_PATH`        | Path to a keystore file containing the private key and certificate for the connector. The keystore should be in PKCS12 format. |
-| `KEYSTORE_PASSWORD`    | The password for the keystore.                                                                                                 |
-
-## Example
+- [Minimal Example](#minimal-example)
+  - [Configuration and Deployment](#configuration-and-deployment)
+    - [Provider](#provider)
+    - [Consumer](#consumer)
+  - [Consumer Pull](#consumer-pull)
+  - [Provider Push](#provider-push)
 
 The example in this section will illustrate the following scenario:
 
@@ -52,12 +16,12 @@ The example in this section will illustrate the following scenario:
   * [Docker](https://www.docker.com/products/docker-desktop/): All services, including the connector, will be deployed as Docker containers.
   * [Taskfile](https://taskfile.dev/): We'll use Taskfile as a task runner in this example to simplify the deployment process and ensure its reproducibility.
   * Python and [Poetry](https://python-poetry.org/): To run the example scripts.
-* To simplify the example, no authentication will be used. Nevertheless, it's worth noting that the connector will eventually support authentication via W3C Verifiable Credentials (VC) for real-world scenarios.
+* To simplify the example, no authentication will be used. Nevertheless, it's worth noting that the connector supports authentication based on Self-Sovereign Identity (SSI) principles for more realistic scenarios.
 
 > [!NOTE]
 > This example assumes that all commands are executed on the same machine.
 
-### Configuration and Deployment
+## Configuration and Deployment
 
 > [!IMPORTANT]
 > The default configuration of the example relies on `host.docker.internal` resolving to the host IP address. However, this may not be the case if you're using Linux. If that's the case, please ensure that `host.docker.internal` is added to your `/etc/hosts` file:
@@ -68,7 +32,7 @@ The example in this section will illustrate the following scenario:
 > 127.0.0.1 host.docker.internal
 > ```
 
-#### Provider
+### Provider
 
 First, we will deploy the services of the provider participant.
 
@@ -220,7 +184,7 @@ CONTAINER ID   IMAGE          COMMAND                  CREATED          STATUS  
 2fb81b1dc25b   671518adc863   "/bin/sh -c '${PATH_…"   16 minutes ago   Up 16 minutes   0.0.0.0:19191-19194->19191-19194/tcp, 0.0.0.0:19291->19291/tcp   provider
 ```
 
-#### Consumer
+### Consumer
 
 After deploying the provider, we can proceed with deploying the consumer's services.
 
@@ -244,9 +208,6 @@ edc.receiver.http.endpoint=http://host.docker.internal:28000/pull
 
 **3. Deploy the connector alongside the consumer backend and the message broker**
 
-> [!TIP]
-> Check the [FAQs](#frequently-asked-questions) to see why a **message broker** is necessary and what a **consumer backend** is.
-
 You need to deploy the stack defined in `docker-compose-minimal-consumer.yml` to start the consumer connector, the consumer backend and the message broker:
 
 ```console
@@ -265,7 +226,7 @@ CONTAINER ID   IMAGE                      COMMAND                  CREATED      
 5530123dbee6   rabbitmq:3.11-management   "docker-entrypoint.s…"   5 minutes ago   Up 5 minutes   4369/tcp, 5671/tcp, 0.0.0.0:5672->5672/tcp, 15671/tcp, 15691-15692/tcp, 25672/tcp, 0.0.0.0:15672->15672/tcp   consumer_broker
 ```
 
-### Consumer Pull
+## Consumer Pull
 
 This example demonstrates the **Consumer Pull** type of data transfer as defined in the [Transfer Data Plane](https://github.com/eclipse-edc/Connector/tree/v0.5.1/extensions/control-plane/transfer/transfer-data-plane) extension.
 
@@ -273,7 +234,7 @@ In this case, the consumer _pulls_ data from the provider by sending HTTP reques
 
 The diagram below presents an overview of this data transfer process as implemented in this example:
 
-![Consumer Pull diagram](diagrams/http-pull-example.png)
+![Consumer Pull diagram](../diagrams/http-pull-example.png)
 
 It is interesting to note that when the consumer application sends a request to the HTTP API through the provider connector, the provider connector acts as a proxy (step 6 in the diagram). This means that the HTTP API is not directly exposed to the Internet, and its access is controlled by the provider connector, even if the HTTP API itself does not implement any authentication mechanism.
 
@@ -357,13 +318,13 @@ $ poetry run python ../example/example_pull.py
 [...]
 ```
 
-### Provider Push
+## Provider Push
 
 This example demonstrates the **Provider Push** data transfer type, which is the alternative to the aforementioned Consumer Pull type.
 
 In this case, the provider pushes data to the consumer by sending HTTP requests to the consumer's backend directly. These requests contain the responses from the Mock HTTP API.
 
-![Provider Push diagram](diagrams/http-push-example.png)
+![Provider Push diagram](../diagrams/http-push-example.png)
 
 If you have already set the environment variables for the consumer and installed the dependencies for the `edcpy` package, you can run the example script:
 
@@ -399,46 +360,3 @@ $ poetry run python ../example/example_push.py
              {'date': '2024-03-06T22:00:00+00:00', 'value': 22},
              {'date': '2024-03-06T23:00:00+00:00', 'value': 29}]}
 ```
-
-## Frequently Asked Questions
-
-**What exactly is a _consumer backend_?**
-
-A **consumer backend** is a service within the connector ecosystem with two primary responsibilities:
-
-* In the [Consumer Pull](https://github.com/eclipse-edc/Connector/tree/main/extensions/control-plane/transfer/transfer-data-plane#consumer-pull) use case, it receives the `EndpointDataReference` object from the provider side. This object contains details on how and where to send the HTTP request to obtain the final response.
-* In the [Provider Push](https://github.com/eclipse-edc/Connector/tree/main/extensions/control-plane/transfer/transfer-data-plane#provider-push) use case, it receives the actual final response.
-
-The **consumer backend** implementation is provided out-of-the-box by the [`edcpy`](edcpy) package. It is not necessary for each participant to develop its own version; the same implementation can be reused across the data space.
-
-**How does the provider know how to expose the Mock Backend HTTP API and create the related assets in the data space?**
-
-The Mock Backend HTTP API must expose a schema file that adheres to the [OpenAPI specifications](https://spec.openapis.org/oas/latest.html). The URL to this file is provided as a configuration property (`eu.datacellar.openapi.url`) to the provider. Upon initialization, the provider retrieves the schema file and builds the necessary assets.
-
-The JSON file of the API schema serves as the authoritative source, determining how the HTTP API will be represented within the data space.
-
-**What is the role of the RabbitMQ message broker?**
-
-In both the _Consumer Pull_ and _Provider Push_ approaches, an HTTP server (i.e. _consumer backend_) needs to be running on the consumer's side.
-
-In this project, [RabbitMQ](https://www.rabbitmq.com/) was chosen as a tool to decouple the messages received by the _consumer backend_ and enable arbitrary applications to subscribe to and process them asynchronously.
-
-RabbitMQ was selected due to its popularity and ease of use as a message broker. Other options, such as Redis, could have been chosen as well. It's worth noting that a message broker is not strictly necessary. Any mechanism capable of passing the messages received on the _consumer backend_ to the application would be suitable.
-
-**What is the `edcpy` package, and is Python required?**
-
-The [Management](https://app.swaggerhub.com/apis/eclipse-edc-bot/management-api) and [Control](https://app.swaggerhub.com/apis/eclipse-edc-bot/control-api) APIs of the Eclipse Connector involve complex interactions with multiple requests. The `edcpy` package serves as a means to encapsulate this logic, making it reusable. Additionally, it provides a ready-to-use _consumer backend_ that integrates with RabbitMQ.
-
-However, it's important to note that the use of Python is not mandatory. The `edcpy` package is designed to (hopefully) facilitate the development process, but if you prefer to use another programming language, you have the flexibility to build your own _consumer backend_ and directly communicate with the Management API.
-
-**What are the minimum requirements that an HTTP API must have to be interoperable with the OpenAPI connector extension?**
-
-We will strive to ensure that our connector is compatible with any arbitrary HTTP API, as long as it is properly described using the OpenAPI specification.
-
-This means that you should have the liberty of using whatever technology stack you feel more comfortable with to develop the API.
-
-**Are OpenAPI-based APIs the only supported data sources?**
-
-Yes, for the time being. These connector extensions are still in their early stages of development, and we are focusing on the most common use cases. However, we are open to expanding the scope of the project in the future.
-
-In any case, the OpenAPI specification is flexible enough to describe a wide variety of APIs. It should be fairly simple to expose your existing data source as an OpenAPI-based API.
