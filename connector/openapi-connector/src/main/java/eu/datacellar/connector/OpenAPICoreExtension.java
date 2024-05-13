@@ -13,6 +13,7 @@ import java.util.UUID;
 
 import javax.sql.DataSource;
 
+import org.eclipse.edc.connector.contract.spi.negotiation.store.ContractNegotiationStore;
 import org.eclipse.edc.connector.contract.spi.offer.store.ContractDefinitionStore;
 import org.eclipse.edc.connector.contract.spi.types.offer.ContractDefinition;
 import org.eclipse.edc.connector.dataplane.http.spi.HttpDataAddress;
@@ -105,6 +106,9 @@ public class OpenAPICoreExtension implements ServiceExtension {
 
     @Inject
     private ContractDefinitionStore contractStore;
+
+    @Inject
+    private ContractNegotiationStore contractNegotiationStore;
 
     @Inject
     private DataPlaneInstanceStore dataPlaneStore;
@@ -404,28 +408,8 @@ public class OpenAPICoreExtension implements ServiceExtension {
             monitor.warning(String.format("OpenAPI URL (property '%s') is not set", OPENAPI_URL));
         }
 
-        Package pkg = OpenAPICoreExtension.class.getPackage();
-        String pkgVersion = pkg.getImplementationVersion();
-
-        paramsProvider.registerSourceDecorator((request, address, builder) -> {
-            if (pkgVersion != null) {
-                builder.header("X-OpenAPI-Connector-Source-Version", pkgVersion);
-            }
-
-            builder.header("X-OpenAPI-Connector", "source");
-
-            return builder;
-        });
-
-        paramsProvider.registerSinkDecorator((request, address, builder) -> {
-            if (pkgVersion != null) {
-                builder.header("X-OpenAPI-Connector-Sink-Version", pkgVersion);
-            }
-
-            builder.header("X-OpenAPI-Connector", "sink");
-
-            return builder;
-        });
+        paramsProvider
+                .registerSourceDecorator(new ContractDetailsHttpParamsDecorator(monitor, contractNegotiationStore));
 
         monitor.info(String.format("Initialized extension: %s", this.getClass().getName()));
     }

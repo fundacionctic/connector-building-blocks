@@ -26,6 +26,7 @@ class HttpPullMessage(BaseModel):
     endpoint: str
     id: str
     properties: dict
+    contract_id: str
 
     @property
     def http_method(self) -> str:
@@ -46,6 +47,7 @@ class HttpPullMessage(BaseModel):
             "method": self.http_method,
             "url": self.endpoint,
             "headers": {self.auth_key: self.auth_code},
+            "params": {"contractId": self.contract_id},
         }
 
     @property

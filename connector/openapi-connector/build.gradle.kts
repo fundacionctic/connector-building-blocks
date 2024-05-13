@@ -30,6 +30,7 @@ dependencies {
     implementation(libs.swaggerParser)
     implementation(libs.slugify)
     implementation(libs.json)
+    implementation(libs.okhttp3.okhttp)
 
     if (
         project.hasProperty("useOauthIdentity") &&

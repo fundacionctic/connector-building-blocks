@@ -36,6 +36,7 @@ class EndpointDataReference(BaseModel):
     authKey: str
     authCode: str
     properties: dict
+    contractId: str
 
 
 async def get_messaging_app() -> AsyncGenerator[MessagingApp, None]:
@@ -127,6 +128,7 @@ async def http_pull_endpoint(
         endpoint=item.endpoint,
         id=item.id,
         properties=item.properties,
+        contract_id=item.contractId,
     )
 
     # The provider hostname is included in the routing key to facilitate
