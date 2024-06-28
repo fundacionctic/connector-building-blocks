@@ -3,6 +3,7 @@ package eu.datacellar.iam;
 import java.io.IOException;
 import java.time.ZonedDateTime;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
@@ -327,36 +328,48 @@ public class WaltIDIdentityServices {
             return matchingCredentials == null || matchingCredentials.isEmpty();
         }
 
+        private JSONObject parseVCFromJWTDocument(String jwtCredential) {
+            String[] parts = jwtCredential.split("\\.");
+            String payload = parts[1];
+            String decodedPayload = new String(Base64.getUrlDecoder().decode(payload));
+            JSONObject jwtCredentialObj = new JSONObject(decodedPayload);
+            return jwtCredentialObj.getJSONObject("vc");
+        }
+
+        private boolean isActive(String jwtCredential) {
+            try {
+                JSONObject vcObj = parseVCFromJWTDocument(jwtCredential);
+                return ZonedDateTime.parse(vcObj.getString("expirationDate")).isAfter(ZonedDateTime.now());
+            } catch (Exception e) {
+                return false;
+            }
+        }
+
+        private ZonedDateTime getIssuanceDate(String jwtCredential) {
+            try {
+                JSONObject vcObj = parseVCFromJWTDocument(jwtCredential);
+                return ZonedDateTime.parse(vcObj.getString("issuanceDate"));
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
         /**
-         * Retrieves the latest JSONObject from the list of matching credentials.
+         * Retrieves a list of active JWT tokens encoded as strings.
          *
-         * @return The latest JSONObject, or null if no matching credentials are found.
+         * @return A list of active JWT tokens encoded as strings, or null if there are
+         *         no matching credentials.
          */
-        public JSONObject getMostRecent() {
+        public String getLatestActiveAsJWT() {
             if (isEmpty()) {
                 return null;
             }
 
             return IntStream.range(0, matchingCredentials.length())
-                    .mapToObj(matchingCredentials::getJSONObject)
-                    .max(Comparator.comparing(o -> ZonedDateTime.parse(o.getString("addedOn"))))
+                    .mapToObj(i -> matchingCredentials.getJSONObject(i).getString("document"))
+                    .filter(this::isActive)
+                    .max(Comparator.comparing(this::getIssuanceDate))
                     .orElse(null);
-        }
-
-        /**
-         * Retrieves the most recent JWT encoded document.
-         *
-         * @return The most recent JWT encoded document as a String, or null if no
-         *         document is available.
-         */
-        public String getMostRecentJWTEncoded() {
-            JSONObject latest = getMostRecent();
-
-            if (latest == null) {
-                return null;
-            }
-
-            return latest.getString("document");
         }
     }
 
@@ -409,6 +422,17 @@ public class WaltIDIdentityServices {
                                         {
                                             put("type", "string");
                                             put("pattern", "^%s$".formatted(vcType));
+                                        }
+                                    });
+                                }
+                            },
+                            new HashMap<String, Object>() {
+                                {
+                                    put("path", Arrays.asList("$.expirationDate"));
+                                    put("filter", new HashMap<String, Object>() {
+                                        {
+                                            put("type", "string");
+                                            put("format", "date-time");
                                         }
                                     });
                                 }

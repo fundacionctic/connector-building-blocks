@@ -70,35 +70,42 @@ public class VCIdentityService implements IdentityService {
             matchCredentialsResponse = identityServices
                     .matchCredentials(presentationDefinition);
         } catch (IOException e) {
-            return Result.failure("Failed to match credentials: %s".formatted(e.getMessage()));
+            String errMsg = "Failed to match credentials: %s".formatted(e.getMessage());
+            monitor.warning(errMsg);
+            return Result.failure(errMsg);
         }
 
-        String jwtEncodedVC = matchCredentialsResponse.getMostRecentJWTEncoded();
-        monitor.debug("JWT-encoded Verifiable Credential: %s".formatted(jwtEncodedVC));
+        String jwtEncodedVC = matchCredentialsResponse.getLatestActiveAsJWT();
+        monitor.debug("JWT-encoded Verifiable Credentials: %s".formatted(jwtEncodedVC));
+
+        if (jwtEncodedVC == null) {
+            String errMsg = "No active credentials found";
+            monitor.warning(errMsg);
+            return Result.failure(errMsg);
+        }
 
         Jwk<?> anchorJwk;
 
         try {
             anchorJwk = keyResolver.resolveDIDToPublicKeyJWK(didTrustAnchor);
         } catch (IOException e) {
-            return Result.failure("Failed to resolve DID trust anchor: %s".formatted(e.getMessage()));
+            String errMsg = "Failed to resolve DID trust anchor: %s".formatted(e.getMessage());
+            monitor.warning(errMsg);
+            return Result.failure(errMsg);
         }
 
         PresentationBuilder presentationBuilder = new PresentationBuilder(anchorJwk, identityServices);
-
-        presentationBuilder
-                .addJwtCredential(jwtEncodedVC)
-                .setAudience(audience);
+        presentationBuilder.addJwtCredential(jwtEncodedVC).setAudience(audience);
 
         String jwtEncodedVP;
 
         try {
             jwtEncodedVP = presentationBuilder.buildPresentationJwt();
         } catch (IOException e) {
-            return Result.failure("Failed to build presentation: %s".formatted(e.getMessage()));
+            String errMsg = "Failed to build presentation: %s".formatted(e.getMessage());
+            monitor.warning(errMsg);
+            return Result.failure(errMsg);
         }
-
-        monitor.debug("JWT-encoded Verifiable Presentation: %s".formatted(jwtEncodedVP));
 
         var token = new VerifiablePresentationToken();
         token.setAudience(audience);
@@ -109,6 +116,8 @@ public class VCIdentityService implements IdentityService {
         TokenRepresentation tokenRepresentation = TokenRepresentation.Builder.newInstance()
                 .token(typeManager.writeValueAsString(token))
                 .build();
+
+        monitor.debug("TokenRepresentation: %s".formatted(tokenRepresentation.getToken()));
 
         return Result.success(tokenRepresentation);
     }
