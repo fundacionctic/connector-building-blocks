@@ -2,6 +2,9 @@
 
 version: "3"
 
+vars:
+  CONNECTOR_INTERNAL_DEBUG_PORT: 8787
+
 env:
   MAIN_IP_ADDRESS:
     sh: ip route get 1.2.3.4 | awk '{print $7}'
@@ -146,6 +149,9 @@ tasks:
       CLEAN: '{{default "false" .CLEAN}}'
       SSI: '{{default "false" .SSI}}'
       SQL: '{{default "false" .SQL}}'
+      DEBUG: '{{default "false" .DEBUG}}'
+    env:
+      JAVA_TOOL_OPTIONS: '{{if eq .DEBUG "true"}}-agentlib:jdwp=transport=dt_socket,address=*:{{.CONNECTOR_INTERNAL_DEBUG_PORT}},server=y,suspend=n{{end}}'
     cmds:
       - docker compose -f {{.ROOT_DIR}}/mock-backend/docker-compose.yml up -d --build --wait
       - task: build-connector

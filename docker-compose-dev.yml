@@ -3,6 +3,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.openjdk
+      args:
+        JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:-}
     image: edc-dev-jdk
     pull_policy: never
     container_name: consumer
@@ -64,6 +66,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.openjdk
+      args:
+        JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:-}
     image: edc-dev-jdk
     pull_policy: never
     container_name: provider
