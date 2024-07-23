@@ -1,6 +1,8 @@
 package eu.datacellar.connector;
 
+import static org.eclipse.edc.connector.contract.spi.validation.ContractValidationService.NEGOTIATION_SCOPE;
 import static org.eclipse.edc.dataaddress.httpdata.spi.HttpDataAddressSchema.HTTP_DATA_TYPE;
+import static org.eclipse.edc.jsonld.spi.PropertyAndTypeNames.ODRL_USE_ACTION_ATTRIBUTE;
 import static org.eclipse.edc.policy.engine.spi.PolicyEngine.ALL_SCOPES;
 import static org.eclipse.edc.spi.query.Criterion.criterion;
 
@@ -208,8 +210,6 @@ public class OpenAPICoreExtension implements ServiceExtension {
      * @return The policy definition.
      */
     private PolicyDefinition buildPolicyDefinition(Map<String, Object> presentationDefinition, Monitor monitor) {
-        ruleBindingRegistry.bind("use", ALL_SCOPES);
-
         PolicyDefinition.Builder policyDefBuilder = PolicyDefinition.Builder.newInstance()
                 .id(UUID.randomUUID().toString());
 
@@ -217,22 +217,18 @@ public class OpenAPICoreExtension implements ServiceExtension {
             return policyDefBuilder.policy(Policy.Builder.newInstance().build()).build();
         }
 
-        ruleBindingRegistry.bind(CredentialConstraintFunction.KEY, ALL_SCOPES);
-
-        CredentialConstraintFunction atomConstraintFunction = new CredentialConstraintFunction(monitor);
-
-        policyEngine.registerFunction(ALL_SCOPES, Permission.class,
-                CredentialConstraintFunction.KEY,
-                atomConstraintFunction);
-
         String credentialTypePattern = extractCredentialTypePattern(presentationDefinition);
 
-        var credentialConstraint = AtomicConstraint.Builder.newInstance()
+        AtomicConstraint credentialConstraint = AtomicConstraint.Builder.newInstance()
                 .leftExpression(new LiteralExpression(CredentialConstraintFunction.KEY))
                 .operator(Operator.IN)
-                .rightExpression(new LiteralExpression(credentialTypePattern)).build();
+                .rightExpression(new LiteralExpression(credentialTypePattern))
+                .build();
 
-        var permission = Permission.Builder.newInstance().action(Action.Builder.newInstance().type("USE").build())
+        Action useAction = Action.Builder.newInstance().type(ODRL_USE_ACTION_ATTRIBUTE).build();
+
+        Permission permission = Permission.Builder.newInstance()
+                .action(useAction)
                 .constraint(credentialConstraint)
                 .build();
 
@@ -387,6 +383,23 @@ public class OpenAPICoreExtension implements ServiceExtension {
         dataSourceRegistry.register(DataSourceRegistry.DEFAULT_DATASOURCE, dataSource);
     }
 
+    private void registerPolicyFunctions(ServiceExtensionContext context) {
+        Monitor monitor = context.getMonitor();
+
+        ruleBindingRegistry.bind(ODRL_USE_ACTION_ATTRIBUTE, ALL_SCOPES);
+        ruleBindingRegistry.bind(CredentialConstraintFunction.KEY, NEGOTIATION_SCOPE);
+
+        CredentialConstraintFunction atomConstraintFunction = new CredentialConstraintFunction(monitor);
+
+        monitor.info("Registering policy function: %s".formatted(CredentialConstraintFunction.KEY));
+
+        policyEngine.registerFunction(
+                ALL_SCOPES,
+                Permission.class,
+                CredentialConstraintFunction.KEY,
+                atomConstraintFunction);
+    }
+
     @Override
     public void initialize(ServiceExtensionContext context) {
         Monitor monitor = context.getMonitor();
@@ -399,6 +412,8 @@ public class OpenAPICoreExtension implements ServiceExtension {
         // "java.lang.NullPointerException: DataSource <name> could not be resolved"
         // So I'm registering the default data source manually for now.
         ensureDefaultDataSource(context);
+
+        registerPolicyFunctions(context);
 
         openapiUrl = context.getSetting(OPENAPI_URL, null);
 

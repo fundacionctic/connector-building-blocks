@@ -80,7 +80,7 @@ public class CredentialConstraintFunction implements AtomicConstraintFunction<Pe
         ParticipantAgent agent = context.getContextData(ParticipantAgent.class);
 
         if (agent == null) {
-            monitor.warning("Participant agent is not available.");
+            monitor.warning("%s :: Participant agent is not available.".formatted(KEY));
             return false;
         }
 

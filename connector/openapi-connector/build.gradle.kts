@@ -27,6 +27,9 @@ dependencies {
     implementation(libs.edc.data.plane.core)
     implementation(libs.edc.data.plane.http)
 
+    api(libs.edc.data.plane.spi)
+    api(libs.edc.json.ld.spi)
+
     implementation(libs.swaggerParser)
     implementation(libs.slugify)
     implementation(libs.json)
