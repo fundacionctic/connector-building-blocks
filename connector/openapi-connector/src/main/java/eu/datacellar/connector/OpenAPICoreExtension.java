@@ -1,6 +1,7 @@
 package eu.datacellar.connector;
 
 import static org.eclipse.edc.connector.contract.spi.validation.ContractValidationService.NEGOTIATION_SCOPE;
+import static org.eclipse.edc.connector.contract.spi.validation.ContractValidationService.TRANSFER_SCOPE;
 import static org.eclipse.edc.dataaddress.httpdata.spi.HttpDataAddressSchema.HTTP_DATA_TYPE;
 import static org.eclipse.edc.jsonld.spi.PropertyAndTypeNames.ODRL_USE_ACTION_ATTRIBUTE;
 import static org.eclipse.edc.policy.engine.spi.PolicyEngine.ALL_SCOPES;
@@ -388,6 +389,7 @@ public class OpenAPICoreExtension implements ServiceExtension {
 
         ruleBindingRegistry.bind(ODRL_USE_ACTION_ATTRIBUTE, ALL_SCOPES);
         ruleBindingRegistry.bind(CredentialConstraintFunction.KEY, NEGOTIATION_SCOPE);
+        ruleBindingRegistry.bind(CredentialConstraintFunction.KEY, TRANSFER_SCOPE);
 
         CredentialConstraintFunction atomConstraintFunction = new CredentialConstraintFunction(monitor);
 

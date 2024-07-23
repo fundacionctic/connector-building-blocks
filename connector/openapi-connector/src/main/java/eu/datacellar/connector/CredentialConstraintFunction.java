@@ -8,6 +8,7 @@ import org.eclipse.edc.policy.model.Operator;
 import org.eclipse.edc.policy.model.Permission;
 import org.eclipse.edc.spi.agent.ParticipantAgent;
 import org.eclipse.edc.spi.monitor.Monitor;
+import org.eclipse.edc.spi.types.domain.agreement.ContractAgreement;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -80,23 +81,32 @@ public class CredentialConstraintFunction implements AtomicConstraintFunction<Pe
         ParticipantAgent agent = context.getContextData(ParticipantAgent.class);
 
         if (agent == null) {
-            monitor.warning("%s :: Participant agent is not available.".formatted(KEY));
+            monitor.debug("%s :: Participant agent is not available.".formatted(KEY));
             return false;
         }
 
-        monitor.debug("%s :: Participant agent identity: %s".formatted(KEY, agent.getIdentity()));
+        monitor.info("%s :: Participant agent identity: %s".formatted(KEY, agent.getIdentity()));
+
+        ContractAgreement agreement = context.getContextData(ContractAgreement.class);
+
+        if (agreement == null) {
+            monitor.debug("%s :: Contract agreement is not available.".formatted(KEY));
+        } else {
+            monitor.info("%s :: Contract agreement ID: %s".formatted(KEY, agreement.getId()));
+        }
 
         Object vp = agent.getClaims().getOrDefault(CLAIMS_KEY_VERIFIABLE_PRESENTATION, null);
 
         if (vp == null) {
-            monitor.warning("Participant agent does not have a verifiable presentation claim.");
+            monitor.warning("%s :: Participant agent does not have a verifiable presentation claim.".formatted(KEY));
             return false;
         }
 
         String vpJsonStr = (String) vp;
         String expectedCredentialTypePattern = (String) rightValue;
 
-        monitor.debug("Checking VP for credential type '%s': %s".formatted(expectedCredentialTypePattern, vpJsonStr));
+        monitor.debug("%s :: Checking VP for credential type '%s': %s".formatted(
+                KEY, expectedCredentialTypePattern, vpJsonStr));
 
         return isCredentialTypePresent(vpJsonStr, expectedCredentialTypePattern);
     }
