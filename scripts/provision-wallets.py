@@ -115,9 +115,13 @@ def get_first_wallet_id(wallet_api_base_url: str, wallet_token: str) -> str:
 
 
 def get_openid4vc_credential_offer_url(
-    jwk: dict, vc: dict, issuer_api_base_url: str, issuer_did: str
+    jwk: dict,
+    vc: dict,
+    issuer_api_base_url: str,
+    issuer_did: str,
+    credential_configuration_id: str = "VerifiableId_jwt_vc_json",
 ) -> str:
-    issuance_key = {"type": "local", "jwk": json.dumps(jwk)}
+    issuance_key = {"type": "jwk", "jwk": jwk}
 
     mapping = {
         "id": "<uuid>",
@@ -128,8 +132,9 @@ def get_openid4vc_credential_offer_url(
     }
 
     data = {
-        "issuanceKey": issuance_key,
-        "vc": vc,
+        "credentialConfigurationId": credential_configuration_id,
+        "issuerKey": issuance_key,
+        "credentialData": vc,
         "mapping": mapping,
         "issuerDid": issuer_did,
     }
@@ -178,7 +183,7 @@ def accept_credential_offer(
 
 
 def create_wallet_user(wallet_api_base_url: str, name: str, email: str, password: str):
-    url = wallet_api_base_url + "/wallet-api/auth/create"
+    url = wallet_api_base_url + "/wallet-api/auth/register"
 
     data = {
         "name": name,
@@ -201,7 +206,7 @@ def export_key_jwk(
     headers = {"Authorization": "Bearer " + wallet_token}
 
     url_export_key = (
-        wallet_api_base_url + f"/wallet-api/wallet/{wallet_id}/keys/export/{key_id}"
+        wallet_api_base_url + f"/wallet-api/wallet/{wallet_id}/keys/{key_id}/export"
     )
 
     res_export_key_jwk = requests.get(

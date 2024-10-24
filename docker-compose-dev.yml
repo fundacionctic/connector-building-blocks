@@ -93,7 +93,7 @@ services:
     extra_hosts:
       - host.docker.internal:host-gateway
   issuer:
-    image: waltid/issuer-api:1.0.2402271122-SNAPSHOT
+    image: waltid/issuer-api:1.0.2409230658-SNAPSHOT
     container_name: issuer
     restart: on-failure
     ports:
@@ -103,7 +103,7 @@ services:
     extra_hosts:
       - host.docker.internal:host-gateway
   verifier:
-    image: waltid/verifier-api:1.0.2402271122-SNAPSHOT
+    image: waltid/verifier-api:1.0.2409230658-SNAPSHOT
     container_name: verifier
     restart: on-failure
     ports:
@@ -113,7 +113,7 @@ services:
     extra_hosts:
       - host.docker.internal:host-gateway
   consumer_wallet:
-    image: waltid/wallet-api:1.0.2402271122-SNAPSHOT
+    image: waltid/wallet-api:1.0.2409230658-SNAPSHOT
     container_name: consumer_wallet
     restart: on-failure
     ports:
@@ -124,7 +124,7 @@ services:
     extra_hosts:
       - host.docker.internal:host-gateway
   anchor_wallet:
-    image: waltid/wallet-api:1.0.2402271122-SNAPSHOT
+    image: waltid/wallet-api:1.0.2409230658-SNAPSHOT
     container_name: anchor_wallet
     restart: on-failure
     ports:
@@ -135,7 +135,7 @@ services:
     extra_hosts:
       - host.docker.internal:host-gateway
   provider_wallet:
-    image: waltid/wallet-api:1.0.2402271122-SNAPSHOT
+    image: waltid/wallet-api:1.0.2409230658-SNAPSHOT
     container_name: provider_wallet
     restart: on-failure
     ports:
