@@ -1,7 +1,5 @@
 package eu.datacellar.connector;
 
-import static org.eclipse.edc.connector.contract.spi.validation.ContractValidationService.NEGOTIATION_SCOPE;
-import static org.eclipse.edc.connector.contract.spi.validation.ContractValidationService.TRANSFER_SCOPE;
 import static org.eclipse.edc.dataaddress.httpdata.spi.HttpDataAddressSchema.HTTP_DATA_TYPE;
 import static org.eclipse.edc.jsonld.spi.PropertyAndTypeNames.ODRL_USE_ACTION_ATTRIBUTE;
 import static org.eclipse.edc.policy.engine.spi.PolicyEngine.ALL_SCOPES;
@@ -16,16 +14,18 @@ import java.util.UUID;
 
 import javax.sql.DataSource;
 
-import org.eclipse.edc.connector.contract.spi.negotiation.store.ContractNegotiationStore;
-import org.eclipse.edc.connector.contract.spi.offer.store.ContractDefinitionStore;
-import org.eclipse.edc.connector.contract.spi.types.offer.ContractDefinition;
+import org.eclipse.edc.connector.controlplane.asset.spi.domain.Asset;
+import org.eclipse.edc.connector.controlplane.asset.spi.index.AssetIndex;
+import org.eclipse.edc.connector.controlplane.contract.spi.negotiation.store.ContractNegotiationStore;
+import org.eclipse.edc.connector.controlplane.contract.spi.offer.store.ContractDefinitionStore;
+import org.eclipse.edc.connector.controlplane.contract.spi.types.offer.ContractDefinition;
+import org.eclipse.edc.connector.controlplane.policy.spi.PolicyDefinition;
+import org.eclipse.edc.connector.controlplane.policy.spi.store.PolicyDefinitionStore;
+import org.eclipse.edc.connector.controlplane.transfer.dataplane.spi.TransferDataPlaneConstants;
 import org.eclipse.edc.connector.dataplane.http.spi.HttpDataAddress;
 import org.eclipse.edc.connector.dataplane.http.spi.HttpRequestParamsProvider;
 import org.eclipse.edc.connector.dataplane.selector.spi.instance.DataPlaneInstance;
 import org.eclipse.edc.connector.dataplane.selector.spi.store.DataPlaneInstanceStore;
-import org.eclipse.edc.connector.policy.spi.PolicyDefinition;
-import org.eclipse.edc.connector.policy.spi.store.PolicyDefinitionStore;
-import org.eclipse.edc.connector.transfer.dataplane.spi.TransferDataPlaneConstants;
 import org.eclipse.edc.policy.engine.spi.PolicyEngine;
 import org.eclipse.edc.policy.engine.spi.RuleBindingRegistry;
 import org.eclipse.edc.policy.model.Action;
@@ -37,11 +37,9 @@ import org.eclipse.edc.policy.model.Policy;
 import org.eclipse.edc.runtime.metamodel.annotation.Extension;
 import org.eclipse.edc.runtime.metamodel.annotation.Inject;
 import org.eclipse.edc.runtime.metamodel.annotation.Setting;
-import org.eclipse.edc.spi.asset.AssetIndex;
 import org.eclipse.edc.spi.monitor.Monitor;
 import org.eclipse.edc.spi.system.ServiceExtension;
 import org.eclipse.edc.spi.system.ServiceExtensionContext;
-import org.eclipse.edc.spi.types.domain.asset.Asset;
 import org.eclipse.edc.transaction.datasource.spi.DataSourceRegistry;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -73,6 +71,10 @@ public class OpenAPICoreExtension implements ServiceExtension {
     private static final String DATASOURCE_USER = "edc.datasource.default.user";
     private static final String DATASOURCE_PASSWORD = "edc.datasource.default.password";
     private static final String EDC_HOSTNAME = "edc.hostname";
+    // It would be more elegant and future-proof to reference the constants from
+    // the appropriate edc modules.
+    private static final String NEGOTIATION_SCOPE = "contract.negotiation";
+    private static final String TRANSFER_SCOPE = "transfer.process";
 
     /**
      * The name of the extension.
@@ -310,7 +312,7 @@ public class OpenAPICoreExtension implements ServiceExtension {
                 monitor.debug("Building Policy for Presentation Definition: %s".formatted(presentationDefinition));
                 PolicyDefinition policy = buildPolicyDefinition(presentationDefinition, monitor);
                 policyStore.create(policy);
-                saveContractDefinition(policy.getUid(), assetId);
+                saveContractDefinition(policy.getId(), assetId);
 
                 monitor.debug(String.format("Created contract definition for asset '%s'", assetId));
             });
