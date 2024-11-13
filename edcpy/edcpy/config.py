@@ -34,6 +34,8 @@ class AppConfig:
         public_path: str = environ.var(default="/public")
         protocol_port: int = environ.var(default=9194, converter=int)
         protocol_path: str = environ.var(default="/protocol")
+        api_key: str = environ.var(default=None)
+        api_key_header: str = environ.var(default="X-API-Key")
 
     connector: Connector = environ.group(Connector, optional=True)
 

@@ -16,6 +16,8 @@ env:
   KEY_ALIAS: datacellar
   KEY_PASSW: datacellar
   BOX_EDC_VENV: $HOME/edc-venv
+  API_AUTH_KEY: datacellar
+  API_AUTH_KEY_ALIAS: apikey
 
 tasks:
   clean:
@@ -68,8 +70,11 @@ tasks:
       - >
         docker run --rm
         -v {{.CERTS_DIR}}:/out
+        -e OUT_DIR=/out
+        -e KEY_ALIAS={{.KEY_ALIAS}}
+        -e KEY_PASSW={{.KEY_PASSW}}
         {{.SCRIPTS_IMAGE}}
-        /bin/bash -c "OUT_DIR=/out KEY_ALIAS={{.KEY_ALIAS}} KEY_PASSW={{.KEY_PASSW}} ./create-certs.sh"
+        /root/create-certs.sh
     status:
       - test -f {{.CERTS_DIR}}/*.pfx
 
@@ -87,6 +92,45 @@ tasks:
         vars:
           CERTS_DIR: "{{.EXAMPLE_PROVIDER_CERTS_DIR}}"
 
+  generate-vault:
+    deps:
+      - build-scripts-image
+    requires:
+      vars: [CERTS_DIR]
+    cmds:
+      - >
+        docker run --rm
+        -v {{.CERTS_DIR}}:/out
+        -e OUT_DIR=/out
+        -e KEYSTORE_PATH=/out/cert.pfx
+        -e KEYSTORE_PASSWORD={{.KEY_PASSW}}
+        -e API_AUTH_KEY={{.API_AUTH_KEY}}
+        -e API_AUTH_KEY_ALIAS={{.API_AUTH_KEY_ALIAS}}
+        {{.SCRIPTS_IMAGE}}
+        /root/generate-vault.sh
+    status:
+      - test -f {{.CERTS_DIR}}/vault.properties
+    preconditions:
+      - test -f {{.CERTS_DIR}}/cert.pfx
+
+  generate-vault-example-consumer:
+    deps:
+      - create-example-certs-consumer
+    desc: Generates the Vault properties file for the example consumer
+    cmds:
+      - task: generate-vault
+        vars:
+          CERTS_DIR: "{{.EXAMPLE_CONSUMER_CERTS_DIR}}"
+
+  generate-vault-example-provider:
+    deps:
+      - create-example-certs-provider
+    desc: Generates the Vault properties file for the example provider
+    cmds:
+      - task: generate-vault
+        vars:
+          CERTS_DIR: "{{.EXAMPLE_PROVIDER_CERTS_DIR}}"
+
   up-provider-mock-api:
     desc: Starts the Mock HTTP API exposed by the provider to the data space
     cmds:
@@ -98,7 +142,7 @@ tasks:
   provision-example-provider:
     desc: Provisions the example Provider
     cmds:
-      - task: create-example-certs-provider
+      - task: generate-vault-example-provider
       - task: up-provider-mock-api
       - >
         docker compose
@@ -108,7 +152,7 @@ tasks:
   provision-example-consumer:
     desc: Provisions the example Consumer
     cmds:
-      - task: create-example-certs-consumer
+      - task: generate-vault-example-consumer
       - >
         docker compose
         -f {{.ROOT_DIR}}/docker-compose-box-consumer.yml
@@ -143,8 +187,8 @@ tasks:
   dev-up:
     desc: Starts the development environment stack
     deps:
-      - create-example-certs-consumer
-      - create-example-certs-provider
+      - generate-vault-example-consumer
+      - generate-vault-example-provider
     vars:
       CLEAN: '{{default "false" .CLEAN}}'
       SSI: '{{default "false" .SSI}}'

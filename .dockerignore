@@ -6,3 +6,6 @@
 **/*/*.whl
 **/*/edcpy/dist
 **/*/docker-compose*.yml
+**/*/.github
+**/*/.git
+diagrams

@@ -1,8 +1,9 @@
 import asyncio
 import logging
 import pprint
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from typing import Any, Dict, Iterator, Union
+from typing import Any, AsyncGenerator, AsyncIterator, Dict, Iterator, Union
 
 import httpx
 
@@ -28,6 +29,22 @@ def _log_res(method, url, data):
     _logger.debug("<- %s %s\n%s", method, url, pprint.pformat(data))
 
 
+@asynccontextmanager
+async def async_httpx_client(
+    timeout: int = _DEFAULT_TIMEOUT_SECS,
+) -> AsyncIterator[httpx.AsyncClient]:
+    config = get_config()
+
+    headers = {}
+
+    if config.connector.api_key:
+        headers[config.connector.api_key_header] = config.connector.api_key
+        _logger.debug("API auth enabled (header=%s)", config.connector.api_key_header)
+
+    async with httpx.AsyncClient(timeout=timeout, headers=headers) as client:
+        yield client
+
+
 async def register_data_plane(
     management_url: str,
     timeout_secs: int = _DEFAULT_TIMEOUT_SECS,
@@ -35,7 +52,7 @@ async def register_data_plane(
 ) -> dict:
     data = DataPlaneInstance.build(**dataplane_kwargs)
 
-    async with httpx.AsyncClient(timeout=timeout_secs) as client:
+    async with async_httpx_client(timeout=timeout_secs) as client:
         url = join_url(management_url, "v2", "dataplanes")
         _log_req("POST", url, data)
         response = await client.post(url, json=data)
@@ -51,7 +68,7 @@ async def create_asset(
 ) -> dict:
     data = Asset.build_http_data(**asset_kwargs)
 
-    async with httpx.AsyncClient(timeout=timeout_secs) as client:
+    async with async_httpx_client(timeout=timeout_secs) as client:
         url = join_url(management_url, "v3", "assets")
         _log_req("POST", url, data)
         response = await client.post(url, json=data)
@@ -69,7 +86,7 @@ async def create_policy_definition(
 ) -> dict:
     data = PolicyDefinition.build(**policy_kwargs)
 
-    async with httpx.AsyncClient(timeout=timeout_secs) as client:
+    async with async_httpx_client(timeout=timeout_secs) as client:
         url = join_url(management_url, "v2", "policydefinitions")
         _log_req("POST", url, data)
         response = await client.post(url, json=data)
@@ -87,7 +104,7 @@ async def create_contract_definition(
 ) -> dict:
     data = ContractDefinition.build(**contract_def_kwargs)
 
-    async with httpx.AsyncClient(timeout=timeout_secs) as client:
+    async with async_httpx_client(timeout=timeout_secs) as client:
         url = join_url(management_url, "v2", "contractdefinitions")
         _log_req("POST", url, data)
         response = await client.post(url, json=data)
@@ -109,7 +126,7 @@ async def fetch_catalog(
         "protocol": "dataspace-protocol-http",
     }
 
-    async with httpx.AsyncClient(timeout=timeout_secs) as client:
+    async with async_httpx_client(timeout=timeout_secs) as client:
         url = join_url(management_url, "v2", "catalog", "request")
         _log_req("POST", url, data)
         response = await client.post(url, json=data)
@@ -127,7 +144,7 @@ async def create_contract_negotiation(
 ) -> dict:
     data = ContractNegotiation.build(**contract_negotiation_kwargs)
 
-    async with httpx.AsyncClient(timeout=timeout_secs) as client:
+    async with async_httpx_client(timeout=timeout_secs) as client:
         url = join_url(management_url, "v2", "contractnegotiations")
 
         _log_req("POST", url, data)
@@ -150,7 +167,7 @@ async def wait_for_contract_negotiation(
         f"v2/contractnegotiations/{contract_negotiation_id}",
     )
 
-    async with httpx.AsyncClient(timeout=timeout_secs) as client:
+    async with async_httpx_client(timeout=timeout_secs) as client:
         while True:
             _log_req("GET", url)
             response = await client.get(url)
@@ -184,7 +201,7 @@ async def create_transfer_process(
         else TransferProcess.build_for_consumer_http_pull(**transfer_process_kwargs)
     )
 
-    async with httpx.AsyncClient(timeout=timeout_secs) as client:
+    async with async_httpx_client(timeout=timeout_secs) as client:
         url = join_url(management_url, "v2", "transferprocesses")
         _log_req("POST", url, data)
         response = await client.post(url, json=data)
@@ -206,7 +223,7 @@ async def wait_for_transfer_process(
         f"v2/transferprocesses/{transfer_process_id}",
     )
 
-    async with httpx.AsyncClient(timeout=timeout_secs) as client:
+    async with async_httpx_client(timeout=timeout_secs) as client:
         while True:
             _log_req("GET", url)
             response = await client.get(url)

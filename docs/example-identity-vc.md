@@ -52,10 +52,6 @@ $ SSI=true task dev-up
 
 [...]
 
-task: [create-certs] docker run --rm -v /home/connector-building-blocks/dev-config/certs-provider:/out edc-poc-scripts /bin/bash -c "OUT_DIR=/out KEY_ALIAS=datacellar KEY_PASSW=datacellar ./create-certs.sh"
-
-[...]
-
 task: [build-connector] gradle  build
 Starting a Gradle Daemon (subsequent builds will be faster)
 

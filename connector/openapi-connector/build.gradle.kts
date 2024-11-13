@@ -62,6 +62,13 @@ dependencies {
         implementation(libs.edc.sql.control.plane.sql)
         implementation(libs.edc.sql.pool.apache.commons)
     }
+
+    if (
+        !project.hasProperty("disableAuth") ||
+        !project.property("disableAuth").toString().toBoolean()
+    ) {
+        implementation(libs.edc.auth.tokenbased)
+    }
 }
 
 application {

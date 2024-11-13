@@ -12,7 +12,7 @@ RUN apt-get update -y && DEBIAN_FRONTEND=noninteractive apt-get install -y \
     python3 \
     python3-pip
 
-ENV GRADLE_VERSION=8.6
+ENV GRADLE_VERSION=8.11
 
 RUN wget --quiet -O gradle-${GRADLE_VERSION}-bin.zip https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip && \
     unzip -d /opt/gradle gradle-${GRADLE_VERSION}-bin.zip && \
@@ -22,7 +22,7 @@ RUN wget --quiet -O gradle-${GRADLE_VERSION}-bin.zip https://services.gradle.org
     chmod +x /etc/profile.d/gradle.sh
 
 ENV PATH_EDCPY=/opt/edcpy
-ENV POETRY_VERSION=1.7.1
+ENV POETRY_VERSION=1.8.4
 
 RUN mkdir -p ${PATH_EDCPY}
 WORKDIR ${PATH_EDCPY}
@@ -40,18 +40,17 @@ WORKDIR ${PATH_CONNECTOR}
 
 ARG ENABLE_OAUTH2=false
 ARG ENABLE_SSI=false
+ARG DISABLE_AUTH=false
 
 COPY ./connector .
+
 ENV ORG_GRADLE_PROJECT_useOauthIdentity=${ENABLE_OAUTH2}
 ENV ORG_GRADLE_PROJECT_useSSI=${ENABLE_SSI}
+ENV ORG_GRADLE_PROJECT_disableAuth=${DISABLE_AUTH}
+
 RUN /opt/gradle/latest/bin/gradle clean build
 
-COPY ./scripts/keystore-to-vault.sh .
+COPY ./scripts/generate-vault.sh .
+COPY ./run-connector.sh .
 
-CMD ${PATH_CONNECTOR}/keystore-to-vault.sh && \
-    java \
-    -Dedc.fs.config=${PROPERTIES_FILE_PATH} \
-    -Dedc.vault=${PATH_CONNECTOR}/vault.properties \
-    -Dedc.keystore=${KEYSTORE_PATH} \
-    -Dedc.keystore.password=${KEYSTORE_PASSWORD} \
-    -jar ${PATH_CONNECTOR}/openapi-connector/build/libs/openapi-connector.jar
+CMD [ "/opt/connector/run-connector.sh" ]

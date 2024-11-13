@@ -15,6 +15,7 @@ services:
       PROPERTIES_FILE_PATH: /opt/src/dev-config/dev-consumer.properties
       KEYSTORE_PATH: /opt/src/dev-config/certs-consumer/cert.pfx
       KEYSTORE_PASSWORD: datacellar
+      API_AUTH_KEY: datacellar
     volumes:
       - .:/opt/src
     extra_hosts:
