@@ -339,6 +339,11 @@ public class WaltIDIdentityServices {
         private boolean isActive(String jwtCredential) {
             try {
                 JSONObject vcObj = parseVCFromJWTDocument(jwtCredential);
+                
+                if (!vcObj.has("expirationDate")) {
+                    return true;
+                }
+
                 return ZonedDateTime.parse(vcObj.getString("expirationDate")).isAfter(ZonedDateTime.now());
             } catch (Exception e) {
                 return false;
