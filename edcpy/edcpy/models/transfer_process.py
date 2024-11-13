@@ -8,7 +8,6 @@ _TEMPLATE = {
     "contractId": None,
     "assetId": None,
     "protocol": "dataspace-protocol-http",
-    "dataDestination": {},
 }
 
 
@@ -32,6 +31,7 @@ class TransferProcess:
                 "counterPartyAddress": counter_party_protocol_url,
                 "contractId": contract_agreement_id,
                 "assetId": asset_id,
+                "transferType": "HttpData-PUSH",
                 "dataDestination": {
                     "type": "HttpData",
                     "baseUrl": sink_base_url,
@@ -57,8 +57,6 @@ class TransferProcess:
                 "counterPartyAddress": counter_party_protocol_url,
                 "contractId": contract_agreement_id,
                 "assetId": asset_id,
-                "dataDestination": {
-                    "type": "HttpProxy",
-                },
+                "transferType": "HttpData-PULL",
             },
         )
