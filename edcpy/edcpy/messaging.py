@@ -96,7 +96,6 @@ async def start_messaging_app(
         exchange_name,
         auto_delete=False,
         passive=False,
-        internal=False,
         robust=True,
         type=ExchangeType.TOPIC,
     )
