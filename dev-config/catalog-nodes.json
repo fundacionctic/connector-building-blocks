@@ -1,0 +1,16 @@
+{
+  "nodes": [
+    {
+      "protocolVersions": ["dataspace-protocol-http"],
+      "id": "provider",
+      "url": "http://host.docker.internal:19194/protocol",
+      "protocolSpecification": "https://w3id.org/edc/v0.0.1/ns/"
+    },
+    {
+      "protocolVersions": ["dataspace-protocol-http"],
+      "id": "consumer",
+      "url": "http://host.docker.internal:29194/protocol",
+      "protocolSpecification": "https://w3id.org/edc/v0.0.1/ns/"
+    }
+  ]
+}

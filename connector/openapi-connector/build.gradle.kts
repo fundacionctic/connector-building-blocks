@@ -69,6 +69,13 @@ dependencies {
     ) {
         implementation(libs.edc.auth.tokenbased)
     }
+
+    if (
+        project.hasProperty("enableFederatedCatalog") &&
+        project.property("enableFederatedCatalog").toString().toBoolean()
+    ) {
+        api(project(":federated-catalog"))
+    }
 }
 
 application {

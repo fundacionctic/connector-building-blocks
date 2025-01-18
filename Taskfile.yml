@@ -48,10 +48,12 @@ tasks:
       CLEAN: '{{default "true" .CLEAN}}'
       SSI: '{{default "false" .SSI}}'
       SQL: '{{default "false" .SQL}}'
+      CATALOG: '{{default "false" .CATALOG}}'
     env:
       # https://docs.gradle.org/current/userguide/build_environment.html#sec:project_properties
       ORG_GRADLE_PROJECT_useSSI: "{{.SSI}}"
       ORG_GRADLE_PROJECT_useSQLStore: "{{.SQL}}"
+      ORG_GRADLE_PROJECT_enableFederatedCatalog: "{{.CATALOG}}"
     cmds:
       - gradle {{if eq .CLEAN "true"}}clean{{end}} build
 
@@ -194,6 +196,7 @@ tasks:
       SSI: '{{default "false" .SSI}}'
       SQL: '{{default "false" .SQL}}'
       DEBUG: '{{default "false" .DEBUG}}'
+      CATALOG: '{{default "false" .CATALOG}}'
     env:
       JAVA_TOOL_OPTIONS: '{{if eq .DEBUG "true"}}-agentlib:jdwp=transport=dt_socket,address=*:{{.CONNECTOR_INTERNAL_DEBUG_PORT}},server=y,suspend=n{{end}}'
     cmds:
@@ -202,6 +205,7 @@ tasks:
         vars:
           CLEAN: "{{.CLEAN}}"
           SSI: "{{.SSI}}"
+          CATALOG: "{{.CATALOG}}"
       - docker compose -f {{.ROOT_DIR}}/docker-compose-dev.yml up --force-recreate -d --build --wait
 
   dev-down:
@@ -227,3 +231,12 @@ tasks:
       - dev-config/.env.dev.wallets.local
     cmds:
       - "{{.ROOT_DIR}}/scripts/.venv/bin/python {{.ROOT_DIR}}/scripts/provision-wallets.py"
+
+  test-federated-catalog-query:
+    desc: Sends a query to the federated catalog to check if it is working
+    cmds:
+      - >
+        curl -d @{{.ROOT_DIR}}/dev-config/empty-catalog-query.json
+        -H 'content-type: application/json'
+        -H 'x-api-key: {{.API_AUTH_KEY}}'
+        http://localhost:19193/management/federatedcatalog | jq
