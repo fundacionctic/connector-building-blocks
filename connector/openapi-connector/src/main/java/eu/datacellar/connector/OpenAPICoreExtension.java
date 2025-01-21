@@ -100,6 +100,12 @@ public class OpenAPICoreExtension implements ServiceExtension {
     @Setting
     private static final String API_BASE_URL = "eu.datacellar.base.url";
 
+    @Setting
+    private static final String BACKEND_API_AUTH_KEY_HEADER = "es.ctic.backend.auth.key.header";
+
+    @Setting
+    private static final String BACKEND_API_AUTH_KEY_ENVVAR = "es.ctic.backend.auth.key.envvar";
+
     @Inject
     private HttpRequestParamsProvider paramsProvider;
 
@@ -429,6 +435,20 @@ public class OpenAPICoreExtension implements ServiceExtension {
 
         paramsProvider
                 .registerSourceDecorator(new ContractDetailsHttpParamsDecorator(monitor, contractNegotiationStore));
+
+        // Check if backend API authentication is configured
+        // This will be used to set an API key header in the proxied requests
+        String backendAuthKeyHeader = context.getSetting(BACKEND_API_AUTH_KEY_HEADER, null);
+        String backendAuthKeyEnvVar = context.getSetting(BACKEND_API_AUTH_KEY_ENVVAR, null);
+
+        if (backendAuthKeyHeader != null && backendAuthKeyEnvVar != null) {
+            monitor.info(String.format(
+                    "Registering backend API authentication decorator with header '%s' and environment variable '%s'",
+                    backendAuthKeyHeader, backendAuthKeyEnvVar));
+
+            paramsProvider.registerSourceDecorator(
+                    new BackendAPIAuthHttpParamsDecorator(monitor, backendAuthKeyHeader, backendAuthKeyEnvVar));
+        }
 
         monitor.info(String.format("Initialized extension: %s", this.getClass().getName()));
     }

@@ -18,6 +18,7 @@ env:
   BOX_EDC_VENV: $HOME/edc-venv
   API_AUTH_KEY: datacellar
   API_AUTH_KEY_ALIAS: apikey
+  BACKEND_API_KEY: secret-api-key-value
 
 tasks:
   clean:

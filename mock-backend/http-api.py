@@ -9,8 +9,10 @@ from typing import Any, Dict, List
 
 import arrow
 import coloredlogs
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
+from typing_extensions import Annotated
 
 coloredlogs.install(level=logging.DEBUG)
 _logger = logging.getLogger(__name__)
@@ -28,6 +30,29 @@ app = FastAPI(
         "email": "andres.garcia@fundacionctic.org",
     },
 )
+
+API_KEY_HEADER_NAME = "X-API-Key"
+API_KEY_ENV_VAR = "BACKEND_API_KEY"
+
+header_scheme = APIKeyHeader(name=API_KEY_HEADER_NAME, auto_error=False)
+
+
+def authenticate_api_key(key: str = Depends(header_scheme)):
+    """
+    Authenticates API requests by validating the API key provided in the request header.
+    Skips authentication if the API key is not set in the environment variable.
+    """
+
+    expected_key = os.getenv(API_KEY_ENV_VAR)
+
+    if expected_key and expected_key != key:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid API key",
+        )
+
+
+APIKeyAuthDep = Annotated[str, Depends(authenticate_api_key)]
 
 
 class ElectricityConsumptionPredictionRequest(BaseModel):
@@ -96,7 +121,7 @@ def _get_openapi_extra() -> Dict[str, Any]:
     openapi_extra=_get_openapi_extra(),
 )
 async def run_consumption_prediction(
-    body: ElectricityConsumptionPredictionRequest,
+    api_key: APIKeyAuthDep, body: ElectricityConsumptionPredictionRequest
 ) -> ElectrictyConsumptionData:
     """Run the ML model for prediction of electricity consumption for the given time period."""
 
@@ -123,7 +148,7 @@ async def run_consumption_prediction(
     openapi_extra=_get_openapi_extra(),
 )
 async def get_consumption_data(
-    location: str = "Asturias", day: date = None
+    api_key: APIKeyAuthDep, location: str = "Asturias", day: date = None
 ) -> ElectrictyConsumptionData:
     """Fetch the historical time series of electricity consumption for a given day."""
 
@@ -142,7 +167,7 @@ async def get_consumption_data(
 
 
 @app.post("/dummy")
-async def process_data(request_body: dict):
+async def process_data(api_key: APIKeyAuthDep, request_body: dict):
     """Dummy endpoint that just logs the received data and returns a dummy response."""
 
     _logger.info("Received POST data:\n%s", pprint.pformat(request_body))

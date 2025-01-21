@@ -72,6 +72,8 @@ services:
     pull_policy: never
     container_name: provider
     restart: on-failure
+    environment:
+      BACKEND_API_KEY: ${BACKEND_API_KEY:-}
     command:
       [
         java,

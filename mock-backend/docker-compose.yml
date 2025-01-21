@@ -7,5 +7,6 @@ services:
     restart: on-failure
     environment:
       ENABLE_PRESENTATION_DEFINITION: ${ENABLE_PRESENTATION_DEFINITION:-}
+      BACKEND_API_KEY: ${BACKEND_API_KEY:-}
     ports:
       - "9090:9090"
