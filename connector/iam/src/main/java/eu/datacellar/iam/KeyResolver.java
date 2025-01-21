@@ -18,6 +18,7 @@ import okhttp3.Response;
  * and public key representations.
  */
 public class KeyResolver {
+    private static final String ACCEPT_DID_LD_JSON = "application/ld+json";
     private static final long DID_CACHE_TTL_SECONDS = 60 * 5;
     private final String uniresolverUrl;
     private final Monitor monitor;
@@ -63,7 +64,7 @@ public class KeyResolver {
 
         Request request = new Request.Builder()
                 .url(urlDID)
-                .header("Accept", "application/did+json")
+                .header("Accept", ACCEPT_DID_LD_JSON)
                 .get()
                 .build();
 
