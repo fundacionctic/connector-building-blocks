@@ -9,7 +9,11 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import javax.sql.DataSource;
@@ -40,6 +44,7 @@ import org.eclipse.edc.runtime.metamodel.annotation.Setting;
 import org.eclipse.edc.spi.monitor.Monitor;
 import org.eclipse.edc.spi.system.ServiceExtension;
 import org.eclipse.edc.spi.system.ServiceExtensionContext;
+import org.eclipse.edc.spi.types.TypeManager;
 import org.eclipse.edc.transaction.datasource.spi.DataSourceRegistry;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -71,6 +76,7 @@ public class OpenAPICoreExtension implements ServiceExtension {
     private static final String DATASOURCE_USER = "edc.datasource.default.user";
     private static final String DATASOURCE_PASSWORD = "edc.datasource.default.password";
     private static final String EDC_HOSTNAME = "edc.hostname";
+    private static final String DIDS_SEPARATOR = ",";
     // It would be more elegant and future-proof to reference the constants from
     // the appropriate edc modules.
     private static final String NEGOTIATION_SCOPE = "contract.negotiation";
@@ -106,6 +112,18 @@ public class OpenAPICoreExtension implements ServiceExtension {
     @Setting
     private static final String BACKEND_API_AUTH_KEY_ENVVAR = "es.ctic.backend.auth.key.envvar";
 
+    @Setting
+    private static final String ENABLE_AUTHORIZATION_CONSTRAINT = "es.ctic.enable.authorization.constraint";
+
+    @Setting
+    private static final String IMPLICITLY_TRUSTED_DIDS = "es.ctic.implicitly.trusted.dids";
+
+    @Setting
+    private static final String POLICY_DECISION_POINT_API_URL = "es.ctic.policy.decision.point.api.url";
+
+    @Setting
+    private static final String POLICY_DECISION_POINT_API_KEY = "es.ctic.policy.decision.point.api.key";
+
     @Inject
     private HttpRequestParamsProvider paramsProvider;
 
@@ -132,6 +150,9 @@ public class OpenAPICoreExtension implements ServiceExtension {
 
     @Inject
     private DataSourceRegistry dataSourceRegistry;
+
+    @Inject
+    private TypeManager typeManager;
 
     @Override
     public String name() {
@@ -218,31 +239,51 @@ public class OpenAPICoreExtension implements ServiceExtension {
      * @param presentationDefinition The presentation definition.
      * @return The policy definition.
      */
-    private PolicyDefinition buildPolicyDefinition(Map<String, Object> presentationDefinition, Monitor monitor) {
-        PolicyDefinition.Builder policyDefBuilder = PolicyDefinition.Builder.newInstance()
-                .id(UUID.randomUUID().toString());
-
-        if (presentationDefinition == null) {
-            return policyDefBuilder.policy(Policy.Builder.newInstance().build()).build();
-        }
-
-        String credentialTypePattern = extractCredentialTypePattern(presentationDefinition);
-
-        AtomicConstraint credentialConstraint = AtomicConstraint.Builder.newInstance()
-                .leftExpression(new LiteralExpression(CredentialConstraintFunction.KEY))
-                .operator(Operator.IN)
-                .rightExpression(new LiteralExpression(credentialTypePattern))
-                .build();
+    private PolicyDefinition buildPolicyDefinition(Map<String, Object> presentationDefinition, Monitor monitor,
+            boolean enableAuthorization) {
+        Policy.Builder policyBuilder = Policy.Builder.newInstance();
 
         Action useAction = Action.Builder.newInstance().type(ODRL_USE_ACTION_ATTRIBUTE).build();
 
-        Permission permission = Permission.Builder.newInstance()
-                .action(useAction)
-                .constraint(credentialConstraint)
-                .build();
+        if (enableAuthorization) {
+            monitor.debug("Enabling authorization constraint");
 
-        return policyDefBuilder
-                .policy(Policy.Builder.newInstance().permission(permission).build())
+            AtomicConstraint authorizationConstraint = AtomicConstraint.Builder.newInstance()
+                    .leftExpression(new LiteralExpression(AuthorizationConstraintFunction.KEY))
+                    .operator(Operator.EQ)
+                    .rightExpression(new LiteralExpression("true"))
+                    .build();
+
+            Permission authorizationPermission = Permission.Builder.newInstance()
+                    .action(useAction)
+                    .constraint(authorizationConstraint)
+                    .build();
+
+            policyBuilder.permission(authorizationPermission);
+        } else {
+            monitor.debug("Authorization constraint is disabled");
+        }
+
+        if (presentationDefinition != null) {
+            String credentialTypePattern = extractCredentialTypePattern(presentationDefinition);
+
+            AtomicConstraint credentialConstraint = AtomicConstraint.Builder.newInstance()
+                    .leftExpression(new LiteralExpression(CredentialConstraintFunction.KEY))
+                    .operator(Operator.IN)
+                    .rightExpression(new LiteralExpression(credentialTypePattern))
+                    .build();
+
+            Permission credentialPermission = Permission.Builder.newInstance()
+                    .action(useAction)
+                    .constraint(credentialConstraint)
+                    .build();
+
+            policyBuilder.permission(credentialPermission);
+        }
+
+        return PolicyDefinition.Builder.newInstance()
+                .id(UUID.randomUUID().toString())
+                .policy(policyBuilder.build())
                 .build();
     }
 
@@ -281,6 +322,7 @@ public class OpenAPICoreExtension implements ServiceExtension {
         Slugify slg = Slugify.builder().lowerCase(false).build();
         OpenAPI openAPI = readOpenAPISchema(context.getMonitor());
         String baseUrl = context.getSetting(API_BASE_URL, extractBaseUrl(openapiUrl));
+        boolean isAuthEnabled = context.getSetting(ENABLE_AUTHORIZATION_CONSTRAINT, "false").equals("true");
 
         openAPI.getPaths().forEach((path, pathItem) -> {
             pathItem.readOperationsMap().forEach((method, operation) -> {
@@ -316,7 +358,10 @@ public class OpenAPICoreExtension implements ServiceExtension {
                 }
 
                 monitor.debug("Building Policy for Presentation Definition: %s".formatted(presentationDefinition));
-                PolicyDefinition policy = buildPolicyDefinition(presentationDefinition, monitor);
+
+                PolicyDefinition policy = buildPolicyDefinition(presentationDefinition, monitor,
+                        isAuthEnabled);
+
                 policyStore.create(policy);
                 saveContractDefinition(policy.getId(), assetId);
 
@@ -392,22 +437,62 @@ public class OpenAPICoreExtension implements ServiceExtension {
         dataSourceRegistry.register(DataSourceRegistry.DEFAULT_DATASOURCE, dataSource);
     }
 
+    private AuthorizationConstraintFunction buildAuthorizationConstraintFunction(ServiceExtensionContext context) {
+        Monitor monitor = context.getMonitor();
+        String pdpUrl = context.getSetting(POLICY_DECISION_POINT_API_URL, null);
+        String pdpApiKey = context.getSetting(POLICY_DECISION_POINT_API_KEY, null);
+        String implicitlyTrustedDids = context.getSetting(IMPLICITLY_TRUSTED_DIDS, null);
+
+        List<String> implicitlyTrustedDidsList = implicitlyTrustedDids != null
+                ? Arrays.asList(implicitlyTrustedDids.split(DIDS_SEPARATOR))
+                : Collections.emptyList();
+
+        if (!implicitlyTrustedDidsList.isEmpty()) {
+            monitor.info("Implicitly trusted DIDs: %s".formatted(implicitlyTrustedDidsList));
+        }
+
+        Optional<PolicyDecisionPointAPI> policyDecisionPointAPI = pdpUrl != null
+                ? Optional.of(new PolicyDecisionPointAPI(monitor, pdpUrl,
+                        pdpApiKey != null ? Optional.of(pdpApiKey) : Optional.empty()))
+                : Optional.empty();
+
+        if (policyDecisionPointAPI.isPresent()) {
+            monitor.info("Policy Decision Point API is available: %s".formatted(policyDecisionPointAPI.get()));
+        } else {
+            monitor.warning("Undefined Policy Decision Point API");
+        }
+
+        return new AuthorizationConstraintFunction(monitor, typeManager, implicitlyTrustedDidsList,
+                policyDecisionPointAPI);
+    }
+
     private void registerPolicyFunctions(ServiceExtensionContext context) {
         Monitor monitor = context.getMonitor();
 
         ruleBindingRegistry.bind(ODRL_USE_ACTION_ATTRIBUTE, ALL_SCOPES);
+
         ruleBindingRegistry.bind(CredentialConstraintFunction.KEY, NEGOTIATION_SCOPE);
         ruleBindingRegistry.bind(CredentialConstraintFunction.KEY, TRANSFER_SCOPE);
-
         CredentialConstraintFunction atomConstraintFunction = new CredentialConstraintFunction(monitor);
-
-        monitor.info("Registering policy function: %s".formatted(CredentialConstraintFunction.KEY));
 
         policyEngine.registerFunction(
                 ALL_SCOPES,
                 Permission.class,
                 CredentialConstraintFunction.KEY,
                 atomConstraintFunction);
+
+        monitor.info("Registered policy function: %s".formatted(CredentialConstraintFunction.KEY));
+
+        ruleBindingRegistry.bind(AuthorizationConstraintFunction.KEY, TRANSFER_SCOPE);
+        AuthorizationConstraintFunction authorizationConstraintFunction = buildAuthorizationConstraintFunction(context);
+
+        policyEngine.registerFunction(
+                TRANSFER_SCOPE,
+                Permission.class,
+                AuthorizationConstraintFunction.KEY,
+                authorizationConstraintFunction);
+
+        monitor.info("Registered policy function: %s".formatted(AuthorizationConstraintFunction.KEY));
     }
 
     @Override
