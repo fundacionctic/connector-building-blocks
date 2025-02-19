@@ -22,10 +22,8 @@ env:
 
 tasks:
   clean:
-    desc: Performs cleanup by removing generated artifacts, including files, directories, and containers resulting from task execution
+    desc: Removes all generated artifacts, containers, and temporary files from previous task executions
     cmds:
-      - docker compose -f {{.ROOT_DIR}}/docker-compose-box-consumer.yml down -v
-      - docker compose -f {{.ROOT_DIR}}/docker-compose-box-provider.yml down -v
       - docker compose -f {{.ROOT_DIR}}/docker-compose-dev.yml down -v
       - docker compose -f {{.ROOT_DIR}}/mock-backend/docker-compose.yml down -v
       - rm -fr {{.EXAMPLE_CONSUMER_CERTS_DIR}}
@@ -37,13 +35,13 @@ tasks:
         ignore_error: true
 
   build-scripts-image:
-    desc: Builds the Docker image used to run helper scripts
+    desc: Creates a Docker image containing utility scripts for certificate and vault management
     dir: scripts
     cmds:
       - docker build -t {{.SCRIPTS_IMAGE}} .
 
   build-connector:
-    desc: Builds the connector
+    desc: Compiles and packages the EDC connector with configurable features (SSI, SQL storage, Federated Catalog)
     dir: "{{.CONNECTOR_DIR}}"
     vars:
       CLEAN: '{{default "true" .CLEAN}}'
@@ -59,7 +57,7 @@ tasks:
       - gradle {{if eq .CLEAN "true"}}clean{{end}} build
 
   build-edcpy-image:
-    desc: Builds the Docker image that contains the EDC Python SDK
+    desc: Creates a Docker image containing the EDC Python SDK and its dependencies
     cmds:
       - docker build -t {{.EDCPY_IMAGE}} -f Dockerfile.edcpy .
 
@@ -82,14 +80,14 @@ tasks:
       - test -f {{.CERTS_DIR}}/*.pfx
 
   create-example-certs-consumer:
-    desc: Creates the certificates used by the example consumer
+    desc: Generates SSL certificates for securing the example consumer's communications
     cmds:
       - task: create-certs
         vars:
           CERTS_DIR: "{{.EXAMPLE_CONSUMER_CERTS_DIR}}"
 
   create-example-certs-provider:
-    desc: Creates the certificates used by the example provider
+    desc: Generates SSL certificates for securing the example provider's communications
     cmds:
       - task: create-certs
         vars:
@@ -119,7 +117,7 @@ tasks:
   generate-vault-example-consumer:
     deps:
       - create-example-certs-consumer
-    desc: Generates the Vault properties file for the example consumer
+    desc: Creates a vault properties file for the example consumer using its certificates
     cmds:
       - task: generate-vault
         vars:
@@ -128,14 +126,14 @@ tasks:
   generate-vault-example-provider:
     deps:
       - create-example-certs-provider
-    desc: Generates the Vault properties file for the example provider
+    desc: Creates a vault properties file for the example provider using its certificates
     cmds:
       - task: generate-vault
         vars:
           CERTS_DIR: "{{.EXAMPLE_PROVIDER_CERTS_DIR}}"
 
   up-provider-mock-api:
-    desc: Starts the Mock HTTP API exposed by the provider to the data space
+    desc: Launches a mock HTTP API that simulates the provider's data services
     cmds:
       - >
         docker compose
@@ -143,7 +141,7 @@ tasks:
         up -d --build --wait
 
   provision-example-provider:
-    desc: Provisions the example Provider
+    desc: Sets up a complete example provider environment with certificates, vault, and mock API
     cmds:
       - task: generate-vault-example-provider
       - task: up-provider-mock-api
@@ -153,7 +151,7 @@ tasks:
         up -d --build --wait
 
   provision-example-consumer:
-    desc: Provisions the example Consumer
+    desc: Sets up a complete example consumer environment with certificates and vault
     cmds:
       - task: generate-vault-example-consumer
       - >
@@ -162,7 +160,7 @@ tasks:
         up -d --build --wait
 
   provision-example-virtualenv:
-    desc: Provisions the virtual environment for the EDC Python SDK
+    desc: Creates and configures a Python virtual environment with the EDC SDK installed
     cmds:
       - rm -fr {{.BOX_EDC_VENV}}
       - virtualenv {{.BOX_EDC_VENV}}
@@ -172,7 +170,7 @@ tasks:
       - test -f {{.BOX_EDC_VENV}}/bin/python
 
   run-pull-example-from-consumer:
-    desc: Runs the Consumer Pull example script from the consumer box
+    desc: Executes the data pull example script demonstrating consumer-initiated data transfer
     deps:
       - provision-example-virtualenv
     dotenv: ["{{.ROOT_DIR}}/dev-config/.env.box.consumer"]
@@ -180,7 +178,7 @@ tasks:
       - "{{.BOX_EDC_VENV}}/bin/python {{.ROOT_DIR}}/example/example_pull.py"
 
   run-push-example-from-consumer:
-    desc: Runs the Provider Push example script from the consumer box
+    desc: Executes the data push example script demonstrating provider-initiated data transfer
     deps:
       - provision-example-virtualenv
     dotenv: ["{{.ROOT_DIR}}/dev-config/.env.box.consumer"]
@@ -188,7 +186,7 @@ tasks:
       - "{{.BOX_EDC_VENV}}/bin/python {{.ROOT_DIR}}/example/example_push.py"
 
   dev-up:
-    desc: Starts the development environment stack
+    desc: Launches the complete development environment with configurable connector features
     deps:
       - generate-vault-example-consumer
       - generate-vault-example-provider
@@ -210,7 +208,7 @@ tasks:
       - docker compose -f {{.ROOT_DIR}}/docker-compose-dev.yml up --force-recreate -d --build --wait
 
   dev-down:
-    desc: Stops the development environment stack
+    desc: Stops and removes all development environment containers and volumes
     cmds:
       - docker compose -f {{.ROOT_DIR}}/docker-compose-dev.yml down -v
       - docker compose -f {{.ROOT_DIR}}/mock-backend/docker-compose.yml down -v
@@ -224,7 +222,7 @@ tasks:
       - test -d {{.ROOT_DIR}}/scripts/.venv
 
   dev-provision-wallets:
-    desc: Provisions the wallets for the development environment
+    desc: Creates and configures digital wallets for SSI functionality in the development environment
     deps:
       - dev-provision-wallets-venv
     dotenv:
@@ -234,7 +232,7 @@ tasks:
       - "{{.ROOT_DIR}}/scripts/.venv/bin/python {{.ROOT_DIR}}/scripts/provision-wallets.py"
 
   test-federated-catalog-query:
-    desc: Sends a query to the federated catalog to check if it is working
+    desc: Tests the federated catalog functionality by sending a query and displaying the JSON response
     cmds:
       - >
         curl -d @{{.ROOT_DIR}}/dev-config/empty-catalog-query.json

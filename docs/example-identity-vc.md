@@ -1,6 +1,10 @@
-# Self-Sovereign Identity Extension Example
+# Self-Sovereign Identity (SSI) Extension Example
 
-This guide shows how to run the [minimal example](index.md) using the SSI extension to enable authentication between connectors using W3C Verifiable Credentials.
+This guide shows how to run the [minimal example](index.md) using the SSI extension to enable authentication between connectors using W3C Verifiable Credentials and Verifiable Presentations. The SSI extension enables connectors to authenticate themselves to each other by sending a Verifiable Presentation (VP). This VP contains a Verifiable Credential issued by the data space's trust anchor, proving that the connector is a valid participant. The SSI extension implements the logic to build a VP that fulfills the following requirements:
+
+* The presentation must be issued (signed) by the same DID that serves as both the holder and subject of the presentation.
+* The subject of all credentials in the presentation must match the DID of the presentation issuer.
+* All credentials must be issued by the DID of one of the data space's trust anchors.
 
 ## Configure the connectors
 

@@ -126,7 +126,7 @@ web.http.control.path=/control
 The ports and paths where the various interfaces of the connector are available. These interfaces include the Management, Protocol, Public and Control APIs.
 
 > [!NOTE]
-> The provider ports are configured to be `19xxx`, while the consumer ports are `29xxx`.
+> The provider ports are configured to be `19xxx`, while the consumer ports are `29xxx`. This distinction helps avoid port conflicts when running both services on the same machine.
 
 ```properties
 edc.dsp.callback.address=http://host.docker.internal:19194/protocol
@@ -138,7 +138,7 @@ This is the public Dataspace Protocol URL that other connectors will use to comm
 edc.receiver.http.endpoint=http://host.docker.internal:18000/pull
 ```
 
-This is the URL where the consumer backend will be listening in the Consumer Pull use case. Since a connector strictly acting as a provider does not require a consumer backend service, this property is not relevant for the provider.
+This is the URL where the consumer backend will be listening in the Consumer Pull use case. For a provider-only connector, this property can be left as-is since it won't be used.
 
 ```properties
 edc.dataplane.token.validation.endpoint=http://host.docker.internal:19192/control/token
@@ -230,7 +230,7 @@ CONTAINER ID   IMAGE                      COMMAND                  CREATED      
 
 This example demonstrates the **Consumer Pull** type of data transfer as defined in the [Transfer Data Plane](https://github.com/eclipse-edc/Connector/tree/v0.5.1/extensions/control-plane/transfer/transfer-data-plane) extension.
 
-In this case, the consumer _pulls_ data from the provider by sending HTTP requests to the provider’s data plane public API. The provider proxies these requests to the Mock HTTP API. A single access token can be reused to send multiple requests to the same HTTP endpoint with different body contents and query arguments.
+In this case, the consumer _pulls_ data from the provider by sending HTTP requests to the provider's data plane public API. The provider proxies these requests to the Mock HTTP API. A single access token can be reused to send multiple requests to the same HTTP endpoint with different body contents and query arguments.
 
 The diagram below presents an overview of this data transfer process as implemented in this example:
 

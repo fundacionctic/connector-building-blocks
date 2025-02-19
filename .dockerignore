@@ -1,7 +1,6 @@
 **/*/.venv
 **/*/build/distributions
 **/*/.gradle
-**/*/.vagrant
 **/*/.vscode
 **/*/*.whl
 **/*/edcpy/dist
