@@ -43,6 +43,7 @@ Although the later examples go into more detail about how to configure the conne
 | `PROPERTIES_FILE_PATH` | Path to a properties file containing the configuration for the connector.                                                      |
 | `KEYSTORE_PATH`        | Path to a keystore file containing the private key and certificate for the connector. The keystore should be in PKCS12 format. |
 | `KEYSTORE_PASSWORD`    | The password for the keystore.                                                                                                 |
+| `API_AUTH_KEY`         | The secret api key that the connector will use to authenticate requests to its Management API.                                 |
 
 ## Guides and Examples
 
