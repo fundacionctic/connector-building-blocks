@@ -14,7 +14,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 
 import javax.sql.DataSource;
 
@@ -32,12 +31,7 @@ import org.eclipse.edc.connector.dataplane.selector.spi.instance.DataPlaneInstan
 import org.eclipse.edc.connector.dataplane.selector.spi.store.DataPlaneInstanceStore;
 import org.eclipse.edc.policy.engine.spi.PolicyEngine;
 import org.eclipse.edc.policy.engine.spi.RuleBindingRegistry;
-import org.eclipse.edc.policy.model.Action;
-import org.eclipse.edc.policy.model.AtomicConstraint;
-import org.eclipse.edc.policy.model.LiteralExpression;
-import org.eclipse.edc.policy.model.Operator;
 import org.eclipse.edc.policy.model.Permission;
-import org.eclipse.edc.policy.model.Policy;
 import org.eclipse.edc.runtime.metamodel.annotation.Extension;
 import org.eclipse.edc.runtime.metamodel.annotation.Inject;
 import org.eclipse.edc.runtime.metamodel.annotation.Setting;
@@ -46,8 +40,6 @@ import org.eclipse.edc.spi.system.ServiceExtension;
 import org.eclipse.edc.spi.system.ServiceExtensionContext;
 import org.eclipse.edc.spi.types.TypeManager;
 import org.eclipse.edc.transaction.datasource.spi.DataSourceRegistry;
-import org.json.JSONArray;
-import org.json.JSONObject;
 import org.postgresql.ds.PGSimpleDataSource;
 
 import com.github.slugify.Slugify;
@@ -112,6 +104,13 @@ public class OpenAPICoreExtension implements ServiceExtension {
     @Setting
     private static final String BACKEND_API_AUTH_KEY_ENVVAR = "es.ctic.backend.auth.key.envvar";
 
+    // Controls whether authorization constraints are added to policies.
+    // When enabled (true), the connector will enforce authorization checks using:
+    // 1. A list of implicitly trusted DIDs (Decentralized Identifiers)
+    // 2. A Policy Decision Point (PDP) API for authorization decisions
+    // When disabled (false), no authorization constraints are added to the
+    // policies.
+    // Default value is "false" for backward compatibility.
     @Setting
     private static final String ENABLE_AUTHORIZATION_CONSTRAINT = "es.ctic.enable.authorization.constraint";
 
@@ -123,6 +122,19 @@ public class OpenAPICoreExtension implements ServiceExtension {
 
     @Setting
     private static final String POLICY_DECISION_POINT_API_KEY = "es.ctic.policy.decision.point.api.key";
+
+    // Controls whether assets are decorated with Omega-X Marketplace metadata.
+    // When enabled (true), the connector adds Dublin Core and FOAF properties to
+    // assets.
+    // Default value is "true" to ensure rich metadata by default.
+    @Setting
+    private static final String OMEGAX_DECORATION_ENABLED = "eu.datacellar.omegax.decoration.enabled";
+
+    @Setting
+    private static final String OMEGAX_DECORATION_CREATOR_NAME = "eu.datacellar.omegax.decoration.default.creator.name";
+
+    @Setting
+    private static final String OMEGAX_DECORATION_PUBLISHER_HOMEPAGE = "eu.datacellar.omegax.decoration.default.publisher.homepage";
 
     @Inject
     private HttpRequestParamsProvider paramsProvider;
@@ -184,109 +196,6 @@ public class OpenAPICoreExtension implements ServiceExtension {
         return dataPlaneInstance;
     }
 
-    private String extractCredentialTypePattern(Map<String, Object> presentationDefinition) {
-        JSONObject presDefJsonObj = new JSONObject(presentationDefinition);
-        JSONArray inputDescriptors = presDefJsonObj.optJSONArray("input_descriptors");
-
-        if (inputDescriptors == null || inputDescriptors.length() == 0) {
-            throw new IllegalArgumentException(
-                    "Invalid presentation definition: input_descriptors is missing or empty");
-        }
-
-        JSONObject inputDescriptor = inputDescriptors.getJSONObject(0);
-        JSONObject constraints = inputDescriptor.optJSONObject("constraints");
-
-        if (constraints == null) {
-            throw new IllegalArgumentException("Invalid presentation definition: constraints is missing");
-        }
-
-        JSONArray fields = constraints.optJSONArray("fields");
-
-        if (fields == null || fields.length() == 0) {
-            throw new IllegalArgumentException("Invalid presentation definition: fields is missing or empty");
-        }
-
-        JSONObject field = fields.getJSONObject(0);
-        JSONArray paths = field.optJSONArray("path");
-
-        if (paths == null || paths.length() == 0) {
-            throw new IllegalArgumentException("Invalid presentation definition: path is missing or empty");
-        }
-
-        String credentialType = paths.getString(0);
-
-        if (!credentialType.equals("$.type")) {
-            throw new IllegalArgumentException("Invalid presentation definition: path is not equal to $.type");
-        }
-
-        JSONObject filter = field.optJSONObject("filter");
-
-        if (filter == null) {
-            throw new IllegalArgumentException("Invalid presentation definition: filter is missing");
-        }
-
-        return filter.getString("pattern");
-    }
-
-    /**
-     * Builds a policy definition based on the given presentation definition.
-     * Please check the following reference to learn more about presentation
-     * definitions:
-     * https://identity.foundation/presentation-exchange/spec/v2.0.0/#presentation-definition
-     * Note that we only support a very limited subset of presentation definition
-     * schemas (basically, only the VC type filter).
-     *
-     * @param presentationDefinition The presentation definition.
-     * @return The policy definition.
-     */
-    private PolicyDefinition buildPolicyDefinition(Map<String, Object> presentationDefinition, Monitor monitor,
-            boolean enableAuthorization) {
-        Policy.Builder policyBuilder = Policy.Builder.newInstance();
-
-        Action useAction = Action.Builder.newInstance().type(ODRL_USE_ACTION_ATTRIBUTE).build();
-
-        if (enableAuthorization) {
-            monitor.debug("Enabling authorization constraint");
-
-            AtomicConstraint authorizationConstraint = AtomicConstraint.Builder.newInstance()
-                    .leftExpression(new LiteralExpression(AuthorizationConstraintFunction.KEY))
-                    .operator(Operator.EQ)
-                    .rightExpression(new LiteralExpression("true"))
-                    .build();
-
-            Permission authorizationPermission = Permission.Builder.newInstance()
-                    .action(useAction)
-                    .constraint(authorizationConstraint)
-                    .build();
-
-            policyBuilder.permission(authorizationPermission);
-        } else {
-            monitor.debug("Authorization constraint is disabled");
-        }
-
-        if (presentationDefinition != null) {
-            String credentialTypePattern = extractCredentialTypePattern(presentationDefinition);
-
-            AtomicConstraint credentialConstraint = AtomicConstraint.Builder.newInstance()
-                    .leftExpression(new LiteralExpression(CredentialConstraintFunction.KEY))
-                    .operator(Operator.IN)
-                    .rightExpression(new LiteralExpression(credentialTypePattern))
-                    .build();
-
-            Permission credentialPermission = Permission.Builder.newInstance()
-                    .action(useAction)
-                    .constraint(credentialConstraint)
-                    .build();
-
-            policyBuilder.permission(credentialPermission);
-        }
-
-        return PolicyDefinition.Builder.newInstance()
-                .id(UUID.randomUUID().toString())
-                .policy(policyBuilder.build())
-                .build();
-    }
-
     private void saveContractDefinition(String policyUid, String assetId) {
         String contractDefinitionId = String.format("contractdef-%s", assetId);
 
@@ -322,7 +231,17 @@ public class OpenAPICoreExtension implements ServiceExtension {
         Slugify slg = Slugify.builder().lowerCase(false).build();
         OpenAPI openAPI = readOpenAPISchema(context.getMonitor());
         String baseUrl = context.getSetting(API_BASE_URL, extractBaseUrl(openapiUrl));
-        boolean isAuthEnabled = context.getSetting(ENABLE_AUTHORIZATION_CONSTRAINT, "false").equals("true");
+
+        boolean isAuthEnabled = context.getSetting(ENABLE_AUTHORIZATION_CONSTRAINT, "false")
+                .equals("true");
+
+        PolicyBuilder policyBuilder = new PolicyBuilder(monitor, isAuthEnabled);
+
+        boolean isOmegaxDecorationEnabled = context.getSetting(OMEGAX_DECORATION_ENABLED, "true")
+                .equals("true");
+
+        String creatorName = context.getSetting(OMEGAX_DECORATION_CREATOR_NAME, null);
+        String publisherHomepage = context.getSetting(OMEGAX_DECORATION_PUBLISHER_HOMEPAGE, null);
 
         openAPI.getPaths().forEach((path, pathItem) -> {
             pathItem.readOperationsMap().forEach((method, operation) -> {
@@ -339,12 +258,26 @@ public class OpenAPICoreExtension implements ServiceExtension {
                         .proxyQueryParams(Boolean.toString(true))
                         .build();
 
-                Asset asset = Asset.Builder.newInstance().id(assetId)
+                Asset.Builder assetBuilder = Asset.Builder.newInstance()
+                        .id(assetId)
                         .name(String.format("%s %s (%s)", method, path, operationId))
-                        .dataAddress(dataAddress)
-                        .build();
+                        .dataAddress(dataAddress);
 
-                assetIndex.create(asset);
+                if (isOmegaxDecorationEnabled) {
+                    OmegaxAssetDecorator.Context decorationContext = new OmegaxAssetDecorator.Context.Builder()
+                            .monitor(monitor)
+                            .operation(operation)
+                            .path(path)
+                            .method(method.name())
+                            .baseUrl(baseUrl)
+                            .creatorName(creatorName)
+                            .publisherHomepage(publisherHomepage)
+                            .build();
+
+                    assetBuilder = OmegaxAssetDecorator.decorate(assetBuilder, decorationContext);
+                }
+
+                assetIndex.create(assetBuilder.build());
 
                 monitor.debug(String.format("Created asset '%s' with data address: %s", assetId,
                         dataAddress.getProperties()));
@@ -359,8 +292,7 @@ public class OpenAPICoreExtension implements ServiceExtension {
 
                 monitor.debug("Building Policy for Presentation Definition: %s".formatted(presentationDefinition));
 
-                PolicyDefinition policy = buildPolicyDefinition(presentationDefinition, monitor,
-                        isAuthEnabled);
+                PolicyDefinition policy = policyBuilder.buildPolicyDefinition(presentationDefinition);
 
                 policyStore.create(policy);
                 saveContractDefinition(policy.getId(), assetId);
