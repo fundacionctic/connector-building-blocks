@@ -1,7 +1,7 @@
 import logging
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from typing import AsyncGenerator, Union
+from typing import Any, AsyncGenerator, Union
 from urllib.parse import urlparse
 
 from faststream import FastStream
@@ -61,7 +61,7 @@ class HttpPullMessage(BaseModel):
 
 
 class HttpPushMessage(BaseModel):
-    body: dict
+    body: Any
 
 
 @dataclass
