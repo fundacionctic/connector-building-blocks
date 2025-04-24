@@ -47,7 +47,12 @@ public class VCIdentityExtension implements ServiceExtension {
     @Setting
     private static final String UNIVERSAL_RESOLVER_URL = "eu.datacellar.uniresolver.url";
 
+    @Setting
+    private static final String VC_TYPE = "eu.datacellar.vc.type";
+
     private static final String DEV_UNIRESOLVER_URL = "https://dev.uniresolver.io/1.0/identifiers";
+
+    private static final String DEFAULT_VC_TYPE = "DataCellarCredential";
 
     @Inject
     private TypeManager typeManager;
@@ -98,6 +103,7 @@ public class VCIdentityExtension implements ServiceExtension {
         }
 
         String uniresolverUrl = context.getSetting(UNIVERSAL_RESOLVER_URL, DEV_UNIRESOLVER_URL);
+        String vcType = context.getSetting(VC_TYPE, DEFAULT_VC_TYPE);
 
         var participantId = context.getParticipantId();
         var monitor = context.getMonitor();
@@ -113,7 +119,8 @@ public class VCIdentityExtension implements ServiceExtension {
                             participantId,
                             identityServices,
                             didTrustAnchor,
-                            uniresolverUrl));
+                            uniresolverUrl,
+                            vcType));
         } catch (IOException | InterruptedException e) {
             context.getMonitor().severe("Failed to initialize WaltIDIdentityServices", e);
             System.exit(1);

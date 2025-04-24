@@ -25,7 +25,7 @@ import io.jsonwebtoken.security.Jwk;
 public class VCIdentityService implements IdentityService {
     // This is the type of Verifiable Credential that the connector will search for
     // in the wallet and then present to the counter-party.
-    private static final String PRESENTED_VC_TYPE = "DataCellarCredential";
+    private final String presentedVcType;
 
     private final Monitor monitor;
     private final TypeManager typeManager;
@@ -45,15 +45,17 @@ public class VCIdentityService implements IdentityService {
      *                         providers.
      * @param didTrustAnchor   The trust anchor for decentralized identifiers.
      * @param uniresolverUrl   The URL of the uniresolver service.
+     * @param presentedVcType  The type of Verifiable Credential to present.
      */
     public VCIdentityService(Monitor monitor, TypeManager typeManager, String clientId,
-            WaltIDIdentityServices identityServices, String didTrustAnchor, String uniresolverUrl) {
+            WaltIDIdentityServices identityServices, String didTrustAnchor, String uniresolverUrl, String presentedVcType) {
         this.monitor = monitor;
         this.typeManager = typeManager;
         this.clientId = clientId;
         this.identityServices = identityServices;
         this.didTrustAnchor = didTrustAnchor;
         this.keyResolver = new KeyResolver(uniresolverUrl, monitor);
+        this.presentedVcType = presentedVcType;
     }
 
     @Override
@@ -63,7 +65,7 @@ public class VCIdentityService implements IdentityService {
         monitor.info(
                 String.format("obtainClientCredentials: (audience=%s)", audience));
 
-        PresentationDefinition presentationDefinition = new PresentationDefinition(PRESENTED_VC_TYPE);
+        PresentationDefinition presentationDefinition = new PresentationDefinition(presentedVcType);
         MatchCredentialsResponse matchCredentialsResponse;
 
         try {
