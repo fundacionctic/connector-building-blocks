@@ -3,7 +3,7 @@ import logging
 import pprint
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from typing import Any, AsyncGenerator, AsyncIterator, Dict, Iterator, Union
+from typing import Any, AsyncIterator, Dict, Iterator, Optional, Union
 
 import httpx
 
@@ -32,12 +32,13 @@ def _log_res(method, url, data):
 @asynccontextmanager
 async def async_httpx_client(
     timeout: int = _DEFAULT_TIMEOUT_SECS,
+    config: Optional[AppConfig] = None,
 ) -> AsyncIterator[httpx.AsyncClient]:
-    config = get_config()
+    config = config or get_config()
 
     headers = {}
 
-    if config.connector.api_key:
+    if config.connector and config.connector.api_key:
         headers[config.connector.api_key_header] = config.connector.api_key
         _logger.debug("API auth enabled (header=%s)", config.connector.api_key_header)
 
@@ -48,11 +49,12 @@ async def async_httpx_client(
 async def register_data_plane(
     management_url: str,
     timeout_secs: int = _DEFAULT_TIMEOUT_SECS,
+    config: Optional[AppConfig] = None,
     **dataplane_kwargs: Dict[str, Any],
 ) -> dict:
     data = DataPlaneInstance.build(**dataplane_kwargs)
 
-    async with async_httpx_client(timeout=timeout_secs) as client:
+    async with async_httpx_client(timeout=timeout_secs, config=config) as client:
         url = join_url(management_url, "v2", "dataplanes")
         _log_req("POST", url, data)
         response = await client.post(url, json=data)
@@ -64,11 +66,12 @@ async def register_data_plane(
 async def create_asset(
     management_url: str,
     timeout_secs: int = _DEFAULT_TIMEOUT_SECS,
+    config: Optional[AppConfig] = None,
     **asset_kwargs: Dict[str, Any],
 ) -> dict:
     data = Asset.build_http_data(**asset_kwargs)
 
-    async with async_httpx_client(timeout=timeout_secs) as client:
+    async with async_httpx_client(timeout=timeout_secs, config=config) as client:
         url = join_url(management_url, "v3", "assets")
         _log_req("POST", url, data)
         response = await client.post(url, json=data)
@@ -82,11 +85,12 @@ async def create_asset(
 async def create_policy_definition(
     management_url: str,
     timeout_secs: int = _DEFAULT_TIMEOUT_SECS,
+    config: Optional[AppConfig] = None,
     **policy_kwargs: Dict[str, Any],
 ) -> dict:
     data = PolicyDefinition.build(**policy_kwargs)
 
-    async with async_httpx_client(timeout=timeout_secs) as client:
+    async with async_httpx_client(timeout=timeout_secs, config=config) as client:
         url = join_url(management_url, "v2", "policydefinitions")
         _log_req("POST", url, data)
         response = await client.post(url, json=data)
@@ -100,11 +104,12 @@ async def create_policy_definition(
 async def create_contract_definition(
     management_url: str,
     timeout_secs: int = _DEFAULT_TIMEOUT_SECS,
+    config: Optional[AppConfig] = None,
     **contract_def_kwargs: Dict[str, Any],
 ) -> dict:
     data = ContractDefinition.build(**contract_def_kwargs)
 
-    async with async_httpx_client(timeout=timeout_secs) as client:
+    async with async_httpx_client(timeout=timeout_secs, config=config) as client:
         url = join_url(management_url, "v2", "contractdefinitions")
         _log_req("POST", url, data)
         response = await client.post(url, json=data)
@@ -119,6 +124,7 @@ async def fetch_catalog(
     management_url: str,
     counter_party_protocol_url: str,
     timeout_secs: int = _DEFAULT_TIMEOUT_SECS,
+    config: Optional[AppConfig] = None,
 ) -> dict:
     data = {
         "@context": {"@vocab": "https://w3id.org/edc/v0.0.1/ns/"},
@@ -126,7 +132,7 @@ async def fetch_catalog(
         "protocol": "dataspace-protocol-http",
     }
 
-    async with async_httpx_client(timeout=timeout_secs) as client:
+    async with async_httpx_client(timeout=timeout_secs, config=config) as client:
         url = join_url(management_url, "v2", "catalog", "request")
         _log_req("POST", url, data)
         response = await client.post(url, json=data)
@@ -140,11 +146,12 @@ async def fetch_catalog(
 async def create_contract_negotiation(
     management_url: str,
     timeout_secs: int = _DEFAULT_TIMEOUT_SECS,
+    config: Optional[AppConfig] = None,
     **contract_negotiation_kwargs: Dict[str, Any],
 ) -> dict:
     data = ContractNegotiation.build(**contract_negotiation_kwargs)
 
-    async with async_httpx_client(timeout=timeout_secs) as client:
+    async with async_httpx_client(timeout=timeout_secs, config=config) as client:
         url = join_url(management_url, "v2", "contractnegotiations")
 
         _log_req("POST", url, data)
@@ -161,13 +168,14 @@ async def wait_for_contract_negotiation(
     contract_negotiation_id: str,
     timeout_secs: int = _DEFAULT_TIMEOUT_SECS,
     iter_sleep: float = 1.0,
+    config: Optional[AppConfig] = None,
 ) -> str:
     url = join_url(
         management_url,
         f"v2/contractnegotiations/{contract_negotiation_id}",
     )
 
-    async with async_httpx_client(timeout=timeout_secs) as client:
+    async with async_httpx_client(timeout=timeout_secs, config=config) as client:
         while True:
             _log_req("GET", url)
             response = await client.get(url)
@@ -193,6 +201,7 @@ async def create_transfer_process(
     management_url: str,
     timeout_secs: int = _DEFAULT_TIMEOUT_SECS,
     is_provider_push: bool = False,
+    config: Optional[AppConfig] = None,
     **transfer_process_kwargs: Dict[str, Any],
 ) -> dict:
     data = (
@@ -201,7 +210,7 @@ async def create_transfer_process(
         else TransferProcess.build_for_consumer_http_pull(**transfer_process_kwargs)
     )
 
-    async with async_httpx_client(timeout=timeout_secs) as client:
+    async with async_httpx_client(timeout=timeout_secs, config=config) as client:
         url = join_url(management_url, "v2", "transferprocesses")
         _log_req("POST", url, data)
         response = await client.post(url, json=data)
@@ -217,13 +226,14 @@ async def wait_for_transfer_process(
     transfer_process_id: str,
     timeout_secs: int = _DEFAULT_TIMEOUT_SECS,
     iter_sleep: float = 1.0,
+    config: Optional[AppConfig] = None,
 ):
     url = join_url(
         management_url,
         f"v2/transferprocesses/{transfer_process_id}",
     )
 
-    async with async_httpx_client(timeout=timeout_secs) as client:
+    async with async_httpx_client(timeout=timeout_secs, config=config) as client:
         while True:
             _log_req("GET", url)
             response = await client.get(url)
@@ -296,7 +306,9 @@ class TransferProcessDetails:
 
 class ConnectorController:
     def __init__(
-        self, timeout_secs: int = _DEFAULT_TIMEOUT_SECS, config: AppConfig = None
+        self,
+        timeout_secs: int = _DEFAULT_TIMEOUT_SECS,
+        config: Optional[AppConfig] = None,
     ) -> None:
         self.timeout_secs = timeout_secs
         self.config: AppConfig = config or get_config()
@@ -310,6 +322,7 @@ class ConnectorController:
             management_url=self.connector_urls.management_url,
             counter_party_protocol_url=counter_party_protocol_url,
             timeout_secs=self.timeout_secs,
+            config=self.config,
         )
 
         return CatalogContent(catalog_res)
@@ -318,7 +331,7 @@ class ConnectorController:
         self,
         counter_party_protocol_url: str,
         counter_party_connector_id: str,
-        asset_query: Union[str, None],
+        asset_query: Optional[str],
     ) -> TransferProcessDetails:
         _logger.info("Preparing to transfer asset (query: %s)", asset_query)
 
@@ -336,10 +349,9 @@ class ConnectorController:
         asset_id = dataset.default_asset_id
         _logger.info("Creating contract negotiation for Asset ID: %s", asset_id)
 
-        # The contract offer needs to be equal to the provider's offer as per the EDC docs
-
         contract_negotiation = await create_contract_negotiation(
             management_url=self.connector_urls.management_url,
+            config=self.config,
             counter_party_connector_id=counter_party_connector_id,
             counter_party_protocol_url=counter_party_protocol_url,
             asset_id=dataset.default_asset_id,
@@ -352,6 +364,7 @@ class ConnectorController:
         contract_agreement_id = await wait_for_contract_negotiation(
             management_url=self.connector_urls.management_url,
             contract_negotiation_id=contract_negotiation_id,
+            config=self.config,
         )
 
         return TransferProcessDetails(
@@ -370,6 +383,7 @@ class ConnectorController:
         transfer_process = await create_transfer_process(
             management_url=self.connector_urls.management_url,
             is_provider_push=is_provider_push,
+            config=self.config,
             counter_party_connector_id=transfer_details.counter_party_connector_id,
             counter_party_protocol_url=transfer_details.counter_party_protocol_url,
             contract_agreement_id=transfer_details.contract_agreement_id,
@@ -387,5 +401,6 @@ class ConnectorController:
         await wait_for_transfer_process(
             management_url=self.connector_urls.management_url,
             transfer_process_id=transfer_process_id,
+            config=self.config,
             **kwargs,
         )
