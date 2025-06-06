@@ -136,6 +136,17 @@ public class OpenAPICoreExtension implements ServiceExtension {
     @Setting
     private static final String OMEGAX_DECORATION_PUBLISHER_HOMEPAGE = "eu.datacellar.omegax.decoration.default.publisher.homepage";
 
+    // Controls whether the connector should continue initialization when OpenAPI
+    // validation fails.
+    // When enabled (true), if the OpenAPI URL cannot be read or parsed, the
+    // connector will log a warning
+    // and continue without creating assets.
+    // When disabled (false), the connector will throw an exception and stop
+    // initialization.
+    // Default value is "true" to continue on validation failures.
+    @Setting
+    private static final String OPENAPI_VALIDATION_CONTINUE_ON_FAILURE = "eu.datacellar.openapi.validation.continue.on.failure";
+
     @Inject
     private HttpRequestParamsProvider paramsProvider;
 
@@ -323,6 +334,53 @@ public class OpenAPICoreExtension implements ServiceExtension {
         return openAPI;
     }
 
+    /**
+     * Validates that the OpenAPI schema can be read and parsed successfully.
+     * 
+     * @param monitor           the EDC monitor
+     * @param continueOnFailure whether to continue on validation failures or throw
+     *                          exceptions
+     * @return true if validation succeeds, false if validation fails and
+     *         continueOnFailure is enabled
+     * @throws IllegalStateException if validation fails and continueOnFailure is
+     *                               disabled
+     */
+    private boolean validateOpenAPISchema(Monitor monitor, boolean continueOnFailure) {
+        try {
+            SwaggerParseResult result = new OpenAPIParser().readLocation(openapiUrl, null, null);
+            OpenAPI openAPI = result.getOpenAPI();
+
+            if (result.getMessages() != null && !result.getMessages().isEmpty()) {
+                result.getMessages().forEach((msg) -> monitor.warning("OpenAPI validation warning: " + msg));
+            }
+
+            if (openAPI == null) {
+                String errorMsg = String.format("Failed to read OpenAPI schema from URL '%s'", openapiUrl);
+
+                if (continueOnFailure) {
+                    monitor.warning(errorMsg + " - Skipping asset creation");
+                    return false;
+                } else {
+                    throw new IllegalStateException(errorMsg);
+                }
+            }
+
+            monitor.info(String.format("Successfully validated OpenAPI schema from URL '%s'", openapiUrl));
+            return true;
+
+        } catch (Exception e) {
+            String errorMsg = String.format("Error validating OpenAPI schema from URL '%s': %s", openapiUrl,
+                    e.getMessage());
+
+            if (continueOnFailure) {
+                monitor.warning(errorMsg + " - Skipping asset creation");
+                return false;
+            } else {
+                throw new IllegalStateException(errorMsg, e);
+            }
+        }
+    }
+
     private void ensureDefaultDataSource(ServiceExtensionContext context) {
         Monitor monitor = context.getMonitor();
 
@@ -445,7 +503,12 @@ public class OpenAPICoreExtension implements ServiceExtension {
         openapiUrl = context.getSetting(OPENAPI_URL, null);
 
         if (openapiUrl != null) {
-            createAssets(context);
+            boolean continueOnFailure = context.getSetting(OPENAPI_VALIDATION_CONTINUE_ON_FAILURE, "true")
+                    .equals("true");
+
+            if (validateOpenAPISchema(monitor, continueOnFailure)) {
+                createAssets(context);
+            }
         } else {
             monitor.warning(String.format("OpenAPI URL (property '%s') is not set", OPENAPI_URL));
         }
