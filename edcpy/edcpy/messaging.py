@@ -106,8 +106,6 @@ async def start_messaging_app(
     broker = RabbitBroker(rabbit_url, logger=_logger)
     app = FastStream(broker, logger=_logger)
 
-    _logger.info("Declaring exchange: %s", exchange_name)
-
     topic_exchange = RabbitExchange(
         exchange_name,
         auto_delete=False,
@@ -115,10 +113,6 @@ async def start_messaging_app(
         robust=True,
         type=ExchangeType.TOPIC,
     )
-
-    # Explicitly declare the exchange to ensure it exists
-    await broker.declare_exchange(topic_exchange)
-    _logger.info("Exchange '%s' declared (or already exists)", exchange_name)
 
     if http_pull_handler is not None:
         _logger.info("Declaring queue: %s", http_pull_queue_name)
@@ -150,6 +144,10 @@ async def start_messaging_app(
 
     _logger.info("Starting broker")
     await broker.start()
+
+    _logger.info("Declaring exchange: %s", exchange_name)
+    await broker.declare_exchange(topic_exchange)
+    _logger.info("Exchange '%s' declared", exchange_name)
 
     return MessagingApp(broker=broker, app=app, exchange=topic_exchange)
 
