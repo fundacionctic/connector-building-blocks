@@ -1,9 +1,10 @@
 import logging
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from typing import Any, AsyncGenerator, Callable, Union
+from typing import Any, AsyncGenerator, Callable, List, Tuple, Union
 from urllib.parse import urlparse
 
+import aio_pika
 from faststream import FastStream
 from faststream.rabbit import ExchangeType, RabbitBroker, RabbitExchange, RabbitQueue
 from pydantic import BaseModel
@@ -17,6 +18,38 @@ DEFAULT_HTTP_PULL_QUEUE_NAME = "http-pull-queue"
 DEFAULT_HTTP_PUSH_QUEUE_NAME = "http-push-queue"
 
 _logger = logging.getLogger(__name__)
+
+
+async def _create_explicit_bindings(
+    rabbit_url: str, exchange_name: str, queue_bindings: List[Tuple[str, str]]
+) -> None:
+    """Create explicit queue-to-exchange bindings using aio-pika directly."""
+
+    connection = await aio_pika.connect_robust(rabbit_url)
+
+    async with connection:
+        channel = await connection.channel()
+
+        for queue_name, routing_key in queue_bindings:
+            _logger.debug(
+                "Creating binding: queue '%s' to exchange '%s' with routing key '%s'",
+                queue_name,
+                exchange_name,
+                routing_key,
+            )
+
+            # Get the queue and exchange (they should already exist)
+            queue = await channel.get_queue(queue_name, ensure=False)
+            exchange = await channel.get_exchange(exchange_name, ensure=False)
+
+            # Create the binding
+            await queue.bind(exchange, routing_key)
+
+            _logger.info(
+                "Explicit binding created: queue '%s' bound to exchange '%s'",
+                queue_name,
+                exchange_name,
+            )
 
 
 class HttpPullMessage(BaseModel):
@@ -114,40 +147,51 @@ async def start_messaging_app(
         type=ExchangeType.TOPIC,
     )
 
+    http_pull_queue = RabbitQueue(
+        http_pull_queue_name,
+        auto_delete=False,
+        exclusive=False,
+        passive=False,
+        robust=True,
+        routing_key=http_pull_queue_routing_key,
+    )
+
+    http_push_queue = RabbitQueue(
+        http_push_queue_name,
+        auto_delete=False,
+        exclusive=False,
+        passive=False,
+        robust=True,
+        routing_key=http_push_queue_routing_key,
+    )
+
     if http_pull_handler is not None:
-        _logger.info("Declaring queue: %s", http_pull_queue_name)
-
-        http_pull_queue = RabbitQueue(
-            http_pull_queue_name,
-            auto_delete=False,
-            exclusive=False,
-            passive=False,
-            robust=True,
-            routing_key=http_pull_queue_routing_key,
-        )
-
+        _logger.info("Attaching handler to queue: %s", http_pull_queue_name)
         broker.subscriber(http_pull_queue, topic_exchange)(http_pull_handler)
 
     if http_push_handler is not None:
-        _logger.info("Declaring queue: %s", http_push_queue_name)
-
-        http_push_queue = RabbitQueue(
-            http_push_queue_name,
-            auto_delete=False,
-            exclusive=False,
-            passive=False,
-            robust=True,
-            routing_key=http_push_queue_routing_key,
-        )
-
+        _logger.info("Attaching handler to queue: %s", http_push_queue_name)
         broker.subscriber(http_push_queue, topic_exchange)(http_push_handler)
 
     _logger.info("Starting broker")
     await broker.start()
 
-    _logger.info("Declaring exchange: %s", exchange_name)
     await broker.declare_exchange(topic_exchange)
     _logger.info("Exchange '%s' declared", exchange_name)
+
+    await broker.declare_queue(http_pull_queue)
+    _logger.info("Queue '%s' declared", http_pull_queue_name)
+
+    await broker.declare_queue(http_push_queue)
+    _logger.info("Queue '%s' declared", http_push_queue_name)
+
+    # Create explicit bindings to ensure they exist regardless of handlers
+    queue_bindings = [
+        (http_pull_queue_name, http_pull_queue_routing_key),
+        (http_push_queue_name, http_push_queue_routing_key),
+    ]
+
+    await _create_explicit_bindings(rabbit_url, exchange_name, queue_bindings)
 
     return MessagingApp(broker=broker, app=app, exchange=topic_exchange)
 
