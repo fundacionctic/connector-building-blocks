@@ -1,12 +1,12 @@
 import logging
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from typing import Any, AsyncGenerator, Union
+from typing import Any, AsyncGenerator, Callable, Union
 from urllib.parse import urlparse
 
 from faststream import FastStream
 from faststream.rabbit import ExchangeType, RabbitBroker, RabbitExchange, RabbitQueue
-from pydantic import BaseModel  # pylint: disable=no-name-in-module
+from pydantic import BaseModel
 
 from edcpy.config import AppConfig, get_config
 
@@ -20,6 +20,8 @@ _logger = logging.getLogger(__name__)
 
 
 class HttpPullMessage(BaseModel):
+    """Represents a message for HTTP pull operations."""
+
     auth_code_decoded: dict
     auth_code: str
     auth_key: str
@@ -30,6 +32,8 @@ class HttpPullMessage(BaseModel):
 
     @property
     def http_method(self) -> str:
+        """Extract HTTP method from the decoded auth code."""
+
         ret = (
             self.auth_code_decoded.get("dad", {})
             .get("properties", {})
@@ -43,6 +47,8 @@ class HttpPullMessage(BaseModel):
 
     @property
     def request_args(self) -> dict:
+        """Builds request arguments for HTTP call."""
+
         return {
             "method": self.http_method,
             "url": self.endpoint,
@@ -52,20 +58,28 @@ class HttpPullMessage(BaseModel):
 
     @property
     def transfer_process_id(self) -> str:
+        """Returns the transfer process ID."""
+
         return self.id
 
     @property
     def provider_host(self):
+        """Extracts the provider host from the endpoint URL."""
+
         parsed = urlparse(self.endpoint)
         return parsed.netloc.split(":")[0]
 
 
 class HttpPushMessage(BaseModel):
+    """Represents a message for HTTP push operations."""
+
     body: Any
 
 
 @dataclass
 class MessagingApp:
+    """Container for the messaging app components."""
+
     broker: RabbitBroker
     app: FastStream
     exchange: RabbitExchange
@@ -77,9 +91,11 @@ async def start_messaging_app(
     http_push_queue_name: str = DEFAULT_HTTP_PUSH_QUEUE_NAME,
     http_pull_queue_routing_key: str = f"{BASE_HTTP_PULL_QUEUE_ROUTING_KEY}.#",
     http_push_queue_routing_key: str = f"{BASE_HTTP_PUSH_QUEUE_ROUTING_KEY}.#",
-    http_pull_handler: Union[callable, None] = None,
-    http_push_handler: Union[callable, None] = None,
+    http_pull_handler: Union[Callable, None] = None,
+    http_push_handler: Union[Callable, None] = None,
 ) -> MessagingApp:
+    """Initializes and starts the messaging app with RabbitMQ broker and optional handlers."""
+
     app_config: AppConfig = get_config()
     rabbit_url = app_config.rabbit_url
 
@@ -99,6 +115,10 @@ async def start_messaging_app(
         robust=True,
         type=ExchangeType.TOPIC,
     )
+
+    # Explicitly declare the exchange to ensure it exists
+    await broker.declare_exchange(topic_exchange)
+    _logger.info("Exchange '%s' declared (or already exists)", exchange_name)
 
     if http_pull_handler is not None:
         _logger.info("Declaring queue: %s", http_pull_queue_name)
@@ -136,6 +156,8 @@ async def start_messaging_app(
 
 @asynccontextmanager
 async def with_messaging_app(*args, **kwargs) -> AsyncGenerator[MessagingApp, None]:
+    """Async context manager for the MessagingApp lifecycle."""
+
     try:
         msg_app = await start_messaging_app(*args, **kwargs)
         yield msg_app

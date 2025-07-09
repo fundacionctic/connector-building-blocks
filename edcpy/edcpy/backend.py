@@ -2,7 +2,7 @@ import json
 import logging
 import os
 import pprint
-from typing import AsyncGenerator
+from contextlib import asynccontextmanager
 
 import coloredlogs
 import jwt
@@ -22,15 +22,43 @@ from edcpy.messaging import (
     HttpPullMessage,
     HttpPushMessage,
     MessagingApp,
-    with_messaging_app,
+    start_messaging_app,
 )
 
 _logger = logging.getLogger(__name__)
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager to handle startup and shutdown of the messaging app."""
+
+    _logger.info("Starting up messaging app...")
+
+    messaging_app = await start_messaging_app()
+    app.state.messaging_app = messaging_app
+
+    _logger.info("Messaging app started successfully")
+
+    yield
+
+    _logger.info("Shutting down messaging app...")
+
+    try:
+        await messaging_app.broker.close()
+        _logger.info("Messaging app shut down successfully")
+    except Exception:
+        _logger.warning("Could not close messaging app broker", exc_info=True)
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 class EndpointDataReference(BaseModel):
+    """
+    Data structure representing a reference to a data transfer endpoint
+    in the EDC (Eclipse Dataspace Connector) framework.
+    """
+
     id: str
     endpoint: str
     authKey: str
@@ -39,18 +67,16 @@ class EndpointDataReference(BaseModel):
     contractId: str
 
 
-async def get_messaging_app() -> AsyncGenerator[MessagingApp, None]:
-    """Get a messaging app instance for dependency injection.
-    The Consumer Backend does not declare any queues, it just publishes messages."""
+def get_messaging_app(request: Request) -> MessagingApp:
+    """Get the messaging app instance from application state."""
 
-    async with with_messaging_app() as msg_app:
-        yield msg_app
+    return request.app.state.messaging_app
 
 
 MessagingAppDep = Annotated[MessagingApp, Depends(get_messaging_app)]
 
 
-def _read_public_key() -> str:
+def _read_public_key() -> bytes:
     """Read the public key from the certificate file specified by the
     EDC_CERT_PATH environment variable."""
 
@@ -214,7 +240,7 @@ async def http_push_endpoint_with_routing_key(
     routing_key = BASE_HTTP_PUSH_QUEUE_ROUTING_KEY + routing_key_suffix
 
     return await _http_push_endpoint(
-        body=body, routing_key=routing_key, messaging_app=messaging_app
+        body=body, routing_key=routing_key, messaging_app=messaging_app  # type: ignore
     )
 
 
