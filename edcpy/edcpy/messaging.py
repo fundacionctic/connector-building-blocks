@@ -126,6 +126,7 @@ async def start_messaging_app(
     http_push_queue_routing_key: str = f"{BASE_HTTP_PUSH_QUEUE_ROUTING_KEY}.#",
     http_pull_handler: Union[Callable, None] = None,
     http_push_handler: Union[Callable, None] = None,
+    auto_acknowledge: bool = True,
 ) -> MessagingApp:
     """Initializes and starts the messaging app with RabbitMQ broker and optional handlers."""
 
@@ -165,13 +166,33 @@ async def start_messaging_app(
         routing_key=http_push_queue_routing_key,
     )
 
+    no_ack = not auto_acknowledge
+
     if http_pull_handler is not None:
-        _logger.info("Attaching handler to queue: %s", http_pull_queue_name)
-        broker.subscriber(http_pull_queue, topic_exchange)(http_pull_handler)
+        _logger.info(
+            "Attaching handler to queue: %s (auto-acknowledge: %s)",
+            http_pull_queue_name,
+            auto_acknowledge,
+        )
+
+        broker.subscriber(
+            queue=http_pull_queue,
+            exchange=topic_exchange,
+            no_ack=no_ack,
+        )(http_pull_handler)
 
     if http_push_handler is not None:
-        _logger.info("Attaching handler to queue: %s", http_push_queue_name)
-        broker.subscriber(http_push_queue, topic_exchange)(http_push_handler)
+        _logger.info(
+            "Attaching handler to queue: %s (auto-acknowledge: %s)",
+            http_push_queue_name,
+            auto_acknowledge,
+        )
+
+        broker.subscriber(
+            queue=http_push_queue,
+            exchange=topic_exchange,
+            no_ack=no_ack,
+        )(http_push_handler)
 
     _logger.info("Starting broker")
     await broker.start()

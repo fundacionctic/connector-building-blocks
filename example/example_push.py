@@ -6,7 +6,8 @@ import coloredlogs
 import environ
 
 from edcpy.edc_api import ConnectorController
-from edcpy.messaging import HttpPullMessage, HttpPushMessage, with_messaging_app
+from edcpy.message_handler import MessageHandler, create_handler_function
+from edcpy.messaging import HttpPushMessage, with_messaging_app
 
 _logger = logging.getLogger(__name__)
 
@@ -26,19 +27,10 @@ class AppConfig:
     consumer_backend_push_method: str = environ.var(default="POST")
 
 
-async def push_handler(message: dict, queue: asyncio.Queue):
-    # Using type hints for the message argument seems to break in Python 3.8.
-    message = HttpPushMessage(**message)
-
-    _logger.info(
-        "Putting HTTP Push request into the queue:\n%s", pprint.pformat(message.dict())
-    )
-
-    await queue.put(message)
-
-
 async def run_request(
-    cnf: AppConfig, controller: ConnectorController, queue: asyncio.Queue
+    cnf: AppConfig,
+    controller: ConnectorController,
+    message_handler: MessageHandler[HttpPushMessage],
 ):
     """Demonstration of how to call a POST endpoint of the Mock HTTP API passing a JSON body."""
 
@@ -63,28 +55,42 @@ async def run_request(
 
     _logger.info("Transfer process ID: %s", transfer_process_id)
 
-    http_push_msg = await asyncio.wait_for(
-        queue.get(), timeout=cnf.queue_timeout_seconds
-    )
-
-    _logger.info(
-        "Received response from Mock Backend HTTP API:\n%s",
-        pprint.pformat(http_push_msg.body),
-    )
+    # Use the message handler's context manager for automatic ack/nack handling
+    # Note: For push messages, we don't typically filter by transfer process ID
+    # as the provider pushes data to us directly
+    async with message_handler.process_message(
+        timeout_seconds=cnf.queue_timeout_seconds
+    ) as http_push_message:
+        _logger.info(
+            "Received response from Mock Backend HTTP API:\n%s",
+            pprint.pformat(http_push_message.body),
+        )
 
 
 async def main(cnf: AppConfig):
-    queue: asyncio.Queue[HttpPullMessage] = asyncio.Queue()
+    # Configuration for acknowledgment mode
+    auto_acknowledge = False
 
-    async def push_handler_partial(message: dict):
-        await push_handler(message=message, queue=queue)
+    # Create a message handler for HTTP Push messages
+    # Set max_nack_attempts to 3 to prevent infinite loops
+    message_handler = MessageHandler(
+        HttpPushMessage, auto_acknowledge=auto_acknowledge, max_nack_attempts=3
+    )
 
-    # Start the Rabbit broker and set the handler for the HTTP pull messages
-    # (EndpointDataReference) received on the Consumer Backend from the Provider.
-    async with with_messaging_app(http_push_handler=push_handler_partial):
+    # Create the handler function for the messaging system
+    push_handler_func = create_handler_function(message_handler)
+
+    # Start the Rabbit broker and set the handler for the HTTP push messages
+    # received on the Consumer Backend from the Provider.
+    async with with_messaging_app(
+        http_push_handler=push_handler_func, auto_acknowledge=auto_acknowledge
+    ):
         controller = ConnectorController()
         _logger.debug("Configuration:\n%s", controller.config)
-        await run_request(cnf=cnf, controller=controller, queue=queue)
+
+        await run_request(
+            cnf=cnf, controller=controller, message_handler=message_handler
+        )
 
 
 if __name__ == "__main__":
