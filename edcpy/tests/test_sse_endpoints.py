@@ -98,7 +98,9 @@ class TestSSEPullEndpoint:
         assert response.status_code == status.HTTP_200_OK
         assert response.headers["content-type"] == "text/event-stream; charset=utf-8"
         assert "Cache-Control" in response.headers
-        assert response.headers["Cache-Control"] == "no-cache"
+        assert (
+            response.headers["Cache-Control"] == "no-cache, no-store, must-revalidate"
+        )
 
         # Verify the SSE data format
         content = response.text
@@ -208,7 +210,9 @@ class TestSSEPushEndpoint:
         # Verify response
         assert response.status_code == status.HTTP_200_OK
         assert response.headers["content-type"] == "text/event-stream; charset=utf-8"
-        assert response.headers["Cache-Control"] == "no-cache"
+        assert (
+            response.headers["Cache-Control"] == "no-cache, no-store, must-revalidate"
+        )
 
         # Verify the SSE data format
         content = response.text
@@ -280,7 +284,7 @@ class TestSSEParameterValidation:
 
         # Test timeout too high
         response = client_with_api_key.get(
-            "/pull/stream/test-transfer-123?timeout=3601", headers=auth_headers
+            "/pull/stream/test-transfer-123?timeout=7201", headers=auth_headers
         )
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
@@ -318,9 +322,9 @@ class TestSSEParameterValidation:
             )
             assert response.status_code == status.HTTP_200_OK
 
-            # Verify default timeout was used (60 seconds) and no provider_host
+            # Verify default timeout was used (300 seconds) and no provider_host
             mock_stream_function.assert_called_once_with(
-                transfer_process_id="test-transfer-123", timeout=60, provider_host=None
+                transfer_process_id="test-transfer-123", timeout=300, provider_host=None
             )
 
     def test_provider_host_parameter(self, client_with_api_key, auth_headers):
@@ -343,6 +347,6 @@ class TestSSEParameterValidation:
             # Verify provider_host was passed correctly
             mock_stream_function.assert_called_once_with(
                 transfer_process_id="test-transfer-123",
-                timeout=60,
+                timeout=300,
                 provider_host="provider.example.com",
             )
