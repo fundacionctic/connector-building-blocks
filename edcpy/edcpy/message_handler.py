@@ -2,7 +2,17 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from typing import Any, AsyncGenerator, Callable, Generic, TypeVar, Union
+from typing import (
+    Any,
+    AsyncGenerator,
+    Callable,
+    Generic,
+    List,
+    Optional,
+    Type,
+    TypeVar,
+    Union,
+)
 
 from faststream.rabbit import RabbitMessage
 from pydantic import BaseModel
@@ -18,152 +28,29 @@ class BrokerMessage(Generic[T]):
 
     message: T
     rabbit_message: RabbitMessage
+    consumed: bool = False
 
 
 class MessageHandler(Generic[T]):
-    """
-    A utility class for handling RabbitMQ messages with consistent ack/nack behavior.
-    """
+    """A unified message handler for RabbitMQ messages with optional filtering."""
 
     def __init__(
         self,
-        message_class: type[T],
+        message_class: Type[T],
         auto_acknowledge: bool = False,
-        max_nack_attempts: int = 5,
     ):
         """
         Initialize the MessageHandler.
 
         Args:
             message_class: The Pydantic model class for the message type
-            auto_acknowledge: Whether auto-acknowledgment is enabled in the messaging system.
-                            If True, manual ack/nack calls will be skipped to avoid errors.
-            max_nack_attempts: Maximum number of times to nack a message before giving up.
-                             After this limit, messages will be acked to prevent infinite loops.
+            auto_acknowledge: Whether auto-acknowledgment is enabled in the messaging system
         """
 
-        self.message_class = message_class
         self.auto_acknowledge = auto_acknowledge
-        self.max_nack_attempts = max_nack_attempts
-        self.queue: asyncio.Queue[BrokerMessage[T]] = asyncio.Queue()
-        # Track nack attempts per message ID to prevent infinite loops
-        self.nack_attempts: dict[str, int] = {}
-
-    async def handle_message(
-        self, payload: dict, rabbit_message: RabbitMessage
-    ) -> None:
-        """
-        Handle an incoming message by parsing it and putting it into the queue.
-
-        Args:
-            payload: The message payload dictionary
-            rabbit_message: The RabbitMessage for ack/nack operations
-        """
-
-        try:
-            message = self.message_class(**payload)
-
-            _logger.info(
-                "Received %s message:\n%s",
-                self.message_class.__name__,
-                message.dict() if hasattr(message, "dict") else str(message),
-            )
-
-            broker_message = BrokerMessage(
-                message=message, rabbit_message=rabbit_message
-            )
-
-            await self.queue.put(broker_message)
-        except Exception as e:
-            _logger.error("Failed to parse message: %s", e)
-            await self._safe_nack(rabbit_message)
-
-    async def wait_for_message(
-        self, timeout_seconds: int, expected_id: Union[str, None] = None
-    ) -> BrokerMessage[T]:
-        """
-        Wait for a message from the queue, optionally filtering by ID.
-
-        Messages that don't match the expected ID are immediately nacked
-        to make them available to other consumers ASAP.
-
-        Args:
-            timeout_seconds: Timeout for waiting for messages
-            expected_id: If provided, only return messages with this ID
-
-        Returns:
-            BrokerMessage containing the matched message
-
-        Raises:
-            asyncio.TimeoutError: If no matching message is received within timeout
-        """
-
-        if expected_id is None:
-            # Simple case: return the first message
-            broker_message = await asyncio.wait_for(
-                self.queue.get(), timeout=timeout_seconds
-            )
-
-            return broker_message
-
-        # Complex case: wait for a message with the expected ID
-        while True:
-            broker_message = await asyncio.wait_for(
-                self.queue.get(), timeout=timeout_seconds
-            )
-
-            message_id = self._extract_message_id(broker_message.message)
-
-            if message_id == expected_id:
-                return broker_message
-
-            # Check nack attempts to prevent infinite loops
-            current_attempts = self.nack_attempts.get(message_id, 0)
-
-            if current_attempts >= self.max_nack_attempts:
-                _logger.warning(
-                    "Message ID (%s) has been nacked %d times, acking to prevent infinite loop",
-                    message_id,
-                    current_attempts,
-                )
-
-                # Ack the message to remove it from the queue permanently
-                await self._safe_ack(broker_message.rabbit_message)
-                continue
-
-            _logger.warning(
-                "Message ID (%s) does not match expected ID (%s), nacking immediately (attempt %d/%d)",
-                message_id,
-                expected_id,
-                current_attempts + 1,
-                self.max_nack_attempts,
-            )
-
-            # Increment nack attempts counter
-            self.nack_attempts[message_id] = current_attempts + 1
-
-            # Nack immediately to make it available to other consumers
-            await self._safe_nack(broker_message.rabbit_message)
-
-    def _extract_message_id(self, message: T) -> str:
-        """
-        Extract the ID from a message. Override this method for custom ID extraction.
-
-        Args:
-            message: The parsed message object
-
-        Returns:
-            The message ID as a string
-        """
-
-        if hasattr(message, "id"):
-            return getattr(message, "id")
-        elif hasattr(message, "transfer_process_id"):
-            return getattr(message, "transfer_process_id")
-        else:
-            raise AttributeError(
-                f"Message {type(message)} has no recognizable ID field"
-            )
+        self.message_class = message_class
+        self.messages: List[BrokerMessage[T]] = []
+        self._lock = asyncio.Lock()
 
     async def _safe_ack(self, rabbit_message: RabbitMessage) -> None:
         """Safely acknowledge a message, handling auto-acknowledge mode."""
@@ -187,19 +74,125 @@ class MessageHandler(Generic[T]):
         else:
             _logger.debug("Auto-acknowledge enabled, skipping manual nack")
 
-    def clear_nack_attempts(self) -> None:
+    async def handle_message(
+        self, payload: dict, rabbit_message: RabbitMessage
+    ) -> None:
         """
-        Clear the nack attempts counter.
+        Handle an incoming message by parsing it and putting it into the queue.
 
-        This can be called periodically to prevent the dict from growing indefinitely.
-        Only call this when you're sure no messages are being redelivered.
+        Args:
+            payload: The message payload dictionary
+            rabbit_message: The RabbitMessage for ack/nack operations
         """
 
-        _logger.debug(
-            "Clearing nack attempts counter (had %d entries)", len(self.nack_attempts)
-        )
+        try:
+            message = self.message_class(**payload)
 
-        self.nack_attempts.clear()
+            _logger.info(
+                "Received %s message:\n%s",
+                self.message_class.__name__,
+                (
+                    message.model_dump()
+                    if hasattr(message, "model_dump")
+                    else str(message)
+                ),
+            )
+
+            broker_message = BrokerMessage(
+                message=message, rabbit_message=rabbit_message
+            )
+
+            async with self._lock:
+                self.messages.append(broker_message)
+
+            message_id = self._extract_message_id(message)
+
+            _logger.debug(
+                "Added message with ID '%s' to handler storage",
+                message_id or "None",
+            )
+        except Exception as e:
+            _logger.error("Failed to parse message: %s", e)
+            await self._safe_nack(rabbit_message)
+
+    async def wait_for_message(
+        self, timeout_seconds: int, expected_id: Union[str, None] = None
+    ) -> BrokerMessage[T]:
+        """
+        Wait for a message from the storage, optionally filtering by ID.
+        Messages remain in storage until explicitly consumed via mark_consumed().
+
+        Args:
+            timeout_seconds: Timeout for waiting for messages
+            expected_id: If provided, only return messages with this ID
+
+        Returns:
+            BrokerMessage containing the matched message
+
+        Raises:
+            asyncio.TimeoutError: If no matching message is received within timeout
+        """
+
+        start_time = asyncio.get_event_loop().time()
+
+        while True:
+            current_time = asyncio.get_event_loop().time()
+
+            if current_time - start_time >= timeout_seconds:
+                raise asyncio.TimeoutError("Timeout waiting for message")
+
+            async with self._lock:
+                # Look for unconsumed messages
+                for broker_message in self.messages:
+                    if broker_message.consumed:
+                        continue
+
+                    # If no specific ID is expected, return any unconsumed message
+                    if expected_id is None:
+                        return broker_message
+
+                    # If specific ID is expected, check for match
+                    message_id = self._extract_message_id(broker_message.message)
+
+                    # If message has no ID but expected_id is provided, skip this message
+                    if message_id is None:
+                        continue
+
+                    if message_id == expected_id:
+                        return broker_message
+
+            # No matching message found, wait a bit before checking again
+            await asyncio.sleep(0.1)
+
+    async def mark_consumed(self, broker_message: BrokerMessage[T]) -> None:
+        """
+        Mark a message as consumed and remove it from storage.
+
+        Args:
+            broker_message: The message to mark as consumed
+        """
+        async with self._lock:
+            broker_message.consumed = True
+            # Clean up consumed messages periodically
+            self.messages = [msg for msg in self.messages if not msg.consumed]
+
+    def _extract_message_id(self, message: T) -> Optional[str]:
+        """
+        Extract the ID from a message. Returns None if message has no ID field.
+
+        Args:
+            message: The parsed message object
+
+        Returns:
+            The message ID as a string, or None if no ID field exists
+        """
+
+        if hasattr(message, "id"):
+            return getattr(message, "id")
+        elif hasattr(message, "transfer_process_id"):
+            return getattr(message, "transfer_process_id")
+        else:
+            return None
 
     @asynccontextmanager
     async def process_message(
@@ -214,36 +207,31 @@ class MessageHandler(Generic[T]):
 
         Yields:
             The parsed message object
-
-        Example:
-            async with handler.process_message(timeout=30, expected_id="transfer-123") as message:
-                # Process the message
-                await make_http_request(message.request_args)
-                # Message is automatically acked on successful completion
         """
 
         broker_message = await self.wait_for_message(timeout_seconds, expected_id)
 
         try:
             yield broker_message.message
-
-            # If we get here, processing was successful
             await self._safe_ack(broker_message.rabbit_message)
-
-            # Remove from nack attempts since we successfully processed it
-            if expected_id is not None:
-                self.nack_attempts.pop(expected_id, None)
-
+            await self.mark_consumed(broker_message)
         except Exception as e:
             _logger.error("Error processing message: %s", e)
             await self._safe_nack(broker_message.rabbit_message)
-
-            # Increment nack attempts to track failed processing
-            if expected_id is not None:
-                current_attempts = self.nack_attempts.get(expected_id, 0)
-                self.nack_attempts[expected_id] = current_attempts + 1
-
+            await self.mark_consumed(broker_message)
             raise
+
+
+def create_message_handler(
+    message_class: Type[T],
+    auto_acknowledge: bool = False,
+) -> MessageHandler[T]:
+    """Create a message handler (filtering is controlled by passing expected_id to wait_for_message)."""
+
+    return MessageHandler(
+        message_class=message_class,
+        auto_acknowledge=auto_acknowledge,
+    )
 
 
 def create_handler_function(
@@ -263,3 +251,57 @@ def create_handler_function(
         await message_handler.handle_message(payload, msg)
 
     return handler
+
+
+class MessageConsumer:
+    """Simplified consumer interface for message operations."""
+
+    def __init__(self, handler: MessageHandler, default_timeout: int = 60):
+        """Initialize the message consumer.
+
+        Args:
+            handler: The MessageHandler instance to use
+            default_timeout: Default timeout for message operations
+        """
+
+        self.handler = handler
+        self.default_timeout = default_timeout
+
+    async def get_message(
+        self, expected_id: Optional[str] = None, timeout: Optional[int] = None
+    ):
+        """Get a message with automatic ack/nack handling.
+
+        Args:
+            expected_id: If provided, only return messages with this ID.
+                        Note: Some message types (like HttpPushMessage) don't have IDs.
+            timeout: Timeout for waiting for messages (uses default if None)
+
+        Returns:
+            The parsed message object
+        """
+
+        timeout = timeout or self.default_timeout
+
+        async with self.handler.process_message(timeout, expected_id) as msg:
+            return msg
+
+    @asynccontextmanager
+    async def wait_for_message(
+        self, expected_id: Optional[str] = None, timeout: Optional[int] = None
+    ):
+        """Context manager for message processing with automatic ack/nack.
+
+        Args:
+            expected_id: If provided, only process messages with this ID.
+                        Note: Some message types (like HttpPushMessage) don't have IDs.
+            timeout: Timeout for waiting for messages (uses default if None)
+
+        Yields:
+            The parsed message object
+        """
+
+        timeout = timeout or self.default_timeout
+
+        async with self.handler.process_message(timeout, expected_id) as msg:
+            yield msg

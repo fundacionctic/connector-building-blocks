@@ -15,7 +15,7 @@ env:
   EXAMPLE_PROVIDER_CERTS_DIR: "{{.ROOT_DIR}}/dev-config/certs-provider"
   KEY_ALIAS: datacellar
   KEY_PASSW: datacellar
-  BOX_EDC_VENV: $HOME/edc-venv
+  EDC_VENV: "{{.ROOT_DIR}}/.venv-examples"
   API_AUTH_KEY: datacellar
   API_AUTH_KEY_ALIAS: apikey
   BACKEND_API_KEY: secret-api-key-value
@@ -160,30 +160,35 @@ tasks:
         up -d --build --wait
 
   provision-example-virtualenv:
-    desc: Creates and configures a Python virtual environment with the EDC SDK installed
+    desc: Creates and configures a Python virtual environment with the edcpy library installed
     cmds:
-      - rm -fr {{.BOX_EDC_VENV}}
-      - virtualenv {{.BOX_EDC_VENV}}
-      - "{{.BOX_EDC_VENV}}/bin/pip install --upgrade pip"
-      - "{{.BOX_EDC_VENV}}/bin/pip install --upgrade {{.ROOT_DIR}}/edcpy"
+      - rm -fr {{.EDC_VENV}}
+      - virtualenv {{.EDC_VENV}}
+      - "{{.EDC_VENV}}/bin/pip install --upgrade pip"
+      - "{{.EDC_VENV}}/bin/pip install --upgrade {{.ROOT_DIR}}/edcpy"
     status:
-      - test -f {{.BOX_EDC_VENV}}/bin/python
+      - test -f {{.EDC_VENV}}/bin/python
 
-  run-pull-example-from-consumer:
-    desc: Executes the data pull example script demonstrating consumer-initiated data transfer
+  run-example-pull:
+    desc: Runs the consumer pull example script demonstrating consumer-initiated data transfer
     deps:
       - provision-example-virtualenv
-    dotenv: ["{{.ROOT_DIR}}/dev-config/.env.box.consumer"]
     cmds:
-      - "{{.BOX_EDC_VENV}}/bin/python {{.ROOT_DIR}}/example/example_pull.py"
+      - "{{.EDC_VENV}}/bin/python {{.ROOT_DIR}}/example/example_pull.py"
 
-  run-push-example-from-consumer:
-    desc: Executes the data push example script demonstrating provider-initiated data transfer
+  run-example-push:
+    desc: Runs the provider push example script demonstrating provider-initiated data transfer
     deps:
       - provision-example-virtualenv
-    dotenv: ["{{.ROOT_DIR}}/dev-config/.env.box.consumer"]
     cmds:
-      - "{{.BOX_EDC_VENV}}/bin/python {{.ROOT_DIR}}/example/example_push.py"
+      - "{{.EDC_VENV}}/bin/python {{.ROOT_DIR}}/example/example_push.py"
+
+  run-example-parallel:
+    desc: Runs the parallel example script for concurrent data transfers to the same connector
+    deps:
+      - provision-example-virtualenv
+    cmds:
+      - "{{.EDC_VENV}}/bin/python {{.ROOT_DIR}}/example/example_parallel.py"
 
   dev-up:
     desc: Launches the complete development environment with configurable connector features

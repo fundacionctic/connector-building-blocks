@@ -5,6 +5,8 @@ data-dashboard
 mvd
 .vscode
 datacellar-certs
+.claude
+.venv-examples
 
 ## Java
 #######

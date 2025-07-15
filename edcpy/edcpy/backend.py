@@ -22,7 +22,7 @@ from edcpy.messaging import (
     HttpPullMessage,
     HttpPushMessage,
     MessagingApp,
-    start_messaging_app,
+    start_publisher_messaging_app,
 )
 
 _logger = logging.getLogger(__name__)
@@ -34,7 +34,7 @@ async def lifespan(app: FastAPI):
 
     _logger.info("Starting up messaging app...")
 
-    messaging_app = await start_messaging_app()
+    messaging_app = await start_publisher_messaging_app()
     app.state.messaging_app = messaging_app
 
     _logger.info("Messaging app started successfully")
@@ -153,6 +153,7 @@ async def http_pull_endpoint(
 
     decoded_auth_code = _decode_auth_code(item)
 
+    # message.id is the transfer process ID
     message = HttpPullMessage(
         auth_code_decoded=decoded_auth_code,
         auth_code=item.authCode,
@@ -167,7 +168,13 @@ async def http_pull_endpoint(
     # the scenario of the consumer communicating with multiple providers in parallel.
     # The provider hostname is included in its slugified form since dots are
     # interpreted as routing key separators by RabbitMQ.
-    routing_key = f"{BASE_HTTP_PULL_QUEUE_ROUTING_KEY}.{slugify(message.provider_host)}"
+    routing_key_parts = [
+        BASE_HTTP_PULL_QUEUE_ROUTING_KEY,
+        slugify(message.provider_host),
+        slugify(message.id),
+    ]
+
+    routing_key = ".".join(routing_key_parts)
 
     _logger.info(
         "Publishing %s to routing key '%s'", message.__class__.__name__, routing_key

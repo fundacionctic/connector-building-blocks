@@ -49,6 +49,7 @@ J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2
 J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2
 J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2
 J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2
+J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2J2
 -----END CERTIFICATE-----"""
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".pem", delete=False) as f:
@@ -97,16 +98,17 @@ def mock_messaging_app() -> MessagingApp:
 
 
 @pytest.fixture
-def mock_start_messaging_app(mock_messaging_app):
-    """Mock the start_messaging_app function."""
+def mock_start_publisher_messaging_app(mock_messaging_app):
+    """Mock the start_publisher_messaging_app function."""
 
-    async def async_mock_start_messaging_app(*args, **kwargs):
+    async def async_mock_start_publisher_messaging_app(*args, **kwargs):
         return mock_messaging_app
 
     with patch(
-        "edcpy.backend.start_messaging_app", side_effect=async_mock_start_messaging_app
+        "edcpy.backend.start_publisher_messaging_app",
+        side_effect=async_mock_start_publisher_messaging_app,
     ):
-        yield mock_messaging_app
+        yield
 
 
 @pytest.fixture
@@ -118,7 +120,7 @@ def mock_get_config(mock_config):
 
 
 @pytest.fixture
-def test_client(mock_start_messaging_app, mock_get_config):
+def test_client(mock_start_publisher_messaging_app, mock_get_config):
     """Create a test client for the FastAPI app."""
 
     from edcpy.backend import app
