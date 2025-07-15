@@ -46,6 +46,7 @@ services:
       # trunk-ignore(checkov/CKV_SECRET_4)
       EDC_RABBIT_URL: amqp://guest:guest@consumer_broker:5672
       EDC_HTTP_API_PORT: 28000
+      API_AUTH_KEY: ${API_AUTH_KEY:-}
     ports:
       - 28000:28000
     extra_hosts:

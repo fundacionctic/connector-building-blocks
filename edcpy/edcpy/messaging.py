@@ -157,6 +157,7 @@ class ConsumerQueueFactory:
         provider_host: Optional[str] = None,
         transfer_process_id: Optional[str] = None,
         auto_delete: bool = True,
+        exclusive: bool = False,
     ) -> ConsumerQueueConfig:
         """Create a queue configuration for HTTP pull operations."""
 
@@ -166,6 +167,7 @@ class ConsumerQueueFactory:
             provider_host=provider_host,
             transfer_process_id=transfer_process_id,
             auto_delete=auto_delete,
+            exclusive=exclusive,
         )
 
     def create_push_queue_config(
@@ -173,6 +175,7 @@ class ConsumerQueueFactory:
         consumer_id: Optional[str] = None,
         routing_path: Optional[str] = None,
         auto_delete: bool = True,
+        exclusive: bool = False,
     ) -> ConsumerQueueConfig:
         """Create a queue configuration for HTTP push operations."""
 
@@ -181,6 +184,7 @@ class ConsumerQueueFactory:
             consumer_id=consumer_id,
             routing_path=routing_path,
             auto_delete=auto_delete,
+            exclusive=exclusive,
         )
 
 
@@ -427,20 +431,29 @@ class MessagingClient:
 
     @asynccontextmanager
     async def pull_consumer(
-        self, timeout: int = 60, provider_host: Optional[str] = None
+        self,
+        timeout: int = 60,
+        provider_host: Optional[str] = None,
+        exclusive: bool = False,
+        auto_delete: bool = True,
     ):
         """Context manager for pull message consumption.
 
         Args:
             timeout: Default timeout for message operations
             provider_host: Provider hostname for pull operations
+            exclusive: Whether the queue is exclusive to this connection
+            auto_delete: Whether to auto-delete the queue when consumer disconnects
 
         Yields:
             MessageConsumer: Consumer instance for message operations
         """
 
         queue_config = self.queue_factory.create_pull_queue_config(
-            consumer_id=self.consumer_id, provider_host=provider_host
+            consumer_id=self.consumer_id,
+            provider_host=provider_host,
+            exclusive=exclusive,
+            auto_delete=auto_delete,
         )
 
         handler = create_message_handler(HttpPullMessage, auto_acknowledge=False)
@@ -451,20 +464,29 @@ class MessagingClient:
 
     @asynccontextmanager
     async def push_consumer(
-        self, routing_path: Optional[str] = None, timeout: int = 60
+        self,
+        routing_path: Optional[str] = None,
+        timeout: int = 60,
+        exclusive: bool = False,
+        auto_delete: bool = True,
     ):
         """Context manager for push message consumption.
 
         Args:
             routing_path: Routing path for push operations
             timeout: Default timeout for message operations
+            exclusive: Whether the queue is exclusive to this connection
+            auto_delete: Whether to auto-delete the queue when consumer disconnects
 
         Yields:
             MessageConsumer: Consumer instance for message operations
         """
 
         queue_config = self.queue_factory.create_push_queue_config(
-            consumer_id=self.consumer_id, routing_path=routing_path
+            consumer_id=self.consumer_id,
+            routing_path=routing_path,
+            exclusive=exclusive,
+            auto_delete=auto_delete,
         )
 
         handler = create_message_handler(HttpPushMessage, auto_acknowledge=False)

@@ -190,6 +190,20 @@ tasks:
     cmds:
       - "{{.EDC_VENV}}/bin/python {{.ROOT_DIR}}/example/example_parallel.py"
 
+  run-example-pull-sse:
+    desc: Runs the consumer pull example script demonstrating the SSE endpoints for pull transfers
+    deps:
+      - provision-example-virtualenv
+    cmds:
+      - "{{.EDC_VENV}}/bin/python {{.ROOT_DIR}}/example/example_pull_sse.py"
+
+  run-example-push-sse:
+    desc: Runs the provider push example script demonstrating the SSE endpoints for push transfers
+    deps:
+      - provision-example-virtualenv
+    cmds:
+      - "{{.EDC_VENV}}/bin/python {{.ROOT_DIR}}/example/example_push_sse.py"
+
   dev-up:
     desc: Launches the complete development environment with configurable connector features
     deps:
