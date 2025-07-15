@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import os
@@ -167,7 +168,7 @@ class SSEStreamParams(BaseModel):
     This model validates and documents the query parameters accepted by SSE endpoints.
     """
 
-    timeout: int = Field(60, ge=1, le=3600, description="Timeout in seconds (1-3600)")
+    timeout: int = Field(300, ge=1, le=7200, description="Timeout in seconds")
     provider_host: Optional[str] = Field(
         None, description="Provider hostname for pull operations"
     )
@@ -372,7 +373,7 @@ async def http_push_endpoint_with_routing_key(
 
 
 async def _stream_pull_messages(
-    transfer_process_id: str, timeout: int = 60, provider_host: Optional[str] = None
+    transfer_process_id: str, timeout: int, provider_host: Optional[str] = None
 ) -> AsyncGenerator[str, None]:
     """Stream HttpPullMessage objects as SSE for a specific transfer process ID."""
 
@@ -381,10 +382,10 @@ async def _stream_pull_messages(
     client = MessagingClient(consumer_id)
 
     try:
-        # Create an exclusive queue that will be automatically deleted when the connection closes
         async with client.pull_consumer(
             timeout=timeout,
             provider_host=provider_host,
+            exclusive=True,
             auto_delete=True,
         ) as consumer:
             async with consumer.wait_for_message(
@@ -402,6 +403,8 @@ async def _stream_pull_messages(
 
                 yield f"data: {message_data.model_dump_json()}\n\n"
     except Exception as e:
+        _logger.warning("Error streaming pull messages", exc_info=True)
+
         error_data = SSEErrorMessage(
             message=str(e),
             transfer_process_id=transfer_process_id,
@@ -412,7 +415,7 @@ async def _stream_pull_messages(
 
 
 async def _stream_push_messages(
-    routing_path: str, timeout: int = 60
+    routing_path: str, timeout: int
 ) -> AsyncGenerator[str, None]:
     """Stream HttpPushMessage objects as SSE for a specific routing path."""
 
@@ -421,10 +424,10 @@ async def _stream_push_messages(
     client = MessagingClient(consumer_id)
 
     try:
-        # Create an exclusive queue that will be automatically deleted when the connection closes
         async with client.push_consumer(
             routing_path=routing_path,
             timeout=timeout,
+            exclusive=True,
             auto_delete=True,
         ) as consumer:
             async with consumer.wait_for_message(timeout=timeout) as http_push_message:
@@ -435,6 +438,8 @@ async def _stream_push_messages(
 
                 yield f"data: {message_data.model_dump_json()}\n\n"
     except Exception as e:
+        _logger.warning("Error streaming push messages", exc_info=True)
+
         error_data = SSEErrorMessage(
             message=str(e),
             transfer_process_id=None,
@@ -447,6 +452,7 @@ async def _stream_push_messages(
 @app.get("/pull/stream/{transfer_process_id}")
 async def stream_pull_messages(
     transfer_process_id: str,
+    request: Request,
     params: SSEStreamParams = Depends(),
     api_key: str = Depends(verify_api_key),
 ) -> StreamingResponse:
@@ -462,25 +468,33 @@ async def stream_pull_messages(
         params.timeout,
     )
 
-    return StreamingResponse(
-        _stream_pull_messages(
+    async def pull_stream_generator():
+        """Generator that handles client disconnections and delegates to the main stream."""
+
+        async for chunk in _stream_pull_messages(
             transfer_process_id=transfer_process_id,
             timeout=params.timeout,
             provider_host=params.provider_host,
-        ),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Headers": "Cache-Control",
-        },
+        ):
+            if await request.is_disconnected():
+                _logger.info(
+                    "Client disconnected during pull stream: %s", transfer_process_id
+                )
+                break
+
+            yield chunk
+
+    return create_robust_streaming_response(
+        generator_func=pull_stream_generator,
+        timeout=params.timeout,
+        stream_id=f"pull-{transfer_process_id}",
     )
 
 
 @app.get("/push/stream/{routing_key_parts:path}")
 async def stream_push_messages(
     routing_key_parts: str,
+    request: Request,
     params: SSEStreamParams = Depends(),
     api_key: str = Depends(verify_api_key),
 ) -> StreamingResponse:
@@ -496,19 +510,121 @@ async def stream_push_messages(
         params.timeout,
     )
 
-    return StreamingResponse(
-        _stream_push_messages(
+    async def push_stream_generator():
+        """Generator that handles client disconnections and delegates to the main stream."""
+
+        async for chunk in _stream_push_messages(
             routing_path=routing_key_parts,
             timeout=params.timeout,
-        ),
-        media_type="text/event-stream",
+        ):
+            if await request.is_disconnected():
+                _logger.info(
+                    "Client disconnected during push stream: %s", routing_key_parts
+                )
+                break
+
+            yield chunk
+
+    return create_robust_streaming_response(
+        generator_func=push_stream_generator,
+        timeout=params.timeout,
+        stream_id=f"push-{routing_key_parts}",
+    )
+
+
+def create_robust_streaming_response(
+    generator_func,
+    media_type: str = "text/event-stream",
+    timeout: int = 300,
+    stream_id: str = "unknown",
+) -> StreamingResponse:
+    """Create a robust StreamingResponse with comprehensive error handling."""
+
+    async def robust_stream_wrapper():
+        """Enhanced generator wrapper with comprehensive error handling."""
+
+        start_time = asyncio.get_event_loop().time()
+
+        try:
+            _logger.info(
+                "Starting robust stream: %s (timeout: %ds)", stream_id, timeout
+            )
+
+            # Consume the generator with timeout enforcement
+            async for chunk in _consume_generator_with_timeout(
+                generator_func, timeout, stream_id
+            ):
+                elapsed = asyncio.get_event_loop().time() - start_time
+
+                if elapsed >= timeout:
+                    _logger.warning(
+                        "Stream timeout reached for %s after %.2fs", stream_id, elapsed
+                    )
+                    break
+
+                yield chunk
+
+        except asyncio.CancelledError:
+            _logger.info(
+                "Stream %s cancelled after %.2fs",
+                stream_id,
+                asyncio.get_event_loop().time() - start_time,
+            )
+        except asyncio.TimeoutError:
+            _logger.warning(
+                "Stream %s timed out after %.2fs",
+                stream_id,
+                asyncio.get_event_loop().time() - start_time,
+            )
+        except Exception as e:
+            _logger.error(
+                "Stream %s failed after %.2fs: %s",
+                stream_id,
+                asyncio.get_event_loop().time() - start_time,
+                str(e),
+                exc_info=True,
+            )
+        finally:
+            _logger.info(
+                "Stream %s finished: %.2fs duration",
+                stream_id,
+                asyncio.get_event_loop().time() - start_time,
+            )
+
+    return StreamingResponse(
+        robust_stream_wrapper(),
+        media_type=media_type,
         headers={
-            "Cache-Control": "no-cache",
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
             "Connection": "keep-alive",
             "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Headers": "Cache-Control",
+            "Access-Control-Allow-Headers": "Cache-Control, Authorization",
+            "X-Content-Type-Options": "nosniff",
         },
     )
+
+
+async def _consume_generator_with_timeout(generator_func, timeout: int, stream_id: str):
+    """Helper function to consume a generator with timeout enforcement."""
+
+    async def _generator_wrapper():
+        async for chunk in generator_func():
+            yield chunk
+
+    try:
+        generator = _generator_wrapper()
+
+        while True:
+            try:
+                chunk = await asyncio.wait_for(generator.__anext__(), timeout=timeout)
+                yield chunk
+            except StopAsyncIteration:
+                break
+    except asyncio.TimeoutError:
+        _logger.warning("Generator timeout for stream %s", stream_id)
+        raise
 
 
 def run_server():

@@ -3,11 +3,12 @@ import uuid
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, AsyncGenerator, Callable, List, Optional, Tuple
+from typing import Any, AsyncGenerator, Callable, List, Optional, Tuple, cast
 from urllib.parse import urlparse
 
 from faststream import FastStream
 from faststream.rabbit import ExchangeType, RabbitBroker, RabbitExchange, RabbitQueue
+from faststream.rabbit.schemas.queue import ClassicQueueArgs
 from pydantic import BaseModel
 from slugify import slugify
 
@@ -21,6 +22,8 @@ from edcpy.message_handler import (
 BASE_HTTP_PULL_QUEUE_ROUTING_KEY = "http.pull"
 BASE_HTTP_PUSH_QUEUE_ROUTING_KEY = "http.push"
 DEFAULT_EXCHANGE_NAME = "edcpy-topic-exchange"
+DEFAULT_X_MESSAGE_TTL = 15 * 60 * 1000  # 15 minutes
+DEFAULT_X_EXPIRES = 15 * 60 * 1000  # 15 minutes
 
 _logger = logging.getLogger(__name__)
 
@@ -42,6 +45,10 @@ class ConsumerQueueConfig:
     queue_type: QueueType
     auto_delete: bool = True
     exclusive: bool = False
+    # Message TTL controls how long messages stay in a queue before expiring (milliseconds)
+    x_message_ttl: Optional[int] = None
+    # Queue TTL determines how long an unused queue exists before deletion (milliseconds)
+    x_expires: Optional[int] = None
 
 
 class ConsumerQueueFactory:
@@ -61,6 +68,8 @@ class ConsumerQueueFactory:
         transfer_process_id: Optional[str] = None,
         auto_delete: bool = True,
         exclusive: bool = False,
+        x_message_ttl: Optional[int] = DEFAULT_X_MESSAGE_TTL,
+        x_expires: Optional[int] = DEFAULT_X_EXPIRES,
     ) -> ConsumerQueueConfig:
         """Create a queue configuration for HTTP operations with automatic cleanup.
 
@@ -105,6 +114,8 @@ class ConsumerQueueFactory:
             queue_type=queue_type,
             auto_delete=auto_delete,
             exclusive=exclusive,
+            x_message_ttl=x_message_ttl,
+            x_expires=x_expires,
         )
 
     def _build_routing_key(
@@ -158,6 +169,8 @@ class ConsumerQueueFactory:
         transfer_process_id: Optional[str] = None,
         auto_delete: bool = True,
         exclusive: bool = False,
+        x_message_ttl: Optional[int] = DEFAULT_X_MESSAGE_TTL,
+        x_expires: Optional[int] = DEFAULT_X_EXPIRES,
     ) -> ConsumerQueueConfig:
         """Create a queue configuration for HTTP pull operations."""
 
@@ -168,6 +181,8 @@ class ConsumerQueueFactory:
             transfer_process_id=transfer_process_id,
             auto_delete=auto_delete,
             exclusive=exclusive,
+            x_message_ttl=x_message_ttl,
+            x_expires=x_expires,
         )
 
     def create_push_queue_config(
@@ -176,6 +191,8 @@ class ConsumerQueueFactory:
         routing_path: Optional[str] = None,
         auto_delete: bool = True,
         exclusive: bool = False,
+        x_message_ttl: Optional[int] = DEFAULT_X_MESSAGE_TTL,
+        x_expires: Optional[int] = DEFAULT_X_EXPIRES,
     ) -> ConsumerQueueConfig:
         """Create a queue configuration for HTTP push operations."""
 
@@ -185,6 +202,8 @@ class ConsumerQueueFactory:
             routing_path=routing_path,
             auto_delete=auto_delete,
             exclusive=exclusive,
+            x_message_ttl=x_message_ttl,
+            x_expires=x_expires,
         )
 
 
@@ -299,12 +318,21 @@ async def _create_messaging_app_consumer(
 ) -> Tuple[RabbitBroker, FastStream, RabbitExchange, RabbitQueue]:
     """Create and configure a consumer-specific queue with RabbitMQ cleanup features."""
 
+    queue_arguments = {}
+
+    if queue_config.x_message_ttl is not None:
+        queue_arguments["x-message-ttl"] = queue_config.x_message_ttl
+
+    if queue_config.x_expires is not None:
+        queue_arguments["x-expires"] = queue_config.x_expires
+
     queue = RabbitQueue(
         queue_config.queue_name,
         auto_delete=queue_config.auto_delete,
         exclusive=queue_config.exclusive,
         durable=not queue_config.auto_delete,
         routing_key=queue_config.routing_key,
+        arguments=cast(ClassicQueueArgs, queue_arguments),
     )
 
     broker = None

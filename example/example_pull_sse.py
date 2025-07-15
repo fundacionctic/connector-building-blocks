@@ -41,7 +41,6 @@ class AppConfig:
 
     # Consumer Backend SSE API configuration
     consumer_backend_url: str = environ.var(default="http://localhost:28000")
-    sse_timeout_seconds: int = environ.var(default=60, converter=int)
 
     # The SSE Consumer Backend endpoints use the same API key as the connector by default
     api_auth_key: str = environ.var(name="EDC_CONNECTOR_API_KEY")
@@ -65,20 +64,18 @@ class SSEPullCredentialsReceiver:
         """Wait for pull credentials via SSE for a specific transfer process."""
 
         url = f"{self.config.consumer_backend_url}/pull/stream/{transfer_process_id}"
-        params = {"timeout": self.config.sse_timeout_seconds}
 
         _logger.info(f"Connecting to SSE endpoint: {url}")
-        _logger.debug(f"SSE parameters: {params}")
 
         timeout = httpx.Timeout(
             connect=5.0,
-            read=self.config.sse_timeout_seconds + 10,
+            read=60.0,
             write=5.0,
             pool=5.0,
         )
 
         async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.get(url, headers=self.headers, params=params)
+            response = await client.get(url, headers=self.headers)
 
             if response.status_code != 200:
                 raise Exception(
