@@ -1,6 +1,8 @@
 package eu.datacellar.iam;
 
 import java.io.IOException;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.Base64;
@@ -36,6 +38,9 @@ public class WaltIDIdentityServices {
     private String walletPassword;
     private String walletId;
     private OkHttpClient client;
+    private Duration tokenTtl;
+    private String cachedToken;
+    private Instant tokenExpiry;
 
     /**
      * Represents the WaltIDIdentityServices class which provides functionality for
@@ -56,6 +61,7 @@ public class WaltIDIdentityServices {
         this.walletUrl = walletUrl;
         this.walletEmail = walletEmail;
         this.walletPassword = walletPassword;
+        this.tokenTtl = Duration.ofMinutes(3);
         this.walletId = this.findWalletId();
     }
 
@@ -77,6 +83,29 @@ public class WaltIDIdentityServices {
         this.walletEmail = walletEmail;
         this.walletPassword = walletPassword;
         this.walletId = walletId;
+        this.tokenTtl = Duration.ofMinutes(3);
+    }
+
+    public WaltIDIdentityServices(Monitor monitor, String walletUrl, String walletEmail, String walletPassword,
+            Duration tokenTtl) throws IOException {
+        this.client = buildClient();
+        this.monitor = monitor;
+        this.walletUrl = walletUrl;
+        this.walletEmail = walletEmail;
+        this.walletPassword = walletPassword;
+        this.tokenTtl = tokenTtl;
+        this.walletId = this.findWalletId();
+    }
+
+    public WaltIDIdentityServices(Monitor monitor, String walletUrl, String walletEmail, String walletPassword,
+            String walletId, Duration tokenTtl) {
+        this.client = buildClient();
+        this.monitor = monitor;
+        this.walletUrl = walletUrl;
+        this.walletEmail = walletEmail;
+        this.walletPassword = walletPassword;
+        this.walletId = walletId;
+        this.tokenTtl = tokenTtl;
     }
 
     private OkHttpClient buildClient() {
@@ -128,6 +157,11 @@ public class WaltIDIdentityServices {
      * @throws IOException If an I/O error occurs while making the request.
      */
     public String getWalletToken() throws IOException {
+        if (cachedToken != null && tokenExpiry != null && Instant.now().isBefore(tokenExpiry)) {
+            monitor.debug("Using cached wallet token");
+            return cachedToken;
+        }
+
         monitor.debug(
                 "Getting wallet token for wallet with email: " + this.walletEmail + " and URL: " + this.walletUrl);
 
@@ -163,6 +197,9 @@ public class WaltIDIdentityServices {
 
         JSONObject obj = new JSONObject(responseBody);
         String token = obj.getString("token");
+
+        cachedToken = token;
+        tokenExpiry = Instant.now().plus(tokenTtl);
 
         monitor.debug("Got wallet token: " + token);
 
@@ -339,7 +376,7 @@ public class WaltIDIdentityServices {
         private boolean isActive(String jwtCredential) {
             try {
                 JSONObject vcObj = parseVCFromJWTDocument(jwtCredential);
-                
+
                 if (!vcObj.has("expirationDate")) {
                     return true;
                 }

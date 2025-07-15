@@ -1,6 +1,7 @@
 package eu.datacellar.iam;
 
 import java.io.IOException;
+import java.time.Duration;
 
 import org.eclipse.edc.runtime.metamodel.annotation.Extension;
 import org.eclipse.edc.runtime.metamodel.annotation.Inject;
@@ -50,9 +51,14 @@ public class VCIdentityExtension implements ServiceExtension {
     @Setting
     private static final String VC_TYPE = "eu.datacellar.vc.type";
 
+    @Setting
+    private static final String TOKEN_TTL_MINUTES = "eu.datacellar.token.ttl.minutes";
+
     private static final String DEV_UNIRESOLVER_URL = "https://dev.uniresolver.io/1.0/identifiers";
 
     private static final String DEFAULT_VC_TYPE = "DataCellarCredential";
+
+    private static final int DEFAULT_TOKEN_TTL_MINUTES = 3;
 
     @Inject
     private TypeManager typeManager;
@@ -84,12 +90,14 @@ public class VCIdentityExtension implements ServiceExtension {
         }
 
         String walletId = context.getSetting(WALLET_ID, null);
+        int tokenTtlMinutes = context.getSetting(TOKEN_TTL_MINUTES, DEFAULT_TOKEN_TTL_MINUTES);
+        Duration tokenTtl = Duration.ofMinutes(tokenTtlMinutes);
         Monitor monitor = context.getMonitor();
 
         if (walletId == null) {
-            return new WaltIDIdentityServices(monitor, walletUrl, walletEmail, walletPassword);
+            return new WaltIDIdentityServices(monitor, walletUrl, walletEmail, walletPassword, tokenTtl);
         } else {
-            return new WaltIDIdentityServices(monitor, walletUrl, walletEmail, walletPassword, walletId);
+            return new WaltIDIdentityServices(monitor, walletUrl, walletEmail, walletPassword, walletId, tokenTtl);
         }
     }
 
