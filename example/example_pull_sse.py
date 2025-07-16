@@ -2,19 +2,19 @@
 EDC HTTP Pull Data Transfer Example using SSE API
 
 This example demonstrates how to:
-1. Negotiate data access contracts with an EDC provider
-2. Receive pull credentials via SSE (Server-Sent Events) API
-3. Use the credentials to make authenticated HTTP GET requests to the provider
+1. Start listening for pull credentials from a provider via SSE
+2. Negotiate data access contracts with an EDC provider
+3. Receive pull credentials and make authenticated HTTP requests
 
-This is an alternative to the native Python messaging API that uses HTTP
-Server-Sent Events for browser compatibility.
+This uses the provider host-based SSE endpoint to avoid timing issues.
 """
 
 import asyncio
 import json
 import logging
 import pprint
-from typing import Any, Dict
+from typing import Dict, Optional
+from urllib.parse import urlparse
 
 import coloredlogs
 import environ
@@ -29,163 +29,186 @@ _logger = logging.getLogger(__name__)
 class AppConfig:
     """Configuration for the SSE HTTP pull example."""
 
-    # EDC provider details
     counter_party_protocol_url: str = environ.var(
         default="http://provider.local:9194/protocol"
     )
-
     counter_party_connector_id: str = environ.var(default="example-provider")
-
-    # Asset query for GET method
     asset_query_get: str = environ.var(default="GET-consumption")
-
-    # Consumer Backend SSE API configuration
     consumer_backend_url: str = environ.var(default="http://localhost:28000")
-
-    # The SSE Consumer Backend endpoints use the same API key as the connector by default
     api_auth_key: str = environ.var(name="EDC_CONNECTOR_API_KEY")
-
-    # Logging
     log_level: str = environ.var(default="DEBUG")
 
 
 class SSEPullCredentialsReceiver:
-    """Helper class to receive pull credentials via SSE API."""
+    """Receives pull credentials from the provider's SSE endpoint,
+    allowing you to start listening before the Transfer Process ID is known.
+    This ensures you do not miss the access token message."""
 
     def __init__(self, config: AppConfig):
         self.config = config
-
         self.headers = {
             "Authorization": f"Bearer {config.api_auth_key}",
             "Accept": "text/event-stream",
         }
 
-    async def wait_for_credentials(self, transfer_process_id: str) -> Dict[str, Any]:
-        """Wait for pull credentials via SSE for a specific transfer process."""
+        # One future per transfer ID. The future is set exactly once
+        # with the pull-message dict.
+        self._futures: Dict[str, asyncio.Future] = {}
 
-        url = f"{self.config.consumer_backend_url}/pull/stream/{transfer_process_id}"
+        # Background listener task and a flag that becomes true once the
+        # SSE connection is confirmed (HTTP 200).
+        self._listener_task: Optional[asyncio.Task] = None
+        self._connected_event: asyncio.Event = asyncio.Event()
 
-        _logger.info(f"Connecting to SSE endpoint: {url}")
+    async def start_listening(self, protocol_url: str):
+        """Start the background SSE listener.
 
-        timeout = httpx.Timeout(
-            connect=5.0,
-            read=60.0,
-            write=5.0,
-            pool=5.0,
-        )
+        The coroutine returns once the HTTP stream is ready, so callers
+        can safely trigger contract negotiation without the risk of
+        missing the first credential message.
+        """
 
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.get(url, headers=self.headers)
+        if self._listener_task and not self._listener_task.done():
+            _logger.warning("SSE listener already running")
+            return
 
-            if response.status_code != 200:
-                raise Exception(
-                    f"SSE connection failed: {response.status_code} {response.text}"
-                )
+        provider_host = urlparse(protocol_url).hostname
+        url = f"{self.config.consumer_backend_url}/pull/stream/provider/{provider_host}"
 
-            _logger.info("SSE connection established, waiting for pull credentials")
+        _logger.info(f"Connecting to SSE stream for provider: {provider_host}")
+        self._connected_event.clear()
+        self._listener_task = asyncio.create_task(self._listen_sse_stream(url))
 
-            for line in response.text.split("\n"):
-                line = line.strip()
+        # Wait until the HTTP 200 response has been received (or fail fast)
+        await asyncio.wait_for(self._connected_event.wait(), timeout=5)
 
-                if not line.startswith("data: "):
-                    continue
+    async def _listen_sse_stream(self, url: str):
+        """Internal task: consume the SSE stream and resolve futures."""
 
-                data_json = line[6:]  # Remove 'data: ' prefix
+        timeout = httpx.Timeout(connect=5.0, read=60.0, write=5.0, pool=5.0)
 
-                try:
-                    message = json.loads(data_json)
-                    _logger.debug(f"Received SSE message: {message}")
-
-                    if message.get("type") == "pull_message":
-                        _logger.info("Pull credentials received via SSE")
-                        return message
-                    elif message.get("type") == "error":
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                async with client.stream("GET", url, headers=self.headers) as response:
+                    if response.status_code != 200:
                         raise Exception(
-                            f"SSE error: {message.get('message', 'Unknown error')}"
+                            f"SSE connection failed: {response.status_code}"
                         )
-                except json.JSONDecodeError:
-                    _logger.warning(f"Invalid JSON in SSE message: {data_json}")
-                    continue
 
-            raise Exception("SSE stream ended without receiving pull credentials")
+                    _logger.info("SSE stream connected")
+                    self._connected_event.set()
+
+                    async for line in response.aiter_lines():
+                        if not line.strip().startswith("data: "):
+                            continue
+
+                        try:
+                            message = json.loads(line.strip()[6:])  # remove 'data: '
+                        except json.JSONDecodeError:
+                            _logger.warning(f"Invalid JSON in SSE message: {line}")
+                            continue
+
+                        if message.get("type") != "pull_message":
+                            continue
+
+                        transfer_id = message.get("transfer_process_id")
+
+                        if not transfer_id:
+                            continue
+
+                        # Resolve or store the future for this transfer ID
+                        future = self._futures.get(transfer_id)
+
+                        if future is None:
+                            future = asyncio.get_event_loop().create_future()
+                            self._futures[transfer_id] = future
+
+                        if not future.done():
+                            _logger.info(
+                                f"Received credentials for transfer: {transfer_id}"
+                            )
+                            future.set_result(message)
+
+        except Exception as e:
+            # Ensure listeners are not left waiting forever
+            self._connected_event.set()
+            _logger.error(f"SSE listener error: {e}")
+
+    async def get_credentials(self, transfer_id: str, timeout: float = 60.0) -> dict:
+        """Await the credentials for transfer_id (with timeout)."""
+
+        future = self._futures.get(transfer_id)
+
+        if future is None:
+            future = asyncio.get_event_loop().create_future()
+            self._futures[transfer_id] = future
+
+        try:
+            return await asyncio.wait_for(future, timeout=timeout)
+        except asyncio.TimeoutError as exc:
+            raise Exception(
+                f"Timeout waiting for credentials for transfer: {transfer_id}"
+            ) from exc
+
+    async def stop_listening(self):
+        """Cancel the listener task and clear pending futures."""
+
+        if self._listener_task and not self._listener_task.done():
+            self._listener_task.cancel()
+
+            try:
+                await self._listener_task
+            except asyncio.CancelledError:
+                pass
+
+        self._futures.clear()
+        self._connected_event.clear()
 
 
-async def execute_get_request(
-    config: AppConfig,
-    controller: ConnectorController,
-    sse_receiver: SSEPullCredentialsReceiver,
-):
-    """Execute HTTP GET request using EDC pull mechanism with SSE API.
+async def main():
+    """Main function demonstrating provider-based SSE pull data transfer."""
 
-    This function demonstrates the complete pull workflow for GET requests:
-    1. Negotiate contract with provider to establish data access rights
-    2. Start pull transfer process to request credentials
-    3. Receive pull credentials via SSE API
-    4. Use credentials to make authenticated HTTP GET request to provider
-    """
+    config = AppConfig.from_environ()
+    sse_receiver = SSEPullCredentialsReceiver(config)
+    controller = ConnectorController()
 
-    # Step 1: Negotiate contract for GET asset
-    _logger.info("Negotiating contract for GET asset: %s", config.asset_query_get)
+    try:
+        _logger.info(f"Starting data transfer for asset: {config.asset_query_get}")
 
-    transfer_details = await controller.run_negotiation_flow(
-        counter_party_protocol_url=config.counter_party_protocol_url,
-        counter_party_connector_id=config.counter_party_connector_id,
-        asset_query=config.asset_query_get,
-    )
+        # Step 1: Start listening for SSE events immediately
+        await sse_receiver.start_listening(config.counter_party_protocol_url)
 
-    # Step 2: Start pull transfer process
-    transfer_process_id = await controller.run_transfer_flow(
-        transfer_details=transfer_details, is_provider_push=False
-    )
-
-    _logger.info("Pull transfer started: %s", transfer_process_id)
-
-    # Step 3: Receive pull credentials via SSE and execute GET request
-    pull_message = await sse_receiver.wait_for_credentials(transfer_process_id)
-
-    async with httpx.AsyncClient() as client:
-        _logger.info(
-            "Executing GET request with SSE credentials:\n%s",
-            pprint.pformat(pull_message.get("request_args", {})),
+        # Step 2: Negotiate contract
+        transfer_details = await controller.run_negotiation_flow(
+            counter_party_protocol_url=config.counter_party_protocol_url,
+            counter_party_connector_id=config.counter_party_connector_id,
+            asset_query=config.asset_query_get,
         )
 
-        # Make authenticated request to provider's data endpoint
-        response = await client.request(**pull_message["request_args"])
-        data = response.json()
+        # Step 3: Start transfer
+        transfer_id = await controller.run_transfer_flow(
+            transfer_details=transfer_details, is_provider_push=False
+        )
 
-        _logger.info("GET response received:\n%s", pprint.pformat(data))
-        return data
+        _logger.info(f"Transfer process started: {transfer_id}")
 
+        # Step 4: Get credentials (either from buffer or wait for them)
+        pull_message = await sse_receiver.get_credentials(transfer_id)
 
-async def main(config: AppConfig):
-    """Main function demonstrating HTTP pull data transfer using SSE API.
+        # Step 5: Execute the authenticated request
+        async with httpx.AsyncClient() as client:
+            _logger.info("Executing authenticated GET request")
+            response = await client.request(**pull_message["request_args"])
+            data = response.json()
+            _logger.info("GET response received:\n%s", pprint.pformat(data))
+            return data
 
-    This example shows how to perform a data request using the
-    SSE API instead of native Python messaging, making it suitable for
-    browser-based applications or simplified integration scenarios.
-    """
-
-    # Create SSE receiver for pull credentials
-    sse_receiver = SSEPullCredentialsReceiver(config)
-
-    # Initialize EDC controller for managing transfers
-    controller = ConnectorController()
-    _logger.debug("EDC Controller configuration:\n%s", controller.config)
-
-    # Execute GET request
-    _logger.info("Starting GET request via SSE API")
-
-    result = await execute_get_request(
-        config=config,
-        controller=controller,
-        sse_receiver=sse_receiver,
-    )
-
-    _logger.info("SSE pull transfer completed successfully")
-    return result
+    finally:
+        # Clean up the SSE listener
+        await sse_receiver.stop_listening()
 
 
 if __name__ == "__main__":
-    config: AppConfig = AppConfig.from_environ()
+    config = AppConfig.from_environ()
     coloredlogs.install(level=config.log_level)
-    asyncio.run(main(config))
+    asyncio.run(main())

@@ -119,10 +119,10 @@ async def execute_parallel_request(
 
 
 async def main(config: AppConfig):
-    """Main function demonstrating parallel HTTP pull data transfer.
+    """Main function demonstrating parallel HTTP pull data transfers.
 
-    This example shows how to efficiently execute multiple data requests
-    concurrently, reducing total execution time compared to sequential requests.
+    This example shows how to handle multiple parallel requests to the same EDC connector.
+    It is useful when acting as a gateway for several end users who may request data concurrently and independently.
     """
 
     # Create messaging client for RabbitMQ communication

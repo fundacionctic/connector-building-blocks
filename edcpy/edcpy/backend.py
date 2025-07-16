@@ -414,6 +414,64 @@ async def _stream_pull_messages(
         yield f"data: {error_data.model_dump_json()}\n\n"
 
 
+async def _stream_pull_messages_by_provider(
+    provider_host: str, timeout: int
+) -> AsyncGenerator[str, None]:
+    """Stream HttpPullMessage objects as SSE for a specific provider host.
+
+    This function streams any HttpPullMessage from the specified provider host,
+    regardless of the transfer process ID. It continuously listens for messages
+    until the timeout is reached or an error occurs."""
+
+    # Use a unique consumer ID for each SSE connection to avoid conflicts
+    consumer_id = f"sse-pull-provider-{provider_host}-{uuid.uuid4().hex[:8]}"
+    client = MessagingClient(consumer_id)
+
+    try:
+        async with client.pull_consumer(
+            provider_host=provider_host,
+            timeout=timeout,
+            exclusive=True,
+            auto_delete=True,
+        ) as consumer:
+            # Note: We don't specify expected_id since we want to receive any message from this provider
+            while True:
+                try:
+                    async with consumer.wait_for_message(
+                        timeout=timeout
+                    ) as http_pull_message:
+                        message_data = SSEPullMessage(
+                            transfer_process_id=http_pull_message.id,
+                            request_args=http_pull_message.request_args,
+                            auth_code=http_pull_message.auth_code,
+                            auth_key=http_pull_message.auth_key,
+                            endpoint=http_pull_message.endpoint,
+                            properties=http_pull_message.properties,
+                            contract_id=http_pull_message.contract_id,
+                        )
+
+                        yield f"data: {message_data.model_dump_json()}\n\n"
+                except asyncio.TimeoutError:
+                    break
+                except Exception as e:
+                    _logger.warning(
+                        "Error processing individual message from provider %s: %s",
+                        provider_host,
+                        str(e),
+                    )
+                    continue
+    except Exception as e:
+        _logger.warning("Error streaming pull messages by provider", exc_info=True)
+
+        error_data = SSEErrorMessage(
+            message=str(e),
+            transfer_process_id=None,
+            routing_path=None,
+        )
+
+        yield f"data: {error_data.model_dump_json()}\n\n"
+
+
 async def _stream_push_messages(
     routing_path: str, timeout: int
 ) -> AsyncGenerator[str, None]:
@@ -488,6 +546,51 @@ async def stream_pull_messages(
         generator_func=pull_stream_generator,
         timeout=params.timeout,
         stream_id=f"pull-{transfer_process_id}",
+    )
+
+
+@app.get("/pull/stream/provider/{provider_host}")
+async def stream_pull_messages_by_provider(
+    provider_host: str,
+    request: Request,
+    params: SSEStreamParams = Depends(),
+    api_key: str = Depends(verify_api_key),
+) -> StreamingResponse:
+    """Stream HttpPullMessage objects as Server-Sent Events for a specific provider host.
+
+    This endpoint allows browsers to start listening for pull transfer credentials
+    from a specific provider before the transfer process begins. This solves the
+    timing issue where clients need to know the transfer process ID beforehand.
+
+    The endpoint will stream any HttpPullMessage from the specified provider host,
+    regardless of the transfer process ID."""
+
+    _logger.info(
+        "Starting SSE stream for pull provider: %s (timeout: %ds)",
+        provider_host,
+        params.timeout,
+    )
+
+    async def pull_stream_generator():
+        """Generator that handles client disconnections and delegates to the main stream."""
+
+        async for chunk in _stream_pull_messages_by_provider(
+            provider_host=provider_host,
+            timeout=params.timeout,
+        ):
+            if await request.is_disconnected():
+                _logger.info(
+                    "Client disconnected during pull stream for provider: %s",
+                    provider_host,
+                )
+                break
+
+            yield chunk
+
+    return create_robust_streaming_response(
+        generator_func=pull_stream_generator,
+        timeout=params.timeout,
+        stream_id=f"pull-provider-{provider_host}",
     )
 
 

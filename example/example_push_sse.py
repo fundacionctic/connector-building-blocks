@@ -70,12 +70,7 @@ class SSEPushMessageReceiver:
 
         _logger.info(f"Connecting to SSE endpoint: {url}")
 
-        timeout = httpx.Timeout(
-            connect=5.0,
-            read=60.0,
-            write=5.0,
-            pool=5.0,
-        )
+        timeout = httpx.Timeout(connect=10.0, read=60.0, write=10.0, pool=10.0)
 
         async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.get(url, headers=self.headers)
@@ -142,7 +137,8 @@ async def run_push_transfer(
     # The routing path ensures messages are delivered to our specific queue
     sink_path = f"{config.consumer_backend_push_path}/{config.routing_path}"
 
-    transfer_process_id = await controller.run_transfer_flow(
+    # Step 2 & 3: Run transfer and wait for push message concurrently
+    transfer_task = controller.run_transfer_flow(
         transfer_details=transfer_details,
         is_provider_push=True,
         sink_base_url=config.consumer_backend_base_url,
@@ -150,10 +146,12 @@ async def run_push_transfer(
         sink_method=config.consumer_backend_push_method,
     )
 
-    _logger.info("Transfer process started: %s", transfer_process_id)
+    sse_task = sse_receiver.wait_for_push_message(config.routing_path)
 
-    # Step 3: Wait for and process the pushed data via SSE
-    push_message = await sse_receiver.wait_for_push_message(config.routing_path)
+    # Wait for both tasks concurrently to avoid missing the push message.
+    transfer_process_id, push_message = await asyncio.gather(transfer_task, sse_task)
+
+    _logger.info("Transfer process ID: %s", transfer_process_id)
 
     _logger.info(
         "Received pushed data from provider via SSE:\n%s",

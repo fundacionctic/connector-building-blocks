@@ -162,6 +162,158 @@ class TestSSEPullEndpoint:
         assert event_data["routing_path"] is None
 
 
+class TestSSEPullByProviderEndpoint:
+    """Test cases for the provider-based pull SSE endpoint."""
+
+    def test_missing_api_key_env(self):
+        """Test that endpoint returns 403 when API_AUTH_KEY is not set."""
+
+        with patch.dict(os.environ, {}, clear=True):
+            client = TestClient(app)
+            response = client.get("/pull/stream/provider/example.com")
+            assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_invalid_api_key(self, client_with_api_key):
+        """Test that endpoint returns 401 with invalid API key."""
+
+        headers = {"Authorization": "Bearer invalid-key"}
+
+        response = client_with_api_key.get(
+            "/pull/stream/provider/example.com", headers=headers
+        )
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_missing_auth_header(self, client_with_api_key):
+        """Test that endpoint returns 403 when Authorization header is missing."""
+
+        response = client_with_api_key.get("/pull/stream/provider/example.com")
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    @patch("edcpy.backend._stream_pull_messages_by_provider")
+    def test_pull_sse_by_provider_success(
+        self, mock_stream_function, client_with_api_key, auth_headers
+    ):
+        """Test successful pull SSE streaming by provider host."""
+
+        # Mock the streaming function to return a successful SSE message
+        mock_pull_message_data = {
+            "type": "pull_message",
+            "transfer_process_id": "test-transfer-456",
+            "request_args": {"method": "GET", "url": "http://example.com/data"},
+            "auth_code": "jwt-token-456",
+            "auth_key": "Authorization",
+            "endpoint": "http://example.com/data",
+            "properties": {"key": "value"},
+            "contract_id": "contract-456",
+        }
+
+        async def mock_stream_generator():
+            yield f"data: {json.dumps(mock_pull_message_data)}\n\n"
+
+        mock_stream_function.return_value = mock_stream_generator()
+
+        # Make the SSE request
+        response = client_with_api_key.get(
+            "/pull/stream/provider/example.com?timeout=5", headers=auth_headers
+        )
+
+        # Verify response
+        assert response.status_code == status.HTTP_200_OK
+        assert response.headers["content-type"] == "text/event-stream; charset=utf-8"
+        assert "Cache-Control" in response.headers
+        assert (
+            response.headers["Cache-Control"] == "no-cache, no-store, must-revalidate"
+        )
+
+        # Verify the SSE data format
+        content = response.text
+        assert "data: " in content
+
+        # Parse the JSON data from the SSE event
+        sse_data = content.split("data: ")[1].split("\n\n")[0]
+        event_data = json.loads(sse_data)
+
+        assert event_data["type"] == "pull_message"
+        assert event_data["transfer_process_id"] == "test-transfer-456"
+        assert event_data["request_args"] == {
+            "method": "GET",
+            "url": "http://example.com/data",
+        }
+        assert event_data["auth_code"] == "jwt-token-456"
+        assert event_data["auth_key"] == "Authorization"
+        assert event_data["endpoint"] == "http://example.com/data"
+        assert event_data["properties"] == {"key": "value"}
+        assert event_data["contract_id"] == "contract-456"
+
+        # Verify that the mock was called with the correct provider host
+        mock_stream_function.assert_called_once_with(
+            provider_host="example.com", timeout=5
+        )
+
+    @patch("edcpy.backend._stream_pull_messages_by_provider")
+    def test_pull_sse_by_provider_error_handling(
+        self, mock_stream_function, client_with_api_key, auth_headers
+    ):
+        """Test error handling in pull SSE streaming by provider."""
+
+        # Mock the streaming function to return an error message
+        mock_error_data = {
+            "type": "error",
+            "message": "Provider connection failed",
+            "transfer_process_id": None,
+            "routing_path": None,
+        }
+
+        async def mock_stream_generator():
+            yield f"data: {json.dumps(mock_error_data)}\n\n"
+
+        mock_stream_function.return_value = mock_stream_generator()
+
+        # Make the SSE request
+        response = client_with_api_key.get(
+            "/pull/stream/provider/example.com", headers=auth_headers
+        )
+
+        # Verify response
+        assert response.status_code == status.HTTP_200_OK
+
+        # Verify error message in SSE format
+        content = response.text
+        assert "data: " in content
+
+        sse_data = content.split("data: ")[1].split("\n\n")[0]
+        event_data = json.loads(sse_data)
+
+        assert event_data["type"] == "error"
+        assert event_data["message"] == "Provider connection failed"
+        assert event_data["transfer_process_id"] is None
+        assert event_data["routing_path"] is None
+
+    def test_provider_host_url_encoding(self, client_with_api_key, auth_headers):
+        """Test that provider host with special characters is handled correctly."""
+
+        with patch(
+            "edcpy.backend._stream_pull_messages_by_provider"
+        ) as mock_stream_function:
+
+            async def mock_stream_generator():
+                yield 'data: {"type": "error", "message": "Test exception"}\n\n'
+
+            mock_stream_function.return_value = mock_stream_generator()
+
+            # Test with provider host containing dots and hyphens
+            response = client_with_api_key.get(
+                "/pull/stream/provider/sub-domain.example.com", headers=auth_headers
+            )
+            assert response.status_code == status.HTTP_200_OK
+
+            # Verify the provider host was passed correctly
+            mock_stream_function.assert_called_once_with(
+                provider_host="sub-domain.example.com", timeout=300
+            )
+
+
 class TestSSEPushEndpoint:
     """Test cases for the push SSE endpoint."""
 
