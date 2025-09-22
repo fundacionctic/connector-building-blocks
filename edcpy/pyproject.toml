@@ -10,7 +10,7 @@ readme = "README.md"
 python = "^3.8"
 coloredlogs = "^15.0.1"
 deepmerge = "^1.1.0"
-fastapi = { extras = ["all"], version = "^0.109.0" }
+fastapi = { extras = ["all"], version = ">=0.117.1" }
 pyjwt = { extras = ["crypto"], version = "^2.7.0" }
 cryptography = "^41.0.1"
 python-slugify = "^8.0.1"
