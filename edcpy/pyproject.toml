@@ -15,7 +15,7 @@ pyjwt = { extras = ["crypto"], version = "^2.7.0" }
 cryptography = "^41.0.1"
 python-slugify = "^8.0.1"
 environ-config = "^23.2.0"
-httpx = "^0.27.0"
+httpx = ">=0.28.1"
 requests = "^2.31.0"
 faststream = { extras = ["rabbit"], version = "^0.5.34" }
 pydantic = "^2.10.5"
@@ -24,7 +24,7 @@ pydantic = "^2.10.5"
 pytest = "^7.3.1"
 pytest-asyncio = "^0.21.0"
 pytest-mock = "^3.10.0"
-httpx = "^0.27.0"
+httpx = ">=0.28.1"
 aioresponses = "^0.7.4"
 black = "^23.3.0"
 
