@@ -282,10 +282,11 @@ class MessagingApp:
 @asynccontextmanager
 async def _create_messaging_app_base(
     exchange_name: str = DEFAULT_EXCHANGE_NAME,
+    config: Optional[AppConfig] = None,
 ) -> AsyncGenerator[Tuple[RabbitBroker, FastStream, RabbitExchange], None]:
     """Create the base messaging app components."""
 
-    app_config: AppConfig = get_config()
+    app_config: AppConfig = config or get_config()
     rabbit_url = app_config.rabbit_url
 
     if not rabbit_url:
@@ -314,7 +315,9 @@ async def _create_messaging_app_base(
 
 
 async def _create_messaging_app_consumer(
-    queue_config: ConsumerQueueConfig, handler: Callable
+    queue_config: ConsumerQueueConfig,
+    handler: Callable,
+    config: Optional[AppConfig] = None,
 ) -> Tuple[RabbitBroker, FastStream, RabbitExchange, RabbitQueue]:
     """Create and configure a consumer-specific queue with RabbitMQ cleanup features."""
 
@@ -339,7 +342,7 @@ async def _create_messaging_app_consumer(
     app = None
     exchange = None
 
-    async with _create_messaging_app_base() as (broker, app, exchange):
+    async with _create_messaging_app_base(config=config) as (broker, app, exchange):
         # Always use manual acknowledgment for consumer queues
         # The subscriber must be created before the broker starts—this is why we use a context manager here
         broker.subscriber(queue=queue, exchange=exchange, no_ack=False)(handler)
@@ -363,6 +366,7 @@ async def _create_messaging_app_consumer(
 
 async def start_publisher_messaging_app(
     exchange_name: str = DEFAULT_EXCHANGE_NAME,
+    config: Optional[AppConfig] = None,
 ) -> MessagingApp:
     """Start a messaging app optimized for publishing messages only.
 
@@ -370,7 +374,7 @@ async def start_publisher_messaging_app(
     broker connection and topic exchange. No queues are created.
     """
 
-    async with _create_messaging_app_base(exchange_name) as (
+    async with _create_messaging_app_base(exchange_name, config=config) as (
         broker,
         app,
         exchange,
@@ -391,12 +395,14 @@ async def start_consumer_messaging_app(
     queue_config: ConsumerQueueConfig,
     handler: Callable,
     exchange_name: str = DEFAULT_EXCHANGE_NAME,
+    config: Optional[AppConfig] = None,
 ) -> MessagingApp:
     """Start a messaging app with a consumer-specific queue."""
 
     broker, app, exchange, consumer_queue = await _create_messaging_app_consumer(
         queue_config=queue_config,
         handler=handler,
+        config=config,
     )
 
     return MessagingApp(
@@ -412,6 +418,7 @@ async def with_consumer_messaging_app(
     queue_config: ConsumerQueueConfig,
     handler: Callable,
     exchange_name: str = DEFAULT_EXCHANGE_NAME,
+    config: Optional[AppConfig] = None,
 ) -> AsyncGenerator[MessagingApp, None]:
     """Context manager for a consumer-specific messaging app.
 
@@ -431,6 +438,7 @@ async def with_consumer_messaging_app(
             queue_config=queue_config,
             handler=handler,
             exchange_name=exchange_name,
+            config=config,
         )
 
         yield messaging_app
@@ -447,15 +455,19 @@ async def with_consumer_messaging_app(
 class MessagingClient:
     """Simplified client for messaging operations with automatic queue and handler management."""
 
-    def __init__(self, consumer_id: Optional[str] = None):
+    def __init__(
+        self, consumer_id: Optional[str] = None, config: Optional[AppConfig] = None
+    ):
         """Initialize the messaging client.
 
         Args:
             consumer_id: Unique identifier for the consumer (auto-generated if None)
+            config: Application configuration (uses environment config if None)
         """
 
         self.consumer_id = consumer_id or f"consumer-{uuid.uuid4().hex[:8]}"
         self.queue_factory = ConsumerQueueFactory()
+        self.config: AppConfig = config or get_config()
 
     @asynccontextmanager
     async def pull_consumer(
@@ -487,7 +499,9 @@ class MessagingClient:
         handler = create_message_handler(HttpPullMessage, auto_acknowledge=False)
         handler_func = create_handler_function(handler)
 
-        async with with_consumer_messaging_app(queue_config, handler_func):
+        async with with_consumer_messaging_app(
+            queue_config, handler_func, config=self.config
+        ):
             yield MessageConsumer(handler, timeout)
 
     @asynccontextmanager
@@ -520,5 +534,7 @@ class MessagingClient:
         handler = create_message_handler(HttpPushMessage, auto_acknowledge=False)
         handler_func = create_handler_function(handler)
 
-        async with with_consumer_messaging_app(queue_config, handler_func):
+        async with with_consumer_messaging_app(
+            queue_config, handler_func, config=self.config
+        ):
             yield MessageConsumer(handler, timeout)
