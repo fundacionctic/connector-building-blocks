@@ -59,3 +59,28 @@ jobs:
             ${{ env.IMAGE_NAME }}:latest-ssi-fc
             ${{ env.IMAGE_NAME }}:${{ github.ref_name }}-ssi-fc
             ${{ env.IMAGE_NAME }}:${{ github.sha }}-ssi-fc
+      - name: Build and push (SSI identity and SQL store)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          build-args: |
+            ENABLE_SSI=true
+            ENABLE_SQL_STORE=true
+          tags: |
+            ${{ env.IMAGE_NAME }}:latest-ssi-sql
+            ${{ env.IMAGE_NAME }}:${{ github.ref_name }}-ssi-sql
+            ${{ env.IMAGE_NAME }}:${{ github.sha }}-ssi-sql
+      - name: Build and push (SSI identity, SQL store, and Federated Catalog)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          build-args: |
+            ENABLE_SSI=true
+            ENABLE_SQL_STORE=true
+            ENABLE_FEDERATED_CATALOG=true
+          tags: |
+            ${{ env.IMAGE_NAME }}:latest-ssi-sql-fc
+            ${{ env.IMAGE_NAME }}:${{ github.ref_name }}-ssi-sql-fc
+            ${{ env.IMAGE_NAME }}:${{ github.sha }}-ssi-sql-fc
