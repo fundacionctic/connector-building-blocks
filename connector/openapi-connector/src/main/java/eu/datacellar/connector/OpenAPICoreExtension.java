@@ -230,7 +230,16 @@ public class OpenAPICoreExtension implements ServiceExtension {
     private String extractBaseUrl(String fullUrl) {
         try {
             URL url = new URL(fullUrl);
-            return String.format("%s://%s:%s", url.getProtocol(), url.getHost(), url.getPort());
+            String protocol = url.getProtocol();
+            String host = url.getHost();
+            int port = url.getPort();
+
+            // If no port is specified (-1), use default port for the protocol
+            if (port == -1) {
+                return String.format("%s://%s", protocol, host);
+            }
+
+            return String.format("%s://%s:%d", protocol, host, port);
         } catch (MalformedURLException e) {
             throw new RuntimeException(e);
         }
