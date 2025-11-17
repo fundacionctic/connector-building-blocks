@@ -1,4 +1,4 @@
-FROM openjdk:17-bullseye
+FROM eclipse-temurin:17-jdk-jammy
 RUN apt-get update -y && apt-get install -y avahi-utils
 ARG JAVA_TOOL_OPTIONS
 ENV JAVA_TOOL_OPTIONS=${JAVA_TOOL_OPTIONS}
