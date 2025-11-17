@@ -1,4 +1,5 @@
 import asyncio
+import difflib
 import logging
 import pprint
 from contextlib import asynccontextmanager
@@ -263,16 +264,75 @@ class CatalogContent:
         return iter([self.data["dcat:dataset"]])
 
     def find_one_dataset(self, asset_query: Union[str, None]) -> Union[dict, None]:
-        return next(
-            (
-                dset
-                for dset in self.datasets
-                if not asset_query
-                or asset_query.lower() in dset.get("id", "").lower()
-                or asset_query.lower() in dset.get("name", "").lower()
-            ),
-            None,
+        # If no query, return the first dataset
+        if not asset_query:
+            _logger.debug("No asset query provided, returning first dataset")
+            return next(iter(self.datasets), None)
+
+        asset_query_lower = asset_query.lower()
+        _logger.debug("Looking for dataset matching query: %s", asset_query)
+
+        # First pass: try to find exact match on ID or name
+        for dset in self.datasets:
+            dset_id = dset.get("id", "").lower()
+            dset_name = dset.get("name", "").lower()
+
+            if asset_query_lower == dset_id or asset_query_lower == dset_name:
+                _logger.debug(
+                    "Found exact match on dataset (id=%s, name=%s)",
+                    dset.get("id"),
+                    dset.get("name"),
+                )
+
+                return dset
+
+        # Second pass: try substring match on ID or name
+        for dset in self.datasets:
+            dset_id = dset.get("id", "").lower()
+            dset_name = dset.get("name", "").lower()
+
+            if asset_query_lower in dset_id or asset_query_lower in dset_name:
+                _logger.debug(
+                    "Found substring match on dataset (id=%s, name=%s)",
+                    dset.get("id"),
+                    dset.get("name"),
+                )
+
+                return dset
+
+        # Fallback: find the dataset with the most similar ID (deterministic)
+        datasets_list = list(self.datasets)
+
+        if not datasets_list:
+            _logger.debug("No datasets available for similarity matching")
+            return None
+
+        # Sort by ID for deterministic behavior when similarity scores are equal
+        datasets_list_sorted = sorted(
+            datasets_list, key=lambda dset: dset.get("id", "")
         )
+
+        most_similar_dataset = max(
+            datasets_list_sorted,
+            key=lambda dset: (
+                difflib.SequenceMatcher(
+                    None, asset_query_lower, dset.get("id", "").lower()
+                ).ratio(),
+                dset.get("id", ""),
+            ),
+        )
+
+        similarity_ratio = difflib.SequenceMatcher(
+            None, asset_query_lower, most_similar_dataset.get("id", "").lower()
+        ).ratio()
+
+        _logger.debug(
+            "No exact or substring match found, using similarity fallback (id=%s, similarity=%.2f)",
+            most_similar_dataset.get("id"),
+            similarity_ratio,
+        )
+
+        return most_similar_dataset
 
 
 @dataclass
