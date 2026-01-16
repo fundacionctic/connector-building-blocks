@@ -124,6 +124,7 @@ async def create_contract_definition(
 async def fetch_catalog(
     management_url: str,
     counter_party_protocol_url: str,
+    limit: Optional[int] = None,
     timeout_secs: int = _DEFAULT_TIMEOUT_SECS,
     config: Optional[AppConfig] = None,
 ) -> dict:
@@ -132,6 +133,14 @@ async def fetch_catalog(
         "counterPartyAddress": counter_party_protocol_url,
         "protocol": "dataspace-protocol-http",
     }
+
+    if limit is not None:
+        data["querySpec"] = {
+            "@type": "QuerySpec",
+            "offset": 0,
+            "limit": limit,
+            "filterExpression": [],
+        }
 
     async with async_httpx_client(timeout=timeout_secs, config=config) as client:
         url = join_url(management_url, "v2", "catalog", "request")
@@ -377,10 +386,13 @@ class ConnectorController:
     def connector_urls(self) -> ConnectorUrls:
         return ConnectorUrls(self.config)
 
-    async def fetch_catalog(self, counter_party_protocol_url: str) -> CatalogContent:
+    async def fetch_catalog(
+        self, counter_party_protocol_url: str, limit: Optional[int] = None
+    ) -> CatalogContent:
         catalog_res = await fetch_catalog(
             management_url=self.connector_urls.management_url,
             counter_party_protocol_url=counter_party_protocol_url,
+            limit=limit,
             timeout_secs=self.timeout_secs,
             config=self.config,
         )
@@ -392,11 +404,13 @@ class ConnectorController:
         counter_party_protocol_url: str,
         counter_party_connector_id: str,
         asset_query: Optional[str],
+        catalog_limit: Optional[int] = None,
     ) -> TransferProcessDetails:
         _logger.info("Preparing to transfer asset (query: %s)", asset_query)
 
         catalog_content = await self.fetch_catalog(
-            counter_party_protocol_url=counter_party_protocol_url
+            counter_party_protocol_url=counter_party_protocol_url,
+            limit=catalog_limit,
         )
 
         dataset_dict = catalog_content.find_one_dataset(asset_query)

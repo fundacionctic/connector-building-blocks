@@ -123,7 +123,9 @@ async def pull_data():
         transfer_details = await controller.run_negotiation_flow(
             counter_party_protocol_url="https://connector.provider.com/protocol",
             counter_party_connector_id="provider-connector",
-            asset_query="my-dataset"
+            asset_query="my-dataset",
+            # Optional: increase if the provider paginates the catalog
+            catalog_limit=200,
         )
         
         # Request pull credentials
@@ -354,4 +356,3 @@ Controls the RabbitMQ messaging system and HTTP backend service that handle asyn
 ## License
 
 Licensed under the [EUPL-1.2](https://opensource.org/licenses/EUPL-1.2).
-
