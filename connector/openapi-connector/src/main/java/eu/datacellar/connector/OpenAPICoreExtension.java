@@ -46,6 +46,8 @@ import com.github.slugify.Slugify;
 
 import io.swagger.parser.OpenAPIParser;
 import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.PathItem.HttpMethod;
+import io.swagger.v3.oas.models.parameters.RequestBody;
 import io.swagger.v3.parser.core.models.SwaggerParseResult;
 
 /**
@@ -69,6 +71,12 @@ public class OpenAPICoreExtension implements ServiceExtension {
     private static final String DATASOURCE_PASSWORD = "edc.datasource.default.password";
     private static final String EDC_HOSTNAME = "edc.hostname";
     private static final String DIDS_SEPARATOR = ",";
+    private static final String DEFAULT_CONTENT_TYPE = "application/json";
+    private static final List<String> PREFERRED_CONTENT_TYPES = List.of(
+            "application/octet-stream",
+            "application/zip",
+            "application/x-zip-compressed",
+            DEFAULT_CONTENT_TYPE);
     // It would be more elegant and future-proof to reference the constants from
     // the appropriate edc modules.
     private static final String NEGOTIATION_SCOPE = "contract.negotiation";
@@ -267,13 +275,14 @@ public class OpenAPICoreExtension implements ServiceExtension {
             pathItem.readOperationsMap().forEach((method, operation) -> {
                 String operationId = operation.getOperationId();
                 String assetId = slg.slugify(String.format("%s-%s", method, path));
+                String contentType = resolveRequestBodyContentType(operation.getRequestBody(), method, path, monitor);
 
                 HttpDataAddress dataAddress = HttpDataAddress.Builder.newInstance()
                         .name(String.format("data-address-%s", assetId))
                         .baseUrl(baseUrl)
                         .path(path)
                         .method(method.name())
-                        .contentType("application/json")
+                        .contentType(contentType)
                         .proxyBody(Boolean.toString(true))
                         .proxyQueryParams(Boolean.toString(true))
                         .build();
@@ -320,6 +329,25 @@ public class OpenAPICoreExtension implements ServiceExtension {
                 monitor.debug(String.format("Created contract definition for asset '%s'", assetId));
             });
         });
+    }
+
+    private String resolveRequestBodyContentType(RequestBody operationRequestBody, HttpMethod method, String path,
+            Monitor monitor) {
+        if (operationRequestBody == null || operationRequestBody.getContent() == null
+                || operationRequestBody.getContent().isEmpty()) {
+            return DEFAULT_CONTENT_TYPE;
+        }
+
+        var contentTypes = operationRequestBody.getContent().keySet();
+        for (String preferred : PREFERRED_CONTENT_TYPES) {
+            if (contentTypes.contains(preferred)) {
+                return preferred;
+            }
+        }
+
+        String first = contentTypes.iterator().next();
+        monitor.debug("Using first requestBody content type '%s' for %s %s".formatted(first, method, path));
+        return first;
     }
 
     /**
