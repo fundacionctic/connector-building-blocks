@@ -9,7 +9,7 @@ from typing import Any, Dict, List
 
 import arrow
 import coloredlogs
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile, status
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
 from typing_extensions import Annotated
@@ -69,6 +69,14 @@ class ElectricityConsumptionSample(BaseModel):
 class ElectrictyConsumptionData(BaseModel):
     location: str
     results: List[ElectricityConsumptionSample]
+
+
+class FileUploadResponse(BaseModel):
+    filename: str
+    content_type: str
+    size: int
+    content_preview: str
+    message: str
 
 
 _PRESENTATION_DEFINITION_EXT = "x-connector-presentation-definition"
@@ -172,6 +180,48 @@ async def process_data(api_key: APIKeyAuthDep, request_body: dict):
 
     _logger.info("Received POST data:\n%s", pprint.pformat(request_body))
     return {"message": "OK"}
+
+
+@app.post("/upload", tags=["File Upload"])
+async def upload_text_file(
+    api_key: APIKeyAuthDep,
+    file: UploadFile = File(..., description="A text file (non-binary)"),
+) -> FileUploadResponse:
+    """Upload a text file via multipart form data. Binary files are rejected."""
+
+    content_bytes = await file.read()
+
+    if len(content_bytes) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Uploaded file is empty",
+        )
+
+    # Validate non-binary by attempting UTF-8 decode
+    try:
+        content_text = content_bytes.decode("utf-8")
+    except UnicodeDecodeError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File appears to be binary. Only text files are accepted.",
+        )
+
+    _logger.info(
+        "Received text file: filename=%s, content_type=%s, size=%d bytes",
+        file.filename,
+        file.content_type,
+        len(content_bytes),
+    )
+
+    preview_length = min(200, len(content_text))
+
+    return FileUploadResponse(
+        filename=file.filename or "unknown",
+        content_type=file.content_type or "text/plain",
+        size=len(content_bytes),
+        content_preview=content_text[:preview_length],
+        message="File uploaded successfully",
+    )
 
 
 @app.middleware("http")

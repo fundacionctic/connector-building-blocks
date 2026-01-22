@@ -34,6 +34,7 @@ class AppConfig:
     )
     counter_party_connector_id: str = environ.var(default="example-provider")
     asset_query_get: str = environ.var(default="GET-consumption")
+    asset_query_multipart: str = environ.var(default="POST-upload")
     consumer_backend_url: str = environ.var(default="http://localhost:28000")
     api_auth_key: str = environ.var(name="EDC_CONNECTOR_API_KEY")
     log_level: str = environ.var(default="DEBUG")
@@ -165,6 +166,63 @@ class SSEPullCredentialsReceiver:
         self._connected_event.clear()
 
 
+async def execute_multipart_upload(
+    config: AppConfig,
+    controller: ConnectorController,
+    sse_receiver: SSEPullCredentialsReceiver,
+) -> dict:
+    """Execute HTTP POST multipart file upload using EDC pull mechanism with SSE."""
+
+    _logger.info(
+        "Negotiating contract for multipart asset: %s", config.asset_query_multipart
+    )
+
+    transfer_details = await controller.run_negotiation_flow(
+        counter_party_protocol_url=config.counter_party_protocol_url,
+        counter_party_connector_id=config.counter_party_connector_id,
+        asset_query=config.asset_query_multipart,
+    )
+
+    transfer_id = await controller.run_transfer_flow(
+        transfer_details=transfer_details, is_provider_push=False
+    )
+
+    _logger.info("Multipart transfer process started: %s", transfer_id)
+
+    # Get credentials from SSE stream
+    pull_message = await sse_receiver.get_credentials(transfer_id)
+
+    async with httpx.AsyncClient() as client:
+        # Sample text file content
+        file_content = (
+            "Sample text file for EDC multipart upload demo.\nTimestamp: 2023-06-15"
+        )
+
+        files = {"file": ("sample.txt", file_content.encode("utf-8"), "text/plain")}
+
+        # Extract credentials, excluding Content-Type (httpx sets it for multipart)
+        request_args = pull_message["request_args"].copy()
+        url = request_args.pop("url")
+        request_args.pop("method", "POST")
+        headers = {
+            k: v
+            for k, v in request_args.get("headers", {}).items()
+            if k.lower() != "content-type"
+        }
+
+        _logger.info("Executing multipart upload to: %s", url)
+
+        response = await client.post(
+            url=url,
+            headers=headers,
+            files=files,
+        )
+        data = response.json()
+
+        _logger.info("Multipart upload response:\n%s", pprint.pformat(data))
+        return data
+
+
 async def main():
     """Main function demonstrating provider-based SSE pull data transfer."""
 
@@ -173,35 +231,40 @@ async def main():
     controller = ConnectorController()
 
     try:
-        _logger.info(f"Starting data transfer for asset: {config.asset_query_get}")
-
         # Step 1: Start listening for SSE events immediately
         await sse_receiver.start_listening(config.counter_party_protocol_url)
 
-        # Step 2: Negotiate contract
+        # --- GET Request Demo ---
+        _logger.info(f"Starting GET transfer for asset: {config.asset_query_get}")
+
         transfer_details = await controller.run_negotiation_flow(
             counter_party_protocol_url=config.counter_party_protocol_url,
             counter_party_connector_id=config.counter_party_connector_id,
             asset_query=config.asset_query_get,
         )
 
-        # Step 3: Start transfer
         transfer_id = await controller.run_transfer_flow(
             transfer_details=transfer_details, is_provider_push=False
         )
 
-        _logger.info(f"Transfer process started: {transfer_id}")
+        _logger.info(f"GET transfer process started: {transfer_id}")
 
-        # Step 4: Get credentials (either from buffer or wait for them)
         pull_message = await sse_receiver.get_credentials(transfer_id)
 
-        # Step 5: Execute the authenticated request
         async with httpx.AsyncClient() as client:
             _logger.info("Executing authenticated GET request")
             response = await client.request(**pull_message["request_args"])
-            data = response.json()
-            _logger.info("GET response received:\n%s", pprint.pformat(data))
-            return data
+            get_result = response.json()
+            _logger.info("GET response received:\n%s", pprint.pformat(get_result))
+
+        # --- Multipart Upload Demo ---
+        multipart_result = await execute_multipart_upload(
+            config=config,
+            controller=controller,
+            sse_receiver=sse_receiver,
+        )
+
+        return {"get_result": get_result, "multipart_result": multipart_result}
 
     finally:
         # Clean up the SSE listener
