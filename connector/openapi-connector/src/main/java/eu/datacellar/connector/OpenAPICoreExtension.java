@@ -36,6 +36,7 @@ import org.eclipse.edc.runtime.metamodel.annotation.Extension;
 import org.eclipse.edc.runtime.metamodel.annotation.Inject;
 import org.eclipse.edc.runtime.metamodel.annotation.Setting;
 import org.eclipse.edc.spi.monitor.Monitor;
+import org.eclipse.edc.spi.result.StoreFailure;
 import org.eclipse.edc.spi.system.ServiceExtension;
 import org.eclipse.edc.spi.system.ServiceExtensionContext;
 import org.eclipse.edc.spi.types.TypeManager;
@@ -44,10 +45,12 @@ import org.postgresql.ds.PGSimpleDataSource;
 
 import com.github.slugify.Slugify;
 
+import eu.datacellar.connector.dataplane.bodyfix.BodyFixConfig;
 import io.swagger.parser.OpenAPIParser;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.PathItem.HttpMethod;
 import io.swagger.v3.oas.models.parameters.RequestBody;
+import io.swagger.v3.parser.core.models.ParseOptions;
 import io.swagger.v3.parser.core.models.SwaggerParseResult;
 
 /**
@@ -155,6 +158,11 @@ public class OpenAPICoreExtension implements ServiceExtension {
     @Setting
     private static final String OPENAPI_VALIDATION_CONTINUE_ON_FAILURE = "eu.datacellar.openapi.validation.continue.on.failure";
 
+    // Temporary override: force HttpDataFixed for any operation with a requestBody.
+    // Intended for diagnosing OpenAPI content-type resolution issues.
+    @Setting
+    private static final String OPENAPI_FORCE_HTTPDATAFIXED = "eu.datacellar.openapi.force.httpdatafixed";
+
     @Inject
     private HttpRequestParamsProvider paramsProvider;
 
@@ -205,7 +213,9 @@ public class OpenAPICoreExtension implements ServiceExtension {
                 .id(DATA_PLANE_ID)
                 .url(String.format("%s://%s:%s/control/transfer", scheme, hostname, controlPort))
                 .allowedSourceType(HTTP_DATA_TYPE)
+                .allowedSourceType(BodyFixConfig.HTTP_DATA_FIXED_TYPE)
                 .allowedDestType(HTTP_DATA_TYPE)
+                .allowedDestType(BodyFixConfig.HTTP_DATA_FIXED_TYPE)
                 .allowedDestType(TransferDataPlaneConstants.HTTP_PROXY)
                 .property(PUBLIC_API_URL_KEY, publicEndpoint)
                 .build();
@@ -259,6 +269,8 @@ public class OpenAPICoreExtension implements ServiceExtension {
         Slugify slg = Slugify.builder().lowerCase(false).build();
         OpenAPI openAPI = readOpenAPISchema(context.getMonitor());
         String baseUrl = context.getSetting(API_BASE_URL, extractBaseUrl(openapiUrl));
+        boolean forceHttpDataFixed = context.getSetting(OPENAPI_FORCE_HTTPDATAFIXED, "false")
+                .equals("true");
 
         boolean isAuthEnabled = context.getSetting(ENABLE_AUTHORIZATION_CONSTRAINT, "false")
                 .equals("true");
@@ -276,6 +288,15 @@ public class OpenAPICoreExtension implements ServiceExtension {
                 String operationId = operation.getOperationId();
                 String assetId = slg.slugify(String.format("%s-%s", method, path));
                 String contentType = resolveRequestBodyContentType(operation.getRequestBody(), method, path, monitor);
+                monitor.info("OpenAPI content type for %s %s: %s".formatted(method, path, contentType));
+
+                // Determine data address type: use HttpDataFixed for binary content types
+                // to route through the body fix extension, or standard HttpData for others
+                String dataAddressType = (forceHttpDataFixed && operation.getRequestBody() != null)
+                        ? BodyFixConfig.HTTP_DATA_FIXED_TYPE
+                        : isBinaryContentType(contentType)
+                        ? BodyFixConfig.HTTP_DATA_FIXED_TYPE
+                        : HTTP_DATA_TYPE;
 
                 HttpDataAddress dataAddress = HttpDataAddress.Builder.newInstance()
                         .name(String.format("data-address-%s", assetId))
@@ -286,6 +307,9 @@ public class OpenAPICoreExtension implements ServiceExtension {
                         .proxyBody(Boolean.toString(true))
                         .proxyQueryParams(Boolean.toString(true))
                         .build();
+                if (!HTTP_DATA_TYPE.equals(dataAddressType)) {
+                    dataAddress.setType(dataAddressType);
+                }
 
                 Asset.Builder assetBuilder = Asset.Builder.newInstance()
                         .id(assetId)
@@ -351,13 +375,38 @@ public class OpenAPICoreExtension implements ServiceExtension {
     }
 
     /**
+     * Determines if a content type should be treated as binary and routed through
+     * the body fix extension to prevent corruption.
+     *
+     * @param contentType the content type to check
+     * @return true if the content type is binary and needs body fix handling
+     */
+    private boolean isBinaryContentType(String contentType) {
+        if (contentType == null) {
+            return false;
+        }
+
+        String normalized = contentType.toLowerCase();
+        return normalized.startsWith("multipart/") ||
+                normalized.equals("application/octet-stream") ||
+                normalized.startsWith("application/zip") ||
+                normalized.startsWith("application/x-zip") ||
+                normalized.startsWith("image/") ||
+                normalized.startsWith("audio/") ||
+                normalized.startsWith("video/");
+    }
+
+    /**
      * Reads the OpenAPI schema from the URL specified in the settings.
      * 
      * @param monitor the EDC monitor
      * @return the OpenAPI schema
      */
     public OpenAPI readOpenAPISchema(Monitor monitor) {
-        SwaggerParseResult result = new OpenAPIParser().readLocation(openapiUrl, null, null);
+        var parseOptions = new ParseOptions();
+        parseOptions.setResolve(true);
+        parseOptions.setResolveFully(true);
+        SwaggerParseResult result = new OpenAPIParser().readLocation(openapiUrl, null, parseOptions);
         OpenAPI openAPI = result.getOpenAPI();
 
         if (result.getMessages() != null) {
@@ -384,7 +433,10 @@ public class OpenAPICoreExtension implements ServiceExtension {
      */
     private boolean validateOpenAPISchema(Monitor monitor, boolean continueOnFailure) {
         try {
-            SwaggerParseResult result = new OpenAPIParser().readLocation(openapiUrl, null, null);
+            var parseOptions = new ParseOptions();
+            parseOptions.setResolve(true);
+            parseOptions.setResolveFully(true);
+            SwaggerParseResult result = new OpenAPIParser().readLocation(openapiUrl, null, parseOptions);
             OpenAPI openAPI = result.getOpenAPI();
 
             if (result.getMessages() != null && !result.getMessages().isEmpty()) {
@@ -527,7 +579,18 @@ public class OpenAPICoreExtension implements ServiceExtension {
         Monitor monitor = context.getMonitor();
 
         DataPlaneInstance dataPlane = buildDataPlaneInstance(context);
-        dataPlaneStore.create(dataPlane);
+        var createResult = dataPlaneStore.create(dataPlane);
+        if (createResult.failed() && createResult.reason() == StoreFailure.Reason.ALREADY_EXISTS) {
+            monitor.info("Data plane instance '%s' already exists. Updating with current configuration.".formatted(dataPlane.getId()));
+            var updateResult = dataPlaneStore.update(dataPlane);
+            if (updateResult.failed()) {
+                monitor.warning("Failed to update data plane instance '%s': %s".formatted(
+                        dataPlane.getId(), String.join(", ", updateResult.getFailureMessages())));
+            }
+        } else if (createResult.failed()) {
+            monitor.warning("Failed to create data plane instance '%s': %s".formatted(
+                    dataPlane.getId(), String.join(", ", createResult.getFailureMessages())));
+        }
 
         // ToDo: Review this
         // Data sources should be registered automatically, but I keep getting this:

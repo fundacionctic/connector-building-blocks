@@ -17,3 +17,4 @@ dependencyResolutionManagement {
 include("openapi-connector")
 include("iam")
 include("federated-catalog")
+include("dataplane-body-fix")

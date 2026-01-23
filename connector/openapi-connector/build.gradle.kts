@@ -28,6 +28,7 @@ dependencies {
     implementation(libs.edc.data.plane.http)
 
     api(libs.edc.data.plane.spi)
+    api(project(":dataplane-body-fix"))
     api(libs.edc.json.ld.spi)
 
     implementation(libs.swaggerParser)

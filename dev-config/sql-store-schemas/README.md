@@ -1,3 +1,7 @@
 # Connector SQL store schemas
 
-SQL store schemas downloaded from the [eclipse-edc/Connector repository](https://github.com/eclipse-edc/Connector/tree/v0.4.1/extensions/control-plane/store/sql).
+SQL store schemas downloaded from the eclipse-edc/Connector repository (target version: **v0.6.4**).
+
+If your runtime EDC version changes, refresh these schemas from the matching tag:
+- EDC repo path: `extensions/control-plane/store/sql`
+- EDC tag: use the same `edc` version declared in `connector/gradle/libs.versions.toml`
