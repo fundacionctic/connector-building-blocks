@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "edcpy"
-version = "0.11.0"
+version = "0.11.1"
 description = "Package that provides a series of utilities to facilitate interaction with the Management and Control APIs of an EDC connector"
 authors = ["Andres Garcia Mangas <andres.garcia@fundacionctic.org>"]
 license = "EUPL-1.2"
