@@ -6,6 +6,8 @@ from enum import Enum
 from typing import Any, AsyncGenerator, Callable, List, Optional, Tuple, cast
 from urllib.parse import urlparse
 
+import inspect
+
 from faststream import FastStream
 from faststream.rabbit import ExchangeType, RabbitBroker, RabbitExchange, RabbitQueue
 from faststream.rabbit.schemas.queue import ClassicQueueArgs
@@ -297,13 +299,7 @@ async def _create_messaging_app_base(
     broker = RabbitBroker(rabbit_url, logger=_logger)
     app = FastStream(broker, logger=_logger)
 
-    topic_exchange = RabbitExchange(
-        exchange_name,
-        auto_delete=False,
-        passive=False,
-        robust=True,
-        type=ExchangeType.TOPIC,
-    )
+    topic_exchange = _create_rabbit_exchange(exchange_name)
 
     yield broker, app, topic_exchange
 
@@ -413,6 +409,21 @@ async def start_consumer_messaging_app(
     )
 
 
+def _create_rabbit_exchange(exchange_name: str) -> RabbitExchange:
+    """Create a RabbitExchange with compatibility across faststream versions."""
+
+    kwargs = {
+        "auto_delete": False,
+        "robust": True,
+        "type": ExchangeType.TOPIC,
+    }
+
+    if "passive" in inspect.signature(RabbitExchange).parameters:
+        kwargs["passive"] = False
+
+    return RabbitExchange(exchange_name, **kwargs)
+
+
 @asynccontextmanager
 async def with_consumer_messaging_app(
     queue_config: ConsumerQueueConfig,
@@ -433,6 +444,8 @@ async def with_consumer_messaging_app(
     Always uses manual message acknowledgment for reliable processing.
     """
 
+    messaging_app: Optional[MessagingApp] = None
+
     try:
         messaging_app = await start_consumer_messaging_app(
             queue_config=queue_config,
@@ -443,6 +456,8 @@ async def with_consumer_messaging_app(
 
         yield messaging_app
     finally:
+        if messaging_app is None:
+            return
         try:
             await messaging_app.broker.close()
             _logger.debug("Closed consumer messaging app broker")
