@@ -29,6 +29,7 @@ app = FastAPI(
         "url": "https://github.com/agmangas",
         "email": "andres.garcia@fundacionctic.org",
     },
+    servers=[{"url": "/datacellar"}],
 )
 
 API_KEY_HEADER_NAME = "X-API-Key"
@@ -226,6 +227,12 @@ async def upload_text_file(
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
+    original_path = request.url.path
+    if original_path.startswith("/datacellar"):
+        trimmed = original_path[len("/datacellar") :]
+        request.scope["path"] = trimmed if trimmed else "/"
+        request.scope["root_path"] = "/datacellar"
+
     headers = request.headers
     _logger.info("Request headers:\n%s", headers)
     response = await call_next(request)

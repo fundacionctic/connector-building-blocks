@@ -14,6 +14,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.sql.DataSource;
 
@@ -50,6 +52,8 @@ import io.swagger.parser.OpenAPIParser;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.PathItem.HttpMethod;
 import io.swagger.v3.oas.models.parameters.RequestBody;
+import io.swagger.v3.oas.models.servers.Server;
+import io.swagger.v3.oas.models.servers.ServerVariable;
 import io.swagger.v3.parser.core.models.ParseOptions;
 import io.swagger.v3.parser.core.models.SwaggerParseResult;
 
@@ -263,12 +267,62 @@ public class OpenAPICoreExtension implements ServiceExtension {
         }
     }
 
+    private String resolveBaseUrl(ServiceExtensionContext context, OpenAPI openAPI, String openapiUrl) {
+        String configuredBaseUrl = context.getSetting(API_BASE_URL, null);
+        if (configuredBaseUrl != null && !configuredBaseUrl.isBlank()) {
+            return configuredBaseUrl;
+        }
+
+        String serverUrl = resolveOpenApiServerUrl(openAPI);
+        if (serverUrl == null || serverUrl.isBlank()) {
+            return extractBaseUrl(openapiUrl);
+        }
+
+        if (serverUrl.startsWith("/")) {
+            return extractBaseUrl(openapiUrl) + serverUrl;
+        }
+
+        return serverUrl;
+    }
+
+    private String resolveOpenApiServerUrl(OpenAPI openAPI) {
+        if (openAPI == null || openAPI.getServers() == null || openAPI.getServers().isEmpty()) {
+            return null;
+        }
+
+        Server server = openAPI.getServers().get(0);
+        String url = server.getUrl();
+        if (url == null || url.isBlank()) {
+            return null;
+        }
+
+        Map<String, ServerVariable> variables = server.getVariables();
+        if (variables == null || variables.isEmpty()) {
+            return url;
+        }
+
+        Pattern pattern = Pattern.compile("\\{([^}]+)\\}");
+        Matcher matcher = pattern.matcher(url);
+        StringBuffer resolved = new StringBuffer();
+        while (matcher.find()) {
+            String varName = matcher.group(1);
+            ServerVariable variable = variables.get(varName);
+            String replacement = variable != null ? variable.getDefault() : null;
+            if (replacement == null) {
+                replacement = "";
+            }
+            matcher.appendReplacement(resolved, Matcher.quoteReplacement(replacement));
+        }
+        matcher.appendTail(resolved);
+        return resolved.toString();
+    }
+
     @SuppressWarnings("unchecked")
     private void createAssets(ServiceExtensionContext context) {
         Monitor monitor = context.getMonitor();
         Slugify slg = Slugify.builder().lowerCase(false).build();
         OpenAPI openAPI = readOpenAPISchema(context.getMonitor());
-        String baseUrl = context.getSetting(API_BASE_URL, extractBaseUrl(openapiUrl));
+        String baseUrl = resolveBaseUrl(context, openAPI, openapiUrl);
         boolean forceHttpDataFixed = context.getSetting(OPENAPI_FORCE_HTTPDATAFIXED, "false")
                 .equals("true");
 
