@@ -20,6 +20,7 @@ from edcpy.message_handler import (
     create_handler_function,
     create_message_handler,
 )
+from edcpy.utils import edc_get
 
 BASE_HTTP_PULL_QUEUE_ROUTING_KEY = "http.pull"
 BASE_HTTP_PUSH_QUEUE_ROUTING_KEY = "http.push"
@@ -222,13 +223,15 @@ class HttpPullMessage(BaseModel):
 
     @property
     def http_method(self) -> str:
-        """Extract HTTP method from the decoded auth code."""
+        """Extract HTTP method from the decoded auth code.
 
-        ret = (
-            self.auth_code_decoded.get("dad", {})
-            .get("properties", {})
-            .get("method", None)
-        )
+        Handles both plain keys (``method``) and EDC-namespaced keys
+        (``https://w3id.org/edc/v0.0.1/ns/method``) that appear when
+        assets are created directly via the EDC Management API.
+        """
+
+        properties = self.auth_code_decoded.get("dad", {}).get("properties", {})
+        ret = edc_get(properties, "method")
 
         if ret is None:
             raise ValueError("Could not find HTTP method in auth code")

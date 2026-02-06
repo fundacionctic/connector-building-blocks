@@ -10,10 +10,11 @@ _TEMPLATE = {
     },
     "@id": None,
     "policy": {
-        "@type": "set",
-        "odrl:permission": [],
-        "odrl:prohibition": [],
-        "odrl:obligation": [],
+        "@context": "http://www.w3.org/ns/odrl.jsonld",
+        "@type": "Set",
+        "permission": [],
+        "prohibition": [],
+        "obligation": [],
     },
 }
 
