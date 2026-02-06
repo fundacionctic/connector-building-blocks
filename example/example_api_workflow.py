@@ -26,8 +26,6 @@ Uses the SSE-based credential delivery (same as example_pull_sse.py).
 - EDC_CONNECTOR_PARTICIPANT_ID
 - EDC_CONNECTOR_MANAGEMENT_PORT
 - EDC_CONNECTOR_API_KEY
-
-To run: task run-example-api-workflow
 """
 
 import asyncio
