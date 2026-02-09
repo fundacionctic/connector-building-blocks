@@ -86,6 +86,16 @@ public class WaltIDIdentityServices {
         this.tokenTtl = Duration.ofMinutes(3);
     }
 
+    /**
+     * Constructs a WaltIDIdentityServices instance with a specified token time-to-live.
+     *
+     * @param monitor the Monitor instance for logging
+     * @param walletUrl the URL of the Walt ID wallet
+     * @param walletEmail the email credential for wallet access
+     * @param walletPassword the password credential for wallet access
+     * @param tokenTtl the time-to-live duration for tokens
+     * @throws IOException if the wallet ID cannot be discovered
+     */
     public WaltIDIdentityServices(Monitor monitor, String walletUrl, String walletEmail, String walletPassword,
             Duration tokenTtl) throws IOException {
         this.client = buildClient();
@@ -97,6 +107,16 @@ public class WaltIDIdentityServices {
         this.walletId = this.findWalletId();
     }
 
+    /**
+     * Constructs a WaltIDIdentityServices instance with a specified wallet ID and token time-to-live.
+     *
+     * @param monitor the Monitor instance for logging
+     * @param walletUrl the URL of the Walt ID wallet
+     * @param walletEmail the email credential for wallet access
+     * @param walletPassword the password credential for wallet access
+     * @param walletId the ID of the wallet to use
+     * @param tokenTtl the time-to-live duration for tokens
+     */
     public WaltIDIdentityServices(Monitor monitor, String walletUrl, String walletEmail, String walletPassword,
             String walletId, Duration tokenTtl) {
         this.client = buildClient();

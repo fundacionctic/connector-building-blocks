@@ -210,6 +210,11 @@ public class BodyFixHttpDataSource implements DataSource {
     public static class Builder {
         private final BodyFixHttpDataSource dataSource;
 
+        /**
+         * Creates a new Builder instance for constructing a BodyFixHttpDataSource.
+         *
+         * @return a new Builder instance
+         */
         public static Builder newInstance() {
             return new Builder();
         }
@@ -218,36 +223,78 @@ public class BodyFixHttpDataSource implements DataSource {
             dataSource = new BodyFixHttpDataSource();
         }
 
+        /**
+         * Sets the HTTP request parameters for this data source.
+         *
+         * @param params the HTTP request parameters
+         * @return this Builder instance
+         */
         public Builder params(HttpRequestParams params) {
             dataSource.params = params;
             return this;
         }
 
+        /**
+         * Sets the name of this data source.
+         *
+         * @param name the data source name
+         * @return this Builder instance
+         */
         public Builder name(String name) {
             dataSource.name = name;
             return this;
         }
 
+        /**
+         * Sets the request ID for this data source.
+         *
+         * @param requestId the request ID
+         * @return this Builder instance
+         */
         public Builder requestId(String requestId) {
             dataSource.requestId = requestId;
             return this;
         }
 
+        /**
+         * Sets the HTTP client to be used by this data source.
+         *
+         * @param httpClient the EDC HTTP client
+         * @return this Builder instance
+         */
         public Builder httpClient(EdcHttpClient httpClient) {
             dataSource.httpClient = httpClient;
             return this;
         }
 
+        /**
+         * Sets the monitor for this data source.
+         *
+         * @param monitor the Monitor instance
+         * @return this Builder instance
+         */
         public Builder monitor(Monitor monitor) {
             dataSource.monitor = monitor;
             return this;
         }
 
+        /**
+         * Sets the body fix configuration for this data source.
+         *
+         * @param config the BodyFixConfig instance
+         * @return this Builder instance
+         */
         public Builder config(BodyFixConfig config) {
             dataSource.config = config;
             return this;
         }
 
+        /**
+         * Builds the BodyFixHttpDataSource with the configured parameters.
+         *
+         * @return the constructed BodyFixHttpDataSource
+         * @throws NullPointerException if any required field is not set
+         */
         public BodyFixHttpDataSource build() {
             Objects.requireNonNull(dataSource.requestId, "requestId");
             Objects.requireNonNull(dataSource.httpClient, "httpClient");
