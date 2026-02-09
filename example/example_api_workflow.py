@@ -20,12 +20,8 @@ The workflow:
 Designed to run against the existing dev-up environment.
 Uses the SSE-based credential delivery (same as example_pull_sse.py).
 
-**Required environment variables** (from dev-config/.env.dev.consumer):
-- EDC_CONNECTOR_HOST
-- EDC_CONNECTOR_CONNECTOR_ID
-- EDC_CONNECTOR_PARTICIPANT_ID
-- EDC_CONNECTOR_MANAGEMENT_PORT
-- EDC_CONNECTOR_API_KEY
+All configuration is explicitly passed to the ConnectorController and other
+components, eliminating reliance on implicit environment variables.
 """
 
 import asyncio
@@ -39,6 +35,7 @@ import coloredlogs
 import environ
 import httpx
 
+from edcpy.config import AppConfig
 from edcpy.edc_api import (
     ConnectorController,
     create_asset,
@@ -51,7 +48,11 @@ _logger = logging.getLogger(__name__)
 
 @environ.config(prefix="")
 class WorkflowConfig:
-    """Configuration for the API workflow example."""
+    """Configuration for the API workflow example.
+
+    All connector configuration is explicitly defined here to avoid
+    hidden dependencies on environment variables.
+    """
 
     # Provider Management API (accessed from the host)
     provider_management_url: str = environ.var(
@@ -60,16 +61,30 @@ class WorkflowConfig:
     provider_api_key: str = environ.var(default="datacellar")
     provider_api_key_header: str = environ.var(default="X-API-Key")
 
-    # Consumer connector details (set via EDC_CONNECTOR_* env vars
-    # from .env.dev.consumer, used by ConnectorController)
+    # Consumer connector details
     counter_party_protocol_url: str = environ.var(
         default="http://host.docker.internal:19194/protocol"
     )
     counter_party_connector_id: str = environ.var(default="example-provider")
 
+    # Consumer connector configuration (explicitly defined)
+    consumer_scheme: str = environ.var(default="http")
+    consumer_host: str = environ.var(default="host.docker.internal")
+    consumer_connector_id: str = environ.var(default="example-consumer")
+    consumer_participant_id: str = environ.var(default="example-consumer")
+    consumer_management_port: int = environ.var(default=29193, converter=int)
+    consumer_management_path: str = environ.var(default="/management")
+    consumer_control_port: int = environ.var(default=29192, converter=int)
+    consumer_control_path: str = environ.var(default="/control")
+    consumer_public_port: int = environ.var(default=29291, converter=int)
+    consumer_public_path: str = environ.var(default="/public")
+    consumer_protocol_port: int = environ.var(default=29194, converter=int)
+    consumer_protocol_path: str = environ.var(default="/protocol")
+    consumer_api_key: str = environ.var(default="datacellar")
+    consumer_api_key_header: str = environ.var(default="X-API-Key")
+
     # Consumer backend SSE endpoint
-    consumer_backend_url: str = environ.var(default="http://localhost:28000")
-    api_auth_key: str = environ.var(name="EDC_CONNECTOR_API_KEY")
+    consumer_backend_url: str = environ.var(default="http://host.docker.internal:28000")
 
     # Asset configuration
     asset_id: str = environ.var(default="api-workflow-users")
@@ -90,7 +105,7 @@ class SSEPullCredentialsReceiver:
     def __init__(self, config: WorkflowConfig):
         self.config = config
         self.headers = {
-            "Authorization": f"Bearer {config.api_auth_key}",
+            "Authorization": f"Bearer {config.consumer_api_key}",
             "Accept": "text/event-stream",
         }
         self._futures: Dict[str, asyncio.Future] = {}
@@ -251,7 +266,7 @@ async def consume_asset(config: WorkflowConfig):
     """
 
     sse_receiver = SSEPullCredentialsReceiver(config)
-    controller = ConnectorController()
+    controller = ConnectorController(config=_build_consumer_config(config))
 
     try:
         # Step 1: Start SSE listener *before* negotiation
@@ -325,6 +340,77 @@ def _build_provider_config(config: WorkflowConfig):
             )()
 
     return _ProviderConfig(config.provider_api_key, config.provider_api_key_header)
+
+
+def _build_consumer_config(config: WorkflowConfig) -> AppConfig:
+    """Build an explicit AppConfig for the consumer connector.
+
+    All configuration values are explicitly provided from WorkflowConfig,
+    avoiding any hidden dependencies on environment variables.
+    """
+
+    class _ConnectorConfig:
+        """Explicit connector configuration."""
+
+        def __init__(
+            self,
+            scheme: str,
+            host: str,
+            connector_id: str,
+            participant_id: str,
+            management_port: int,
+            management_path: str,
+            control_port: int,
+            control_path: str,
+            public_port: int,
+            public_path: str,
+            protocol_port: int,
+            protocol_path: str,
+            api_key: str,
+            api_key_header: str,
+        ):
+            self.scheme = scheme
+            self.host = host
+            self.connector_id = connector_id
+            self.participant_id = participant_id
+            self.management_port = management_port
+            self.management_path = management_path
+            self.control_port = control_port
+            self.control_path = control_path
+            self.public_port = public_port
+            self.public_path = public_path
+            self.protocol_port = protocol_port
+            self.protocol_path = protocol_path
+            self.api_key = api_key
+            self.api_key_header = api_key_header
+
+    class _AppConfig:
+        """Explicit AppConfig."""
+
+        def __init__(self, connector: _ConnectorConfig):
+            self.connector = connector
+            self.cert_path = None
+            self.rabbit_url = None
+            self.http_api_port = 8000
+
+    connector_config = _ConnectorConfig(
+        scheme=config.consumer_scheme,
+        host=config.consumer_host,
+        connector_id=config.consumer_connector_id,
+        participant_id=config.consumer_participant_id,
+        management_port=config.consumer_management_port,
+        management_path=config.consumer_management_path,
+        control_port=config.consumer_control_port,
+        control_path=config.consumer_control_path,
+        public_port=config.consumer_public_port,
+        public_path=config.consumer_public_path,
+        protocol_port=config.consumer_protocol_port,
+        protocol_path=config.consumer_protocol_path,
+        api_key=config.consumer_api_key,
+        api_key_header=config.consumer_api_key_header,
+    )
+
+    return _AppConfig(connector_config)
 
 
 async def main(config: WorkflowConfig):
