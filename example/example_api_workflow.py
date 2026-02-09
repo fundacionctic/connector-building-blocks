@@ -22,11 +22,24 @@ Uses the SSE-based credential delivery (same as example_pull_sse.py).
 
 All configuration is explicitly passed to the ConnectorController and other
 components, eliminating reliance on implicit environment variables.
+
+Configuration can be provided via environment variables or loaded from a
+dotenv file using the --env-file option. This allows you to easily switch
+between different environment configurations.
+
+Usage:
+    # Use existing environment variables
+    python example_api_workflow.py
+
+    # Load configuration from a dotenv file
+    python example_api_workflow.py --env-file ../dev-config/.env.dev.consumer
 """
 
+import argparse
 import asyncio
 import json
 import logging
+import os
 import pprint
 from typing import Dict, Optional
 from urllib.parse import urlparse
@@ -44,6 +57,15 @@ from edcpy.edc_api import (
 )
 
 _logger = logging.getLogger(__name__)
+
+# Try to import dotenv, but degrade gracefully if not available
+try:
+    from dotenv import load_dotenv
+
+    _DOTENV_AVAILABLE = True
+except ImportError:
+    _DOTENV_AVAILABLE = False
+    _logger.debug("python-dotenv not available; --env-file option will be ignored")
 
 
 @environ.config(prefix="")
@@ -87,7 +109,7 @@ class WorkflowConfig:
     consumer_backend_url: str = environ.var(default="http://host.docker.internal:28000")
 
     # Asset configuration
-    asset_id: str = environ.var(default="api-workflow-users")
+    asset_id: str = environ.var(default="example-asset-managed-via-api")
     data_source_url: str = environ.var(default="https://jsonplaceholder.typicode.com")
     data_source_path: str = environ.var(default="/users")
 
@@ -118,7 +140,8 @@ class SSEPullCredentialsReceiver:
             return
 
         provider_host = urlparse(protocol_url).hostname
-        url = f"{self.config.consumer_backend_url}/pull/stream/provider/{provider_host}"
+        base_url = self.config.consumer_backend_url.rstrip("/")
+        url = f"{base_url}/pull/stream/provider/{provider_host}"
 
         _logger.info("Connecting to SSE stream for provider: %s", provider_host)
         self._connected_event.clear()
@@ -450,7 +473,67 @@ async def main(config: WorkflowConfig):
     return data
 
 
+def parse_args():
+    """Parse command line arguments."""
+
+    parser = argparse.ArgumentParser(
+        description="EDC Management API Workflow Example",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Environment Configuration:
+  Configuration can be provided via environment variables or a dotenv file.
+  Use --env-file to load environment variables from a specific file.
+  
+  Example:
+    python example_api_workflow.py --env-file ../dev-config/.env.dev.consumer
+        """,
+    )
+
+    parser.add_argument(
+        "--env-file",
+        type=str,
+        help="Path to a dotenv file to load environment variables from. "
+        "Requires python-dotenv to be installed.",
+        metavar="PATH",
+    )
+
+    return parser.parse_args()
+
+
+def load_env_file(env_file_path: str) -> bool:
+    """Load environment variables from a dotenv file.
+
+    Args:
+        env_file_path: Path to the dotenv file
+
+    Returns:
+        True if the file was loaded successfully, False otherwise
+    """
+
+    if not _DOTENV_AVAILABLE:
+        _logger.warning(
+            "Cannot load env file '%s': python-dotenv is not installed. "
+            "Install it with: pip install python-dotenv",
+            env_file_path,
+        )
+        return False
+
+    if not os.path.exists(env_file_path):
+        _logger.error("Environment file not found: %s", env_file_path)
+        return False
+
+    _logger.info("Loading environment variables from: %s", env_file_path)
+    load_dotenv(env_file_path, override=True)
+    return True
+
+
 if __name__ == "__main__":
+    args = parse_args()
+
+    # Load dotenv file if specified
+    if args.env_file:
+        load_env_file(args.env_file)
+
     config: WorkflowConfig = WorkflowConfig.from_environ()
     coloredlogs.install(level=config.log_level)
     asyncio.run(main(config))
