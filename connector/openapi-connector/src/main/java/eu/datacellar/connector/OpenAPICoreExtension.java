@@ -45,6 +45,8 @@ import org.eclipse.edc.spi.types.TypeManager;
 import org.eclipse.edc.transaction.datasource.spi.DataSourceRegistry;
 import org.postgresql.ds.PGSimpleDataSource;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.slugify.Slugify;
 
 import eu.datacellar.connector.dataplane.bodyfix.BodyFixConfig;
@@ -166,6 +168,11 @@ public class OpenAPICoreExtension implements ServiceExtension {
     // Intended for diagnosing OpenAPI content-type resolution issues.
     @Setting
     private static final String OPENAPI_FORCE_HTTPDATAFIXED = "eu.datacellar.openapi.force.httpdatafixed";
+
+    private static final String ASSET_PROP_OPENAPI_OPERATION = "https://w3id.org/edc/v0.0.1/ns/openApiOperation";
+
+    private static final ObjectMapper LEAN_MAPPER = new ObjectMapper()
+            .setSerializationInclusion(JsonInclude.Include.NON_NULL);
 
     @Inject
     private HttpRequestParamsProvider paramsProvider;
@@ -382,6 +389,13 @@ public class OpenAPICoreExtension implements ServiceExtension {
                             .build();
 
                     assetBuilder = OmegaxAssetDecorator.decorate(assetBuilder, decorationContext);
+                }
+
+                try {
+                    assetBuilder = assetBuilder.property(ASSET_PROP_OPENAPI_OPERATION,
+                            LEAN_MAPPER.writeValueAsString(operation));
+                } catch (Exception e) {
+                    monitor.warning("Failed to serialize OpenAPI operation for asset '%s': %s".formatted(assetId, e.getMessage()));
                 }
 
                 assetIndex.create(assetBuilder.build());
