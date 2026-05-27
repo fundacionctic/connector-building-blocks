@@ -691,6 +691,8 @@ public class OpenAPICoreExtension implements ServiceExtension {
 
         paramsProvider
                 .registerSourceDecorator(new ContractDetailsHttpParamsDecorator(monitor, contractNegotiationStore));
+        paramsProvider
+                .registerSourceDecorator(new PathTemplateHttpParamsDecorator(monitor));
 
         // Check if backend API authentication is configured
         // This will be used to set an API key header in the proxied requests
