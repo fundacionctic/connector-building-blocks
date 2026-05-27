@@ -359,15 +359,23 @@ public class OpenAPICoreExtension implements ServiceExtension {
                         ? BodyFixConfig.HTTP_DATA_FIXED_TYPE
                         : HTTP_DATA_TYPE;
 
-                HttpDataAddress dataAddress = HttpDataAddress.Builder.newInstance()
+                boolean hasPathParams = path.contains("{");
+
+                HttpDataAddress.Builder addressBuilder = HttpDataAddress.Builder.newInstance()
                         .name(String.format("data-address-%s", assetId))
                         .baseUrl(baseUrl)
-                        .path(path)
                         .method(method.name())
                         .contentType(contentType)
                         .proxyBody(Boolean.toString(true))
-                        .proxyQueryParams(Boolean.toString(true))
-                        .build();
+                        .proxyQueryParams(Boolean.toString(true));
+
+                if (hasPathParams) {
+                    addressBuilder.property(PathTemplateHttpParamsDecorator.PATH_TEMPLATE_PROP, path);
+                } else {
+                    addressBuilder.path(path);
+                }
+
+                HttpDataAddress dataAddress = addressBuilder.build();
                 if (!HTTP_DATA_TYPE.equals(dataAddressType)) {
                     dataAddress.setType(dataAddressType);
                 }
@@ -683,6 +691,8 @@ public class OpenAPICoreExtension implements ServiceExtension {
 
         paramsProvider
                 .registerSourceDecorator(new ContractDetailsHttpParamsDecorator(monitor, contractNegotiationStore));
+        paramsProvider
+                .registerSourceDecorator(new PathTemplateHttpParamsDecorator(monitor));
 
         // Check if backend API authentication is configured
         // This will be used to set an API key header in the proxied requests
