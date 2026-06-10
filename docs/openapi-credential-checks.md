@@ -127,3 +127,48 @@ In other words, in this case, a consumer who does not present a Verifiable Prese
 
 > [!WARNING]
 > Currently, the extension only supports checking for filters that target `$.type`, meaning we can only check for Verifiable Credential types. Future versions may implement logic for more advanced claim checks.
+
+## Restricting access to EU-based counterparties
+
+In addition to credential-type checks, the connector can restrict access to participants whose country or region of origin is within the European Union. This is implemented by the `isCounterpartyWithinEu` constraint, which inspects the counterparty's (already cryptographically verified) Verifiable Presentation and looks for the country of origin in several well-known, ontology-aligned fields across every Verifiable Credential:
+
+- `credentialSubject.countryCode` (ISO 3166-1 alpha-2, e.g. `ES`)
+- `credentialSubject.countrySubdivisionCode` (ISO 3166-2, e.g. `ES-AS`)
+- `credentialSubject.gx:headquarterAddress.gx:countrySubdivisionCode` (Gaia-X)
+- `credentialSubject.gx:legalAddress.gx:countrySubdivisionCode` (Gaia-X)
+- `credentialSubject.gx:vatID-countryCode` (Gaia-X)
+
+The discovered values are normalized to ISO 3166-1 alpha-2 country codes (subdivision codes such as `ES-AS` are reduced to `ES`, and the Greek alias `EL` is mapped to `GR`) and matched against the 27 EU member states.
+
+> [!IMPORTANT]
+> The check is **fail-closed**: if no recognizable country/region field can be found, or if any discovered code falls outside the EU-27, access is **denied**. Access is granted only when at least one country code is found and every discovered code belongs to the EU-27. As a consequence, counterparties whose credentials do not carry a country of origin will be rejected; they must be (re)issued a credential that embeds it.
+
+The constraint is enforced during both contract negotiation and transfer.
+
+### Enabling the constraint
+
+The constraint is **disabled by default**. It is added to an asset's policy when **either** of the following is true:
+
+1. **Globally**, via the connector setting:
+
+   ```properties
+   es.ctic.enable.eu.region.constraint=true
+   ```
+
+   When enabled, the constraint is added to the policy of **every** asset.
+
+2. **Per asset**, via the `x-connector-require-eu-origin` OpenAPI extension on the relevant operation, regardless of the global setting:
+
+   ```json
+   {
+     "/restricted/endpoint": {
+       "post": {
+         "summary": "EU-only endpoint",
+         "operationId": "restricted_endpoint_post",
+         "x-connector-require-eu-origin": true
+       }
+     }
+   }
+   ```
+
+This lets operators enable the check for the whole connector, or selectively for individual endpoints while leaving the rest unrestricted. When both the global flag and the per-asset extension are unset, behavior is unchanged.

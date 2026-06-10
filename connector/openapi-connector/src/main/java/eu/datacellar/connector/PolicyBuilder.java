@@ -49,14 +49,22 @@ public class PolicyBuilder {
      *                               credential requirements. Can be null if no
      *                               credential
      *                               constraints are needed.
+     * @param requireEuOrigin        Whether to add a constraint requiring the
+     *                               counterparty's country/region of origin to be
+     *                               within the EU.
      * @return A new PolicyDefinition instance with the specified constraints
      */
-    public PolicyDefinition buildPolicyDefinition(Map<String, Object> presentationDefinition) {
+    public PolicyDefinition buildPolicyDefinition(Map<String, Object> presentationDefinition,
+            boolean requireEuOrigin) {
         Policy.Builder policyBuilder = Policy.Builder.newInstance();
         Action useAction = Action.Builder.newInstance().type(ODRL_USE_ACTION_ATTRIBUTE).build();
 
         if (enableAuthorization) {
             addAuthorizationConstraint(policyBuilder, useAction);
+        }
+
+        if (requireEuOrigin) {
+            addEuRegionConstraint(policyBuilder, useAction);
         }
 
         if (presentationDefinition != null) {
@@ -92,6 +100,32 @@ public class PolicyBuilder {
                 .build();
 
         policyBuilder.permission(authorizationPermission);
+    }
+
+    /**
+     * Adds an EU-origin constraint to the policy.
+     * The constraint requires the EU-region function to evaluate to 'true'
+     * (i.e. the counterparty's country/region of origin is within the EU) for
+     * the policy to be satisfied.
+     *
+     * @param policyBuilder The policy builder to add the constraint to
+     * @param useAction     The use action to associate with the permission
+     */
+    private void addEuRegionConstraint(Policy.Builder policyBuilder, Action useAction) {
+        monitor.debug("Enabling EU-origin constraint");
+
+        AtomicConstraint euRegionConstraint = AtomicConstraint.Builder.newInstance()
+                .leftExpression(new LiteralExpression(EURegionConstraintFunction.KEY))
+                .operator(Operator.EQ)
+                .rightExpression(new LiteralExpression("true"))
+                .build();
+
+        Permission euRegionPermission = Permission.Builder.newInstance()
+                .action(useAction)
+                .constraint(euRegionConstraint)
+                .build();
+
+        policyBuilder.permission(euRegionPermission);
     }
 
     /**

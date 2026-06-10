@@ -67,6 +67,9 @@ import io.swagger.v3.parser.core.models.SwaggerParseResult;
 public class OpenAPICoreExtension implements ServiceExtension {
 
     private static final String OPENAPI_PRESENTATION_DEFINITION_EXT_KEY = "x-connector-presentation-definition";
+    // OpenAPI extension key that opts an individual operation into the EU-origin
+    // constraint, independently of the global ENABLE_EU_REGION_CONSTRAINT flag.
+    private static final String OPENAPI_REQUIRE_EU_ORIGIN_EXT_KEY = "x-connector-require-eu-origin";
     private static final String WEB_HTTP_CONTROL_PORT = "web.http.control.port";
     private static final int DEFAULT_WEB_HTTP_CONTROL_PORT = 9192;
     private static final String WEB_HTTP_PUBLIC_PORT = "web.http.public.port";
@@ -130,6 +133,15 @@ public class OpenAPICoreExtension implements ServiceExtension {
     // Default value is "false" for backward compatibility.
     @Setting
     private static final String ENABLE_AUTHORIZATION_CONSTRAINT = "es.ctic.enable.authorization.constraint";
+
+    // Controls whether the EU-origin constraint is added to the policies of all
+    // assets. When enabled (true), every asset requires the counterparty to be
+    // within the EU-27 (as determined from its verifiable credentials).
+    // Individual assets can also opt in independently via the
+    // "x-connector-require-eu-origin" OpenAPI extension, regardless of this flag.
+    // Default value is "false" for backward compatibility.
+    @Setting
+    private static final String ENABLE_EU_REGION_CONSTRAINT = "es.ctic.enable.eu.region.constraint";
 
     @Setting
     private static final String IMPLICITLY_TRUSTED_DIDS = "es.ctic.implicitly.trusted.dids";
@@ -336,6 +348,9 @@ public class OpenAPICoreExtension implements ServiceExtension {
         boolean isAuthEnabled = context.getSetting(ENABLE_AUTHORIZATION_CONSTRAINT, "false")
                 .equals("true");
 
+        boolean isEuRegionEnabledGlobally = context.getSetting(ENABLE_EU_REGION_CONSTRAINT, "false")
+                .equals("true");
+
         PolicyBuilder policyBuilder = new PolicyBuilder(monitor, isAuthEnabled);
 
         boolean isOmegaxDecorationEnabled = context.getSetting(OMEGAX_DECORATION_ENABLED, "true")
@@ -419,9 +434,13 @@ public class OpenAPICoreExtension implements ServiceExtension {
                             .get(OPENAPI_PRESENTATION_DEFINITION_EXT_KEY);
                 }
 
-                monitor.debug("Building Policy for Presentation Definition: %s".formatted(presentationDefinition));
+                boolean requireEuOrigin = isEuRegionEnabledGlobally
+                        || isEuOriginRequiredByExtension(extensions);
 
-                PolicyDefinition policy = policyBuilder.buildPolicyDefinition(presentationDefinition);
+                monitor.debug("Building Policy for Presentation Definition: %s (requireEuOrigin=%s)"
+                        .formatted(presentationDefinition, requireEuOrigin));
+
+                PolicyDefinition policy = policyBuilder.buildPolicyDefinition(presentationDefinition, requireEuOrigin);
 
                 policyStore.create(policy);
                 saveContractDefinition(policy.getId(), assetId);
@@ -429,6 +448,29 @@ public class OpenAPICoreExtension implements ServiceExtension {
                 monitor.debug(String.format("Created contract definition for asset '%s'", assetId));
             });
         });
+    }
+
+    /**
+     * Returns whether the given OpenAPI operation extensions opt the operation
+     * into the EU-origin constraint via the
+     * {@value #OPENAPI_REQUIRE_EU_ORIGIN_EXT_KEY} extension. The value is
+     * accepted either as a boolean or as the string "true".
+     *
+     * @param extensions the OpenAPI operation extensions (may be null)
+     * @return true if the extension is present and truthy, false otherwise
+     */
+    private boolean isEuOriginRequiredByExtension(Map<String, Object> extensions) {
+        if (extensions == null) {
+            return false;
+        }
+
+        Object value = extensions.get(OPENAPI_REQUIRE_EU_ORIGIN_EXT_KEY);
+
+        if (value instanceof Boolean booleanValue) {
+            return booleanValue;
+        }
+
+        return value != null && Boolean.parseBoolean(value.toString());
     }
 
     private String resolveRequestBodyContentType(RequestBody operationRequestBody, HttpMethod method, String path,
@@ -648,6 +690,17 @@ public class OpenAPICoreExtension implements ServiceExtension {
                 authorizationConstraintFunction);
 
         monitor.info("Registered policy function: %s".formatted(AuthorizationConstraintFunction.KEY));
+
+        ruleBindingRegistry.bind(EURegionConstraintFunction.KEY, NEGOTIATION_SCOPE);
+        ruleBindingRegistry.bind(EURegionConstraintFunction.KEY, TRANSFER_SCOPE);
+
+        policyEngine.registerFunction(
+                ALL_SCOPES,
+                Permission.class,
+                EURegionConstraintFunction.KEY,
+                new EURegionConstraintFunction(monitor));
+
+        monitor.info("Registered policy function: %s".formatted(EURegionConstraintFunction.KEY));
     }
 
     @Override

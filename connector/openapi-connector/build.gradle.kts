@@ -77,10 +77,19 @@ dependencies {
     ) {
         api(project(":federated-catalog"))
     }
+
+    testImplementation(libs.junit.jupiter.api)
+    testImplementation(libs.junit.jupiter.params)
+    testImplementation(libs.assertj)
+    testRuntimeOnly(libs.junit.jupiter.engine)
 }
 
 application {
     mainClass.set("org.eclipse.edc.boot.system.runtime.BaseRuntime")
+}
+
+tasks.withType<Test> {
+    useJUnitPlatform()
 }
 
 var distTar = tasks.getByName("distTar")
