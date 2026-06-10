@@ -6,8 +6,6 @@ vars:
   CONNECTOR_INTERNAL_DEBUG_PORT: 8787
 
 env:
-  MAIN_IP_ADDRESS:
-    sh: ip route get 1.2.3.4 | awk '{print $7}'
   CONNECTOR_DIR: connector
   SCRIPTS_IMAGE: edc-poc-scripts
   EDCPY_IMAGE: edcpy
@@ -28,7 +26,7 @@ tasks:
       - docker compose -f {{.ROOT_DIR}}/mock-backend/docker-compose.yml down -v
       - rm -fr {{.EXAMPLE_CONSUMER_CERTS_DIR}}
       - rm -fr {{.EXAMPLE_PROVIDER_CERTS_DIR}}
-      - cd {{.CONNECTOR_DIR}} && gradle clean
+      - cd {{.CONNECTOR_DIR}} && ./gradlew clean
       - cmd: docker rmi -f {{.SCRIPTS_IMAGE}}
         ignore_error: true
       - cmd: docker rmi -f {{.EDCPY_IMAGE}}
@@ -54,7 +52,7 @@ tasks:
       ORG_GRADLE_PROJECT_useSQLStore: "{{.SQL}}"
       ORG_GRADLE_PROJECT_enableFederatedCatalog: "{{.CATALOG}}"
     cmds:
-      - gradle {{if eq .CLEAN "true"}}clean{{end}} build
+      - ./gradlew {{if eq .CLEAN "true"}}clean{{end}} build
 
   build-edcpy-image:
     desc: Creates a Docker image containing the EDC Python SDK and its dependencies
